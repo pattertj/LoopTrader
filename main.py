@@ -11,9 +11,9 @@ logging.config.fileConfig("logConfig.ini", defaults={
                           'logfilename': 'autotrader.log'}, disable_existing_loggers=False)
 
 # Create our strategies
-cspstrat = CspStrategy(strategy_name="WealthyOption-CSP1")
-cspstrat1 = CspStrategy(strategy_name="WealthyOption-CSP2")
-cspstrat2 = CspStrategy(strategy_name="WealthyOption-CSP3")
+cspstrat = CspStrategy(strategy_name="CSP1")
+cspstrat1 = CspStrategy(strategy_name="CSP2")
+cspstrat2 = CspStrategy(strategy_name="CSP3")
 
 # Create our broker
 tdabroker = TdaBroker()

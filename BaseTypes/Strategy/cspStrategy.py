@@ -10,7 +10,7 @@ logger = logging.getLogger('autotrader')
 
 @dataclass
 class CspStrategy(Strategy, Component):
-    strategy_name: str = 'foo'
+    strategy_name: str = 'Sample Strategy'
     underlying: str = "$SPX.X"
     portfolioallocationpercent: float = 1.0
     buy_or_sell: str = 'Sell'
