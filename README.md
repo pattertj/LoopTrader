@@ -1,6 +1,7 @@
 
 <h1 align="center">
   <br>
+  <a href="https://github.com/pattertj/LoopTrader/"><img src="https://i.ibb.co/KqRpvVN/stock-exchange-app-2.png" alt="LoopTrader" width="200"></a><br>
   LoopTrader
   <br>
 </h1>
