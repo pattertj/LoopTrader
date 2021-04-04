@@ -1,4 +1,5 @@
 import logging
+from collections import OrderedDict
 from dataclasses import dataclass
 from os import getenv
 
@@ -61,20 +62,38 @@ class TdaBroker(Broker, Component):
             logger.error("Order is None")
             raise KeyError("Order is None")
 
+        # Build Request. This is the bare minimum, we could extend the available request parameters in the future
+        orderrequest = OrderedDict()
+        orderrequest['orderStrategyType'] = request.orderstrategytype
+        orderrequest['orderType'] = request.ordertype
+        orderrequest['session'] = request.ordersession
+        orderrequest['duration'] = request.duration
+        orderrequest['price'] = request.price
+        orderrequest['orderLegCollection'] = [
+            {
+                'instruction': request.instruction,
+                'quantity': request.quantity,
+                'instrument': {
+                    'assetType': request.assettype,
+                    'symbol': request.symbol
+                }
+            }
+        ]
+
         # Log the Order
-        logger.info("Your order being placed is: {} ".format(order))
+        logger.info("Your order being placed is: {} ".format(orderrequest))
 
         # Place the Order
         try:
-            orderResponse = self.getsession().place_order(
-                account=self.account_number, order=order)
-            logger.info("Order {} Placed".format(orderResponse['order_id']))
+            orderresponse = self.getsession().place_order(
+                account=self.account_number, order=orderrequest)
+            logger.info("Order {} Placed".format(orderresponse['order_id']))
         except Exception as e:
             logger.error('Error at %s', 'Place Order', exc_info=e.message)
             raise e
 
         # Return the Order ID
-        return orderResponse
+        return orderresponse
 
     def get_order(self, request: baseRR.GetOrderRequestMessage) -> baseRR.GetOrderResponseMessage:
         if request.orderid is None:
