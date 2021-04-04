@@ -11,6 +11,7 @@
   <a href="#key-features">Key Features</a> •
   <a href="#how-to-use">How To Use</a> •
   <a href="#architecture">Architecture</a> •
+  <a href="#architecture">Architecture</a> •
   <a href="#license">License</a>
 </p>
 
@@ -59,6 +60,15 @@ The Mediator abstract class is represented in it's concrete form as the Bot, it 
 
 The Broker abstract class represents the base class for concrete Broker implementations. This includes basic information about connecting to the Broker and Abstract Methods for acting on the Broker. Today LoopTrader includes support for:
 
+### How To Add Custom Strategies
+
+Custom Strategies can be added by creating a new class inheriting from Strategy and Component and implementing the required abstract methods. This pattern will allow you communicate with the bot in a standard way and keep strategies plug-and-play.
+
+### How To Add Different Brokers
+
+New Brokers can be added by creating a new class inheriting from Broker and Component and implementing the required abstract methods. This pattern will allow you communicate with the bot in a standard way and keep Brokers plug-and-play.
+
+
 * [TD Ameritrade](https://developer.tdameritrade.com/apis)
 
 ### Database
@@ -68,14 +78,6 @@ The Database abstract class provides the scaffolding CRUD operations for various
 ### Strategy
 
 The Strategy abstract class is the base for all Strategies implemented in LoopTrader. Most of the logic within LoopTrader exists within the concrete Strategies to dertermine when to open and close positions. The first concrete strategy in progress is CashSecuredPuts selected by target Delta.
-
-## How To Add Custom Strategies
-
-Custom Strategies can be added by creating a new class inheriting from Strategy and Component and implementing the required abstract methods. This pattern will allow you communicate with the bot in a standard way and keep strategies plug-and-play.
-
-## How To Add Different Brokers
-
-New Brokers can be added by creating a new class inheriting from Broker and Component and implementing the required abstract methods. This pattern will allow you communicate with the bot in a standard way and keep Brokers plug-and-play.
 
 ## License
 
