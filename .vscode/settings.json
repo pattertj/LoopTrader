@@ -1,0 +1,25 @@
+{
+    "python.testing.unittestArgs": [
+        "-v",
+        "-s",
+        "./BaseTypes",
+        "-p",
+        "test_*.py"
+    ],
+    "python.testing.pytestEnabled": false,
+    "python.testing.nosetestsEnabled": false,
+    "python.testing.unittestEnabled": true,
+    "python.linting.flake8Enabled": true,
+    "python.linting.pylintEnabled": true,
+    "python.pythonPath": "C:\\Users\\Tyler\\AppData\\Local\\Programs\\Python\\Python39\\python.exe",
+    "[python]": {
+
+        "editor.wordBasedSuggestions": false
+    },
+    "python.formatting.autopep8Args": [
+        "--ignore=E501"
+    ],
+    "python.linting.flake8Args": [
+        "--ignore=E501"
+    ]
+}
