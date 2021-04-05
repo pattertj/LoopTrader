@@ -17,7 +17,7 @@ class PlaceOrderRequestMessage():
 
 @dataclass(init=False)
 class PlaceOrderResponseMessage():
-    orderid: str
+    orderid: int
 
 
 @dataclass

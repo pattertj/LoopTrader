@@ -1,3 +1,4 @@
+import datetime as dt
 import logging
 from collections import OrderedDict
 from dataclasses import dataclass
@@ -220,19 +221,21 @@ class TdaBroker(Broker, Component):
         response = baseRR.GetMarketHoursResponseMessage()
 
         try:
-            response.isopen = hours['option']['option']['isOpen']
+            response.isopen = hours['option']['IND']['isOpen']
         except Exception as e:
             self.orders = {}
             logger.info("{} doesn't exist for the account".format(e.args[0]))
 
         try:
-            response.start = hours['option']['option']['sessionHours']['regularMarket'][0]['start']
+            start = dt.datetime.strptime(hours['option']['IND']['sessionHours']['regularMarket'][0]['start'], '%Y-%m-%dT%H:%M:%S%z').astimezone(dt.timezone.utc)
+            response.start = start
         except Exception as e:
             self.orders = {}
             logger.info("{} doesn't exist for the account".format(e.args[0]))
 
         try:
-            response.end = hours['option']['option']['sessionHours']['regularMarket'][0]['end']
+            end = dt.datetime.strptime(hours['option']['IND']['sessionHours']['regularMarket'][0]['end'], '%Y-%m-%dT%H:%M:%S%z').astimezone(dt.timezone.utc)
+            response.end = end
         except Exception as e:
             self.orders = {}
             logger.info("{} doesn't exist for the account".format(e.args[0]))
