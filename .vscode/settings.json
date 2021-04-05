@@ -11,7 +11,6 @@
     "python.testing.unittestEnabled": true,
     "python.linting.flake8Enabled": true,
     "python.linting.pylintEnabled": true,
-    "python.pythonPath": "C:\\Users\\Tyler\\AppData\\Local\\Programs\\Python\\Python39\\python.exe",
     "[python]": {
 
         "editor.wordBasedSuggestions": false
