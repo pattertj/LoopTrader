@@ -96,8 +96,11 @@ class TdaBroker(Broker, Component):
             logger.error('Error at %s', 'Place Order', exc_info=e.message)
             raise e
 
+        response = baseRR.PlaceOrderResponseMessage()
+        response.orderid = orderresponse.get('order_id')
+
         # Return the Order ID
-        return orderresponse
+        return response
 
     def get_order(self, request: baseRR.GetOrderRequestMessage) -> baseRR.GetOrderResponseMessage:
         if request.orderid is None:
