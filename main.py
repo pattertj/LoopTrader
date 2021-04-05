@@ -4,16 +4,16 @@ import logging.config
 from BaseTypes.Broker.tdaBroker import TdaBroker
 from BaseTypes.Database.sqliteDatabase import SqliteDatabase
 from BaseTypes.Mediator.botMediator import Bot
-from BaseTypes.Strategy.cspStrategy import CspStrategy
+from BaseTypes.Strategy.cspByDeltaStrategy import CspByDeltaStrategy
 
 # Create Logging
 logging.config.fileConfig("logConfig.ini", defaults={
                           'logfilename': 'autotrader.log'}, disable_existing_loggers=False)
 
 # Create our strategies
-cspstrat = CspStrategy(strategy_name="CSP1")
-cspstrat1 = CspStrategy(strategy_name="CSP2")
-cspstrat2 = CspStrategy(strategy_name="CSP3")
+cspstrat = CspByDeltaStrategy(strategy_name="CSP1")
+cspstrat1 = CspByDeltaStrategy(strategy_name="CSP2")
+cspstrat2 = CspByDeltaStrategy(strategy_name="CSP3")
 
 # Create our broker
 tdabroker = TdaBroker()
