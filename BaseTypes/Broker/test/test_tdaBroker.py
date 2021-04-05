@@ -17,7 +17,8 @@ class TestTdaBroker(unittest.TestCase):
         self.assertIsNotNone(response.currentbalances)
         self.assertIsNotNone(response.positions)
         self.assertGreaterEqual(len(response.positions), 1)
-        self.assertEqual(len(response.currentbalances), 27)
+        self.assertIsNotNone(response.currentbalances.liquidationvalue)
+        self.assertIsNotNone(response.currentbalances.buyingpower)
 
     def test_get_order(self):
         requestorderid = 4240878201
