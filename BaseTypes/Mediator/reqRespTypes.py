@@ -1,15 +1,23 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime
 
 
 @dataclass
 class PlaceOrderRequestMessage():
-    ordertype: str
+    price: float
+    quantity: int
+    symbol: str
+    orderstrategytype: str = "SINGLE"
+    duration: str = "GOOD_TILL_CANCEL"
+    assettype: str = "OPTION"
+    instruction: str = "SELL_TO_OPEN"
+    ordertype: str = "LIMIT"
+    ordersession: str = "NORMAL"
 
 
 @dataclass(init=False)
 class PlaceOrderResponseMessage():
-    ordertype: str
+    orderid: str
 
 
 @dataclass
@@ -38,10 +46,33 @@ class GetAccountRequestMessage():
 
 
 @dataclass(init=False)
+class AccountPosition():
+    shortquantity: int
+    averageprice: float
+    longquantity: int
+    assettype: str
+    symbol: str
+    description: str
+    putcall: str
+    underlyingsymbol: str
+
+
+@dataclass(init=False)
+class AccountOrder():
+    orders: bool
+
+
+@dataclass(init=False)
+class AccountBalance():
+    liquidationvalue: float
+    buyingpower: float
+
+
+@dataclass(init=False)
 class GetAccountResponseMessage():
-    positions: list
-    orders: list
-    currentbalances: dict
+    currentbalances: AccountBalance
+    positions: list = field(default_factory=list)
+    orders: list = field(default_factory=list)
 
 
 @dataclass

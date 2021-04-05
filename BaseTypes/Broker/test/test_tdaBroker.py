@@ -17,7 +17,8 @@ class TestTdaBroker(unittest.TestCase):
         self.assertIsNotNone(response.currentbalances)
         self.assertIsNotNone(response.positions)
         self.assertGreaterEqual(len(response.positions), 1)
-        self.assertEqual(len(response.currentbalances), 27)
+        self.assertIsNotNone(response.currentbalances.liquidationvalue)
+        self.assertIsNotNone(response.currentbalances.buyingpower)
 
     def test_get_order(self):
         requestorderid = 4240878201
@@ -34,6 +35,13 @@ class TestTdaBroker(unittest.TestCase):
 
         self.assertIsNotNone(response)
         self.assertEqual(response.responsecode, 200)
+
+    # RUN AT YOUR OWN RISK, THIS COULD OPEN NEW POSITIONS ON YOUR ACCOUNT. YOU MAY NEED TO REVISE THE SYMBOL
+    # def test_place_order(self):
+    #     request = baseRR.PlaceOrderRequestMessage(price=.01, quantity=1, symbol='AAPL_040521P60')
+    #     response = self.func.place_order(request)
+
+    #     self.assertIsNotNone(response)
 
     def test_get_option_chain(self):
         request = baseRR.GetOptionChainRequestMessage(symbol='$SPX.X', contracttype='PUT', includequotes=True, optionrange='OTM', fromdate=dt.date.today().strftime("%Y-%m-%d"), todate=(dt.date.today() + dt.timedelta(days=4)).strftime("%Y-%m-%d"))

@@ -1,4 +1,5 @@
 import logging
+from collections import OrderedDict
 from dataclasses import dataclass
 from os import getenv
 
@@ -34,24 +35,28 @@ class TdaBroker(Broker, Component):
             raise KeyError("Failed to get Account Details.")
 
         response = baseRR.GetAccountResponseMessage()
+        response.positions = [baseRR.AccountPosition]
+        response.orders = [baseRR.AccountOrder]
+        response.currentbalances = baseRR.AccountBalance()
 
-        try:
-            response.orders = account['securitiesAccount']['orderStrategies']
-        except KeyError as e:
-            self.orders = {}
-            logger.info("{} doesn't exist for the account".format(e.args[0]))
+        for position in account['securitiesAccount']['orderStrategies']:
+            accountposition = baseRR.AccountOrder()
+            response.orders.append(accountposition)
 
-        try:
-            response.positions = account['securitiesAccount']['positions']
-        except KeyError as e:
-            self.positions = {}
-            logger.info("{} doesn't exist for the account".format(e.args[0]))
+        for position in account['securitiesAccount']['positions']:
+            accountposition = baseRR.AccountPosition()
+            accountposition.shortquantity = int(position.get('shortQuantity'))
+            accountposition.assettype = position.get('instrument').get('assetType')
+            accountposition.averageprice = float(position.get('averagePrice'))
+            accountposition.longquantity = int(position.get('longQuantity'))
+            accountposition.description = position.get('instrument').get('description')
+            accountposition.putcall = position.get('instrument').get('putCall')
+            accountposition.symbol = position.get('instrument').get('symbol')
+            accountposition.underlyingsymbol = position.get('instrument').get('underlyingsymbol')
+            response.positions.append(accountposition)
 
-        try:
-            response.currentbalances = account['securitiesAccount']['currentBalances']
-        except KeyError as e:
-            response.currentbalances = {}
-            logger.info("{} doesn't exist for the account".format(e.args[0]))
+        response.currentbalances.buyingpower = account.get('securitiesAccount').get('currentBalances').get('buyingPower')
+        response.currentbalances.liquidationvalue = account.get('securitiesAccount').get('currentBalances').get('liquidationValue')
 
         return response
 
@@ -61,20 +66,41 @@ class TdaBroker(Broker, Component):
             logger.error("Order is None")
             raise KeyError("Order is None")
 
+        # Build Request. This is the bare minimum, we could extend the available request parameters in the future
+        orderrequest = OrderedDict()
+        orderrequest['orderStrategyType'] = request.orderstrategytype
+        orderrequest['orderType'] = request.ordertype
+        orderrequest['session'] = request.ordersession
+        orderrequest['duration'] = request.duration
+        orderrequest['price'] = request.price
+        orderrequest['orderLegCollection'] = [
+            {
+                'instruction': request.instruction,
+                'quantity': request.quantity,
+                'instrument': {
+                    'assetType': request.assettype,
+                    'symbol': request.symbol
+                }
+            }
+        ]
+
         # Log the Order
-        logger.info("Your order being placed is: {} ".format(order))
+        logger.info("Your order being placed is: {} ".format(orderrequest))
 
         # Place the Order
         try:
-            orderResponse = self.getsession().place_order(
-                account=self.account_number, order=order)
-            logger.info("Order {} Placed".format(orderResponse['order_id']))
+            orderresponse = self.getsession().place_order(
+                account=self.account_number, order=orderrequest)
+            logger.info("Order {} Placed".format(orderresponse['order_id']))
         except Exception as e:
             logger.error('Error at %s', 'Place Order', exc_info=e.message)
             raise e
 
+        response = baseRR.PlaceOrderResponseMessage()
+        response.orderid = orderresponse.get('order_id')
+
         # Return the Order ID
-        return orderResponse
+        return response
 
     def get_order(self, request: baseRR.GetOrderRequestMessage) -> baseRR.GetOrderResponseMessage:
         if request.orderid is None:
