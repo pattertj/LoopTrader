@@ -1,4 +1,4 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime
 
 
@@ -38,10 +38,33 @@ class GetAccountRequestMessage():
 
 
 @dataclass(init=False)
+class AccountPosition():
+    shortquantity: int
+    averageprice: float
+    longquantity: int
+    assettype: str
+    symbol: str
+    description: str
+    putcall: str
+    underlyingsymbol: str
+
+
+@dataclass(init=False)
+class AccountOrder():
+    orders: bool
+
+
+@dataclass(init=False)
+class AccountBalance():
+    liquidationvalue: float
+    buyingpower: float
+
+
+@dataclass(init=False)
 class GetAccountResponseMessage():
-    positions: list
-    orders: list
-    currentbalances: dict
+    currentbalances: AccountBalance
+    positions: list = field(default_factory=list)
+    orders: list = field(default_factory=list)
 
 
 @dataclass

@@ -34,24 +34,28 @@ class TdaBroker(Broker, Component):
             raise KeyError("Failed to get Account Details.")
 
         response = baseRR.GetAccountResponseMessage()
+        response.positions = [baseRR.AccountPosition]
+        response.orders = [baseRR.AccountOrder]
+        response.currentbalances = baseRR.AccountBalance()
 
-        try:
-            response.orders = account['securitiesAccount']['orderStrategies']
-        except KeyError as e:
-            self.orders = {}
-            logger.info("{} doesn't exist for the account".format(e.args[0]))
+        for position in account['securitiesAccount']['orderStrategies']:
+            accountposition = baseRR.AccountOrder()
+            response.orders.append(accountposition)
 
-        try:
-            response.positions = account['securitiesAccount']['positions']
-        except KeyError as e:
-            self.positions = {}
-            logger.info("{} doesn't exist for the account".format(e.args[0]))
+        for position in account['securitiesAccount']['positions']:
+            accountposition = baseRR.AccountPosition()
+            accountposition.shortquantity = int(position.get('shortQuantity'))
+            accountposition.assettype = position.get('instrument').get('assetType')
+            accountposition.averageprice = float(position.get('averagePrice'))
+            accountposition.longquantity = int(position.get('longQuantity'))
+            accountposition.description = position.get('instrument').get('description')
+            accountposition.putcall = position.get('instrument').get('putCall')
+            accountposition.symbol = position.get('instrument').get('symbol')
+            accountposition.underlyingsymbol = position.get('instrument').get('underlyingsymbol')
+            response.positions.append(accountposition)
 
-        try:
-            response.currentbalances = account['securitiesAccount']['currentBalances']
-        except KeyError as e:
-            response.currentbalances = {}
-            logger.info("{} doesn't exist for the account".format(e.args[0]))
+        response.currentbalances.buyingpower = account.get('securitiesAccount').get('currentBalances').get('buyingPower')
+        response.currentbalances.liquidationvalue = account.get('securitiesAccount').get('currentBalances').get('liquidationValue')
 
         return response
 
