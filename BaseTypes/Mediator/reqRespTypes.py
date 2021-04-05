@@ -4,12 +4,20 @@ from datetime import datetime
 
 @dataclass
 class PlaceOrderRequestMessage():
-    ordertype: str
+    price: float
+    quantity: int
+    symbol: str
+    orderstrategytype: str = "SINGLE"
+    duration: str = "GOOD_TILL_CANCEL"
+    assettype: str = "OPTION"
+    instruction: str = "SELL_TO_OPEN"
+    ordertype: str = "LIMIT"
+    ordersession: str = "NORMAL"
 
 
 @dataclass(init=False)
 class PlaceOrderResponseMessage():
-    ordertype: str
+    orderid: str
 
 
 @dataclass
