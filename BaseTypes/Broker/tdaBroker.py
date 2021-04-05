@@ -177,7 +177,11 @@ class TdaBroker(Broker, Component):
             logger.error("Order ID is None.")
             raise KeyError("OrderID was not provided")
 
-        return self.getsession().cancel_order(account=getenv('TDAMERITRADE_ACCOUNT_NUMBER'), order_id=str(request.orderid))
+        response = self.getsession().cancel_order(account=getenv('TDAMERITRADE_ACCOUNT_NUMBER'), order_id=str(request.orderid))
+
+        print(response)
+
+        return baseRR.CancelOrderResponseMessage()
 
     def get_market_hours(self, request: baseRR.GetMarketHoursRequestMessage) -> baseRR.GetMarketHoursResponseMessage:
         try:

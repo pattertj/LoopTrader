@@ -27,6 +27,13 @@ class TestTdaBroker(unittest.TestCase):
         self.assertIsNotNone(response)
         self.assertEqual(response.orderid, requestorderid)
 
+    def test_cancel_order(self):
+        requestorderid = 4240878201
+        request = baseRR.CancelOrderRequestMessage(requestorderid)
+        response = self.func.cancel_order(request)
+
+        self.assertIsNotNone(response)
+
     def test_get_option_chain(self):
         request = baseRR.GetOptionChainRequestMessage(symbol='$SPX.X', contracttype='PUT', includequotes=True, optionrange='OTM', fromdate=dt.date.today().strftime("%Y-%m-%d"), todate=(dt.date.today() + dt.timedelta(days=4)).strftime("%Y-%m-%d"))
         response = self.func.get_option_chain(request)
