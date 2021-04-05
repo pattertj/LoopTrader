@@ -82,7 +82,7 @@ class CancelOrderRequestMessage():
 
 @dataclass(init=False)
 class CancelOrderResponseMessage():
-    ordertype: str
+    responsecode: str
 
 
 @dataclass

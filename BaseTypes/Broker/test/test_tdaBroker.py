@@ -28,6 +28,14 @@ class TestTdaBroker(unittest.TestCase):
         self.assertIsNotNone(response)
         self.assertEqual(response.orderid, requestorderid)
 
+    def test_cancel_order(self):
+        requestorderid = 4240878201
+        request = baseRR.CancelOrderRequestMessage(requestorderid)
+        response = self.func.cancel_order(request)
+
+        self.assertIsNotNone(response)
+        self.assertEqual(response.responsecode, 200)
+
     # RUN AT YOUR OWN RISK, THIS COULD OPEN NEW POSITIONS ON YOUR ACCOUNT. YOU MAY NEED TO REVISE THE SYMBOL
     # def test_place_order(self):
     #     request = baseRR.PlaceOrderRequestMessage(price=.01, quantity=1, symbol='AAPL_040521P60')
