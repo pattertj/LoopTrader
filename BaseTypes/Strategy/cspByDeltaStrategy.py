@@ -85,7 +85,7 @@ class CspByDeltaStrategy(Strategy, Component):
 
     # Open Market Helpers
     def process_expiring_positions(self, minutestoclose):
-        # If there is more then 15min to the close, don't do this.
+        # If there is more then 15min to the close, we can skip this logic.
         if minutestoclose > 15:
             return
 
@@ -109,16 +109,19 @@ class CspByDeltaStrategy(Strategy, Component):
 
         response = [baseRR.PlaceOrderResponseMessage]
 
-        # Check for expiration today
-        # for position in account.positions:
-        # if position.expirationdate == now:
-        # Check DB if it is our positions
-        # If true, process it
-        # Get today's option chain
-        # Find a cheap option to offset
-        # Build Order
-        # Append to Reponse
-        # response.append(offsetorder)
+        # Check all positions
+        for position in account.positions:
+            # Check if position is expiring today
+            if position.expirationdate.date() == dt.datetime.now().date():
+                # Check DB if it is our positions
+                if True:
+                    # Get today's option chain
+                    optionchainrequest = baseRR.GetOptionChainRequestMessage(symbol=self.underlying, contracttype='PUT', includequotes=True, optionrange='OTM', fromdate=dt.date.today().strftime("%Y-%m-%d"), todate=(dt.date.today().strftime("%Y-%m-%d")))
+                    optionchainresponse = self.mediator.get_option_chain(optionchainrequest)
+                    # Find a cheap option to offset
+                    # Build Order
+                    # Append to Reponse
+                    # response.append(offsetorder)
 
         # Once we have reviewed all postiions, exit.
         return response

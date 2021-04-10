@@ -31,12 +31,28 @@ class GetOptionChainRequestMessage():
 
 
 @dataclass(init=False)
+class OptionStrike():
+    putcall: str
+    symbol: str
+    description: str
+    bid: float
+    ask: float
+    delta: float
+    gamma: float
+    theta: float
+    gamma: float
+    iv: float
+    strike: float
+    expirationdate: datetime
+
+
+@dataclass(init=False)
 class GetOptionChainResponseMessage():
     symbol: str
     status: str
     underlyinglastprice: float
-    putexpdatemap: dict
-    callexpdatemap: dict
+    putexpdatemap: dict[datetime, list[OptionStrike]]
+    callexpdatemap: dict[datetime, list[OptionStrike]]
 
 
 @dataclass
@@ -55,6 +71,7 @@ class AccountPosition():
     description: str
     putcall: str
     underlyingsymbol: str
+    expirationdate: datetime
 
 
 @dataclass(init=False)
