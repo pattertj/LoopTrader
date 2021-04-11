@@ -1,13 +1,14 @@
-from BaseTypes.Component.abstractComponent import Component
 import abc
 from dataclasses import dataclass
 
-import BaseTypes.Mediator.reqRespTypes as baseRR
+from BaseTypes.Component.abstractComponent import Component
+
+# import BaseTypes.Mediator.reqRespTypes as baseRR
 
 
 @dataclass
 class Notifier(abc.ABC, Component):
-    client_id: str
+    token: str
 
     @abc.abstractmethod
     def do_something(self) -> None:

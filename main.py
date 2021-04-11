@@ -4,6 +4,7 @@ import logging.config
 from BaseTypes.Broker.tdaBroker import TdaBroker
 from BaseTypes.Database.sqliteDatabase import SqliteDatabase
 from BaseTypes.Mediator.botMediator import Bot
+from BaseTypes.Notifier.telegramNotifier import TelegramNotifier
 from BaseTypes.Strategy.cspStrategy import CspStrategy
 
 # Create Logging
@@ -20,6 +21,9 @@ tdabroker = TdaBroker()
 
 # Create our local DB
 sqlitedb = SqliteDatabase()
+
+# Create our notifier
+telegram_bot = TelegramNotifier()
 
 # Create our Bot
 bot = Bot(broker=tdabroker, strategies=[cspstrat, cspstrat1, cspstrat2], database=sqlitedb)
