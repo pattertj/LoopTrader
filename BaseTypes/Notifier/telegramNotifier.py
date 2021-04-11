@@ -1,26 +1,32 @@
 import logging
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from os import getenv
 
-# import BaseTypes.Mediator.reqRespTypes as baseRR
-from BaseTypes.Notifier.abstractNotifier import Notifier
 from BaseTypes.Component.abstractComponent import Component
-from telegram.ext import Updater, CommandHandler, MessageHandler, Filters
+from BaseTypes.Notifier.abstractNotifier import Notifier
+from telegram import Update
+from telegram.ext import CommandHandler, Filters, MessageHandler, Updater
+from telegram.ext.callbackcontext import CallbackContext
+from telegram.ext.dispatcher import Dispatcher
 
 logger = logging.getLogger('autotrader')
 
 
 @dataclass
 class TelegramNotifier(Notifier, Component):
-    token: str = getenv('TELEGRAM_TOKEN')
+    updater: Updater = field(init=False)
+    chatid: int = field(init=False)
 
     def __post_init__(self):
+        token = getenv('TELEGRAM_TOKEN')
+        self.chatid = getenv('TELEGRAM_CHATID')
+
         # create the updater, that will automatically create also a dispatcher and a queue to make them dialoge
-        updater = Updater(self.token, use_context=True)
-        dispatcher = updater.dispatcher
+        self.updater = Updater(token, use_context=True)
+        dispatcher = Dispatcher(self.updater.dispatcher)
 
         # add handlers for start and help commands
-        dispatcher.add_handler(CommandHandler("start", self.start))
+        #  dispatcher.add_handler(CommandHandler("start", self.start))
         dispatcher.add_handler(CommandHandler("help", help))
 
         # add an handler for normal text (not commands)
@@ -30,25 +36,24 @@ class TelegramNotifier(Notifier, Component):
         dispatcher.add_error_handler(self.error)
 
         # start your shiny new bot
-        updater.start_polling()
+        self.updater.start_polling()
 
-    def do_something(self) -> None:
-        pass
+    def send_notification(self, msg: str) -> None:
+        self.updater.bot.send_message(chat_id=self.chatid, text=msg, parse_mode='MarkdownV2')
 
     # function to handle the /start command
-    def start(self, update, context):
+    def start(self, update: Update, context: CallbackContext):
         update.message.reply_text('start command received')
 
     # function to handle the /help command
-    def help(self, update, context):
+    def help(self, update: Update, context: CallbackContext):
         update.message.reply_text('help command received')
 
     # function to handle errors occured in the dispatcher
-    def error(self, update, context):
+    def error(self, update: Update, context: CallbackContext):
         update.message.reply_text('an error occured')
 
     # function to handle normal text
-    def text(self, update, context):
-        update.message.reply_text("Hi Monia")
-        # text_received = update.message.text
-        # update.message.reply_text(f'did you said "{text_received}" ?')
+    def text(self, update: Update, context: CallbackContext):
+        text_received = update.message.text
+        update.message.reply_text(f'did you said "{text_received}" ?')

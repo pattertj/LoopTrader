@@ -11,6 +11,6 @@ class Notifier(abc.ABC, Component):
     token: str
 
     @abc.abstractmethod
-    def do_something(self) -> None:
+    def send_notification(self) -> None:
         raise NotImplementedError(
             "Each strategy must implement the 'do_something' method.")

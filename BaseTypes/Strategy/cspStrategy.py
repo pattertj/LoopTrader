@@ -43,5 +43,5 @@ class CspStrategy(Strategy, Component):
         #       Re-open closing orders
         #   Else
         #       Exit.
-        print("Alive")
+        self.mediator.send_notification("Alive")
         pass

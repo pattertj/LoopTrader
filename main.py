@@ -26,7 +26,7 @@ sqlitedb = SqliteDatabase()
 telegram_bot = TelegramNotifier()
 
 # Create our Bot
-bot = Bot(broker=tdabroker, strategies=[cspstrat, cspstrat1, cspstrat2], database=sqlitedb)
+bot = Bot(broker=tdabroker, strategies=[cspstrat, cspstrat1, cspstrat2], database=sqlitedb, notifier=telegram_bot)
 
 # Run Bot
 bot.process_strategies()

@@ -7,6 +7,7 @@ import BaseTypes.Mediator.reqRespTypes as baseRR
 from BaseTypes.Broker.abstractBroker import Broker
 from BaseTypes.Database.abstractDatabase import Database
 from BaseTypes.Mediator.abstractMediator import Mediator
+from BaseTypes.Notifier.abstractNotifier import Notifier
 from BaseTypes.Strategy.abstractStrategy import Strategy
 
 logger = logging.getLogger('autotrader')
@@ -15,6 +16,7 @@ logger = logging.getLogger('autotrader')
 @dataclass
 class Bot(Mediator):
     broker: Broker
+    notifier: Notifier
     database: Database
     strategies: list[Strategy] = field(default_factory=list)
     botloopfrequency: int = 30
@@ -52,3 +54,6 @@ class Bot(Mediator):
 
     def get_option_chain(self, request: baseRR.GetOptionChainRequestMessage) -> baseRR.GetOptionChainResponseMessage:
         return self.broker.get_option_chain(request)
+
+    def send_notification(self, msg: str) -> None:
+        self.notifier.send_notification(msg)
