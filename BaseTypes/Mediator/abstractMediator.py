@@ -40,3 +40,8 @@ class Mediator(abc.ABC):
     def get_order(self, request: baseRR.GetOrderRequestMessage) -> baseRR.GetOrderResponseMessage:
         raise NotImplementedError(
             "Each strategy must implement the 'Get_Order' method.")
+
+    @abc.abstractmethod
+    def send_notification(self, msg: str) -> None:
+        raise NotImplementedError(
+            "Each strategy must implement the 'send_notification' method.")
