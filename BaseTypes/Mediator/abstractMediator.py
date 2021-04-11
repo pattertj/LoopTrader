@@ -6,6 +6,8 @@ import BaseTypes.Mediator.reqRespTypes as baseRR
 
 @dataclass
 class Mediator(abc.ABC):
+    killswitch: bool
+
     @abc.abstractmethod
     def process_strategies(self) -> bool:
         raise NotImplementedError(
@@ -45,3 +47,8 @@ class Mediator(abc.ABC):
     def send_notification(self, msg: str) -> None:
         raise NotImplementedError(
             "Each strategy must implement the 'send_notification' method.")
+
+    @abc.abstractmethod
+    def set_kill_switch(self, kill_switch: bool) -> None:
+        raise NotImplementedError(
+            "Each strategy must implement the 'set_kill_switch' method.")
