@@ -8,7 +8,6 @@ from BaseTypes.Component.abstractComponent import Component
 
 @dataclass
 class Notifier(abc.ABC, Component):
-    token: str
 
     @abc.abstractmethod
     def send_notification(self) -> None:
