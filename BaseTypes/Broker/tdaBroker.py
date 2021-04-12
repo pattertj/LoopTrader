@@ -39,21 +39,26 @@ class TdaBroker(Broker, Component):
         response.orders = [baseRR.AccountOrder]
         response.currentbalances = baseRR.AccountBalance()
 
-        for position in account['securitiesAccount']['orderStrategies']:
-            accountposition = baseRR.AccountOrder()
-            response.orders.append(accountposition)
+        orders = account.get('securitiesAccount').get('orderStrategies')
+        positions = account.get('securitiesAccount').get('positions')
 
-        for position in account['securitiesAccount']['positions']:
-            accountposition = baseRR.AccountPosition()
-            accountposition.shortquantity = int(position.get('shortQuantity'))
-            accountposition.assettype = position.get('instrument').get('assetType')
-            accountposition.averageprice = float(position.get('averagePrice'))
-            accountposition.longquantity = int(position.get('longQuantity'))
-            accountposition.description = position.get('instrument').get('description')
-            accountposition.putcall = position.get('instrument').get('putCall')
-            accountposition.symbol = position.get('instrument').get('symbol')
-            accountposition.underlyingsymbol = position.get('instrument').get('underlyingsymbol')
-            response.positions.append(accountposition)
+        if orders is not None:
+            for order in orders:
+                order = baseRR.AccountOrder()
+                response.orders.append(order)
+
+        if positions is not None:
+            for position in positions:
+                accountposition = baseRR.AccountPosition()
+                accountposition.shortquantity = int(position.get('shortQuantity'))
+                accountposition.assettype = position.get('instrument').get('assetType')
+                accountposition.averageprice = float(position.get('averagePrice'))
+                accountposition.longquantity = int(position.get('longQuantity'))
+                accountposition.description = position.get('instrument').get('description')
+                accountposition.putcall = position.get('instrument').get('putCall')
+                accountposition.symbol = position.get('instrument').get('symbol')
+                accountposition.underlyingsymbol = position.get('instrument').get('underlyingsymbol')
+                response.positions.append(accountposition)
 
         response.currentbalances.buyingpower = account.get('securitiesAccount').get('currentBalances').get('buyingPower')
         response.currentbalances.liquidationvalue = account.get('securitiesAccount').get('currentBalances').get('liquidationValue')
