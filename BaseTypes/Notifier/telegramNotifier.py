@@ -50,7 +50,7 @@ class TelegramNotifier(Notifier, Component):
     # function to handle the /start command
     def killswitch(self, update: Update, context: CallbackContext):
         self.mediator.set_kill_switch(True)
-        update.message.reply_text('Kill switch, flipped. Awaiting confirmation...')
+        update.message.reply_text(r"Kill switch, flipped. Awaiting confirmation...")
 
     # function to handle the /help command
     def help(self, update: Update, context: CallbackContext):
@@ -109,8 +109,8 @@ class TelegramNotifier(Notifier, Component):
 
     # function to handle errors occured in the dispatcher
     def error(self, update: Update, context: CallbackContext):
-        update.message.reply_text('An error occured, check the logs.')
+        update.message.reply_text(r"An error occured, check the logs.")
 
     # function to handle normal text
     def text(self, update: Update, context: CallbackContext):
-        update.message.reply_text("Sorry, I don't recognize your command.")
+        update.message.reply_text(r"Sorry, I don't recognize your command.")
