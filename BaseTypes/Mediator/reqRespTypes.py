@@ -131,3 +131,13 @@ class GetMarketHoursResponseMessage():
     isopen: bool
     start: datetime
     end: datetime
+
+
+@dataclass(init=False)
+class SendNotificationRequestMessage():
+    message: str
+
+
+@dataclass(init=False)
+class SetKillSwitchRequestMessage():
+    kill_switch: bool
