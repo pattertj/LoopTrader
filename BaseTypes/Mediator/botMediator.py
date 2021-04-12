@@ -68,8 +68,8 @@ class Bot(Mediator):
     def get_option_chain(self, request: baseRR.GetOptionChainRequestMessage) -> baseRR.GetOptionChainResponseMessage:
         return self.broker.get_option_chain(request)
 
-    def send_notification(self, msg: str) -> None:
-        self.notifier.send_notification(msg)
+    def send_notification(self, request: baseRR.SendNotificationRequestMessage) -> None:
+        self.notifier.send_notification(request.message)
 
-    def set_kill_switch(self, kill_switch: bool) -> None:
-        self.killswitch = kill_switch
+    def set_kill_switch(self, request: baseRR.SetKillSwitchRequestMessage) -> None:
+        self.killswitch = request.kill_switch

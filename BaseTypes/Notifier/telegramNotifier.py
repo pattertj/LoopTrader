@@ -1,8 +1,9 @@
 import logging
 import re
 from dataclasses import dataclass, field
-from os import getenv, replace
+from os import getenv
 
+import BaseTypes.Mediator.reqRespTypes as baseRR
 from BaseTypes.Component.abstractComponent import Component
 from BaseTypes.Mediator.reqRespTypes import GetAccountRequestMessage
 from BaseTypes.Notifier.abstractNotifier import Notifier
@@ -30,6 +31,8 @@ class TelegramNotifier(Notifier, Component):
         #  dispatcher.add_handler(CommandHandler("start", self.start))
         dispatcher.add_handler(CommandHandler("help", self.help))
         dispatcher.add_handler(CommandHandler("account", self.account))
+        dispatcher.add_handler(CommandHandler("orders", self.orders))
+        dispatcher.add_handler(CommandHandler("positions", self.positions))
         dispatcher.add_handler(CommandHandler("killswitch", self.killswitch))
 
         # add an handler for normal text (not commands)
@@ -41,8 +44,8 @@ class TelegramNotifier(Notifier, Component):
         # start your shiny new bot
         self.updater.start_polling()
 
-    def send_notification(self, msg: str) -> None:
-        self.updater.bot.send_message(chat_id=self.chatid, text=re.escape(msg), parse_mode='MarkdownV2')
+    def send_notification(self, request: baseRR.SendNotificationRequestMessage) -> None:
+        self.updater.bot.send_message(chat_id=self.chatid, text=re.escape(request.message), parse_mode='MarkdownV2')
 
     # function to handle the /start command
     def killswitch(self, update: Update, context: CallbackContext):
@@ -51,20 +54,56 @@ class TelegramNotifier(Notifier, Component):
 
     # function to handle the /help command
     def help(self, update: Update, context: CallbackContext):
-        update.message.reply_text(text="Welcome to LoopTrader, I'm a Telegram bot here to help you manage your LoopTrader\! There are a few things I can do: \r\n\n \- *Push Notifications* will alert you to alerts you setup in your LoopTrader\. \r\n \- */killswitch* will shutdown your LoopTrader\\. \r\n \- */account* will display your latest account details\.", parse_mode='MarkdownV2')
+        update.message.reply_text(text=r"Welcome to LoopTrader, I'm a Telegram bot here to help you manage your LoopTrader\! There are a few things I can do: \r\n\n \- *Push Notifications* will alert you to alerts you setup in your LoopTrader\. \r\n \- */killswitch* will shutdown your LoopTrader\\. \r\n \- */account* will display your latest account details\. \r\n \- */orders* will display your open Orders. \r\n \- */positions* will show your open Positions\\.", parse_mode='MarkdownV2')
 
-    # function to handle normal text
-    def account(self, update: Update, context: CallbackContext):
+    # function to handle /orders command
+    def orders(self, update: Update, context: CallbackContext):
         # Get Account
-        request = GetAccountRequestMessage(True, True)
+        request = GetAccountRequestMessage(True, False)
         account = self.mediator.get_account(request)
 
         # Build Reply
-        reply = str(account.currentbalances.liquidationvalue)
+        reply = r"Open Orders: \r\n\n"
+        for order in account.orders:
+            reply += r"\r\n \- *Order*"
 
         # Send Message
         try:
-            update.message.reply_text(text=re.escape(reply), parse_mode='MarkdownV2')
+            update.message.reply_text(text=reply, parse_mode='MarkdownV2')
+        except Exception as e:
+            print(e)
+
+    # function to handle /positions command
+    def positions(self, update: Update, context: CallbackContext):
+        # Get Account
+        request = GetAccountRequestMessage(False, True)
+        account = self.mediator.get_account(request)
+
+        # Build Reply
+        reply = r"Account Positions:"
+        for position in account.positions:
+            reply += r"\r\n \- *Position*"
+
+        # Send Message
+        try:
+            update.message.reply_text(text=reply, parse_mode='MarkdownV2')
+        except Exception as e:
+            print(e)
+
+    # function to handle /account command
+    def account(self, update: Update, context: CallbackContext):
+        # Get Account
+        request = GetAccountRequestMessage(False, False)
+        account = self.mediator.get_account(request)
+
+        # Build Reply
+        reply = r"Account Balances:"
+        reply += r"\r\n\n \- *Liquidation Value:*" + str(account.currentbalances.liquidationvalue)
+        reply += r"\r\n \- *Buying Power:*" + str(account.currentbalances.buyingpower)
+
+        # Send Message
+        try:
+            update.message.reply_text(text=reply, parse_mode='MarkdownV2')
         except Exception as e:
             print(e)
 
