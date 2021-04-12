@@ -22,6 +22,7 @@ The goal for LoopTrader is to provide a flexible engine for running one or more 
 * Simple to setup and run multiple trading bots
 * Extensibility for various brokers, trading strategies, and logging patterns
 * Local storage for trades and orders
+* Support for notifications and interactions through tools like Telegram  
 
 ## How To Use
 
@@ -33,6 +34,8 @@ $ git clone https://github.com/pattertj/LoopTrader/
 
 # Go into the repository
 $ cd LoopTrader
+
+# Setup the relevant environment variables in your .env file
 
 # Run main.py
 $ python main.py
@@ -58,7 +61,11 @@ The Mediator abstract class is represented in it's concrete form as the Bot, it 
 
 ### Broker
 
-The Broker abstract class represents the base class for concrete Broker implementations. This includes basic information about connecting to the Broker and Abstract Methods for acting on the Broker. Today LoopTrader includes support for:
+The Broker abstract class represents the base class for concrete Broker implementations. This includes basic information about connecting to the Broker and Abstract Methods for acting on the Broker.
+
+### Notifier
+
+The Notifier abstract class is how we can receive notifications and interact with our bot.
 
 ### How To Add Custom Strategies
 
