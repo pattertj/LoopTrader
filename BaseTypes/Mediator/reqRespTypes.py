@@ -88,8 +88,8 @@ class AccountBalance():
 @dataclass(init=False)
 class GetAccountResponseMessage():
     currentbalances: AccountBalance
-    positions: list = field(default_factory=list)
-    orders: list = field(default_factory=list)
+    positions: list[AccountPosition] = field(default_factory=list)
+    orders: list[AccountOrder] = field(default_factory=list)
 
 
 @dataclass
@@ -133,11 +133,11 @@ class GetMarketHoursResponseMessage():
     end: datetime
 
 
-@dataclass(init=False)
+@dataclass
 class SendNotificationRequestMessage():
     message: str
 
 
-@dataclass(init=False)
+@dataclass
 class SetKillSwitchRequestMessage():
     kill_switch: bool

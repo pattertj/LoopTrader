@@ -11,6 +11,7 @@ from telegram import Update
 from telegram.ext import CommandHandler, Filters, MessageHandler, Updater
 from telegram.ext.callbackcontext import CallbackContext
 
+
 logger = logging.getLogger('autotrader')
 
 
@@ -80,13 +81,18 @@ class TelegramNotifier(Notifier, Component):
         account = self.mediator.get_account(request)
 
         # Build Reply
-        reply = r"Account Positions:"
+        reply = "Account Positions:"
+
         for position in account.positions:
-            reply += r"\r\n \- *Position*"
+            try:
+                qty = position.shortquantity + position.longquantity
+                reply += "<br/> - " + str(qty) + "x " + str(position.symbol) + " @ $" + str(position.averageprice)
+            except Exception as e:
+                print(e)
 
         # Send Message
         try:
-            update.message.reply_text(text=reply, parse_mode='MarkdownV2')
+            update.message.reply_text(text=reply, parse_mode='HTML')
         except Exception as e:
             print(e)
 

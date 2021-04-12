@@ -48,7 +48,7 @@ class Bot(Mediator):
             time.sleep(self.botloopfrequency - ((time.time() - starttime) % self.botloopfrequency))
 
         # If the loop is exited, send a notification
-        self.send_notification("Bot Terminated.")
+        self.send_notification(baseRR.SendNotificationRequestMessage(message="Bot Terminated."))
 
     def get_account(self, request: baseRR.GetAccountRequestMessage) -> baseRR.GetAccountResponseMessage:
         return self.broker.get_account(request)
@@ -69,7 +69,7 @@ class Bot(Mediator):
         return self.broker.get_option_chain(request)
 
     def send_notification(self, request: baseRR.SendNotificationRequestMessage) -> None:
-        self.notifier.send_notification(request.message)
+        self.notifier.send_notification(request)
 
     def set_kill_switch(self, request: baseRR.SetKillSwitchRequestMessage) -> None:
-        self.killswitch = request.kill_switch
+        self.killswitch = request
