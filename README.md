@@ -85,4 +85,4 @@ GNU General Public License v3.0
 
 ---
 
-> GitHub [@pattertj](https://github.com/pattertj) &nbsp;&middot;&nbsp;
+> GitHub [@pattertj](https://github.com/pattertj)
