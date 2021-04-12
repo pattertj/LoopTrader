@@ -30,13 +30,13 @@ class TdaBroker(Broker, Component):
         try:
             account = self.getsession().get_accounts(
                 getenv('TDAMERITRADE_ACCOUNT_NUMBER'), fields=optionalfields)
-        except Exception:
-            logger.error("Failed to get Account Details.")
+        except Exception as e:
+            logger.error(e)
             raise KeyError("Failed to get Account Details.")
 
         response = baseRR.GetAccountResponseMessage()
-        response.positions = [baseRR.AccountPosition]
-        response.orders = [baseRR.AccountOrder]
+        response.positions = []
+        response.orders = []
         response.currentbalances = baseRR.AccountBalance()
 
         orders = account.get('securitiesAccount').get('orderStrategies')

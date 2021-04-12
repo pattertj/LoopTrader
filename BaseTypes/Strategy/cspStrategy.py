@@ -1,3 +1,4 @@
+import BaseTypes.Mediator.reqRespTypes as baseRR
 import logging
 import logging.config
 from dataclasses import dataclass
@@ -43,5 +44,5 @@ class CspStrategy(Strategy, Component):
         #       Re-open closing orders
         #   Else
         #       Exit.
-        self.mediator.send_notification("Alive")
+        self.mediator.send_notification(baseRR.SendNotificationRequestMessage("Alive"))
         pass
