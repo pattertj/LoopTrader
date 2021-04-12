@@ -1,6 +1,4 @@
-import datetime as dt
 import logging
-import re
 from collections import OrderedDict
 from dataclasses import dataclass
 from os import getenv
@@ -45,12 +43,12 @@ class TdaBroker(Broker, Component):
         positions = account.get('securitiesAccount').get('positions')
 
         if orders is not None:
-            for position in orders:
-                accountposition = baseRR.AccountOrder()
-                response.orders.append(accountposition)
+            for order in orders:
+                order = baseRR.AccountOrder()
+                response.orders.append(order)
 
         if positions is not None:
-            for position in account.get('securitiesAccount').get('positions'):
+            for position in positions:
                 accountposition = baseRR.AccountPosition()
                 accountposition.shortquantity = int(position.get('shortQuantity'))
                 accountposition.assettype = position.get('instrument').get('assetType')
@@ -59,12 +57,7 @@ class TdaBroker(Broker, Component):
                 accountposition.description = position.get('instrument').get('description')
                 accountposition.putcall = position.get('instrument').get('putCall')
                 accountposition.symbol = position.get('instrument').get('symbol')
-                accountposition.underlyingsymbol = position.get('instrument').get('underlyingSymbol')
-                if accountposition.description is not None:
-                    match = re.search(r'(\d{1,2}) (\w{3}) (\d{2})', accountposition.description)
-                    if match is not None:
-                        expiration = dt.datetime.strptime(match.group(), '%d %b %y')
-                        accountposition.expirationdate = expiration
+                accountposition.underlyingsymbol = position.get('instrument').get('underlyingsymbol')
                 response.positions.append(accountposition)
 
         response.currentbalances.buyingpower = account.get('securitiesAccount').get('currentBalances').get('buyingPower')
@@ -103,7 +96,7 @@ class TdaBroker(Broker, Component):
         try:
             orderresponse = self.getsession().place_order(
                 account=self.account_number, order=orderrequest)
-            logger.info("Order {} Placed".format(orderresponse.get('order_id')))
+            logger.info("Order {} Placed".format(orderresponse['order_id']))
         except Exception as e:
             logger.error('Error at %s', 'Place Order', exc_info=e.message)
             raise e
@@ -123,42 +116,59 @@ class TdaBroker(Broker, Component):
 
         response = baseRR.GetOrderResponseMessage()
 
-        response.accountid = order.get('accountId')
-        response.closetime = order.get('closeTime')
-        response.description = order.get('orderLegCollection')[0].get('instrument').get('description')
-        response.enteredtime = order.get('enteredTime')
-        response.instruction = order.get('orderLegCollection')[0].get('instruction')
-        response.orderid = order.get('orderId')
-        response.positioneffect = order.get('orderLegCollection')[0].get('positionEffect')
-        response.status = order.get('status')
-        response.symbol = order.get('orderLegCollection')[0].get('instrument').get('symbol')
+        try:
+            response.accountid = order['accountId']
+        except Exception as e:
+            self.orders = {}
+            logger.info("{} doesn't exist for the account".format(e.args[0]))
 
-        return response
+        try:
+            response.closetime = order['closeTime']
+        except Exception as e:
+            self.orders = {}
+            logger.info("{} doesn't exist for the account".format(e.args[0]))
 
-    def convert_expdatemap_to_optionstrike_list(self, expdatemap: dict) -> dict[dt.datetime, list[baseRR.OptionStrike]]:
-        response = {}
+        try:
+            response.description = order['orderLegCollection'][0]['instrument']['description']
+        except Exception as e:
+            self.orders = {}
+            logger.info("{} doesn't exist for the account".format(e.args[0]))
 
-        for date, options in expdatemap.items():
-            optionstrikes = []
-            datestring = str(date).split(":", 1)[0]
-            datetime = dt.datetime.strptime(datestring, '%Y-%m-%d')
+        try:
+            response.enteredtime = order['enteredTime']
+        except Exception as e:
+            self.orders = {}
+            logger.info("{} doesn't exist for the account".format(e.args[0]))
 
-            for strike, details in dict(options).items():
-                option = baseRR.OptionStrike()
-                option.ask = dict(details[0]).get('ask', float)
-                option.bid = dict(details[0]).get('bid', float)
-                option.delta = dict(details[0]).get('delta', float)
-                option.description = dict(details[0]).get('description', str)
-                expiration = dict(details[0]).get('expirationDate', int)
-                option.expirationdate = dt.datetime.fromtimestamp(expiration / 1000)
-                option.iv = dict(details[0]).get('volatility', float)
-                option.putcall = dict(details[0]).get('putCall', str)
-                option.strike = float(strike)
-                option.symbol = dict(details[0]).get('symbol', str)
-                option.theta = dict(details[0]).get('theta', float)
-                optionstrikes.append(option)
+        try:
+            response.instruction = order['orderLegCollection'][0]['instruction']
+        except Exception as e:
+            self.orders = {}
+            logger.info("{} doesn't exist for the account".format(e.args[0]))
 
-            response[datetime] = optionstrikes
+        try:
+            response.orderid = order['orderId']
+        except Exception as e:
+            self.orders = {}
+            logger.info("{} doesn't exist for the account".format(e.args[0]))
+
+        try:
+            response.positioneffect = order['orderLegCollection'][0]['positionEffect']
+        except Exception as e:
+            self.orders = {}
+            logger.info("{} doesn't exist for the account".format(e.args[0]))
+
+        try:
+            response.status = order['status']
+        except Exception as e:
+            self.orders = {}
+            logger.info("{} doesn't exist for the account".format(e.args[0]))
+
+        try:
+            response.symbol = order['orderLegCollection'][0]['instrument']['symbol']
+        except Exception as e:
+            self.orders = {}
+            logger.info("{} doesn't exist for the account".format(e.args[0]))
 
         return response
 
@@ -185,11 +195,11 @@ class TdaBroker(Broker, Component):
             raise KeyError("Invalid OptionChainRequest.")
 
         response = baseRR.GetOptionChainResponseMessage()
-        response.symbol = optionschain.get('symbol')
-        response.status = optionschain.get('status')
-        response.underlyinglastprice = optionschain.get('underlyingPrice')
-        response.putexpdatemap = self.convert_expdatemap_to_optionstrike_list(optionschain.get('putExpDateMap', dict))
-        response.callexpdatemap = self.convert_expdatemap_to_optionstrike_list(optionschain.get('callExpDateMap', dict))
+        response.symbol = optionschain['symbol']
+        response.status = optionschain['status']
+        response.underlyinglastprice = optionschain['underlyingPrice']
+        response.putexpdatemap = optionschain['putExpDateMap']
+        response.callexpdatemap = optionschain['callExpDateMap']
 
         return response
 
@@ -214,13 +224,23 @@ class TdaBroker(Broker, Component):
 
         response = baseRR.GetMarketHoursResponseMessage()
 
-        response.isopen = hours.get('option').get('IND').get('isOpen')
+        try:
+            response.isopen = hours['option']['option']['isOpen']
+        except Exception as e:
+            self.orders = {}
+            logger.info("{} doesn't exist for the account".format(e.args[0]))
 
-        start = dt.datetime.strptime(hours.get('option').get('IND').get('sessionHours').get('regularMarket')[0].get('start'), '%Y-%m-%dT%H:%M:%S%z').astimezone(dt.timezone.utc)
-        response.start = start
+        try:
+            response.start = hours['option']['option']['sessionHours']['regularMarket'][0]['start']
+        except Exception as e:
+            self.orders = {}
+            logger.info("{} doesn't exist for the account".format(e.args[0]))
 
-        end = dt.datetime.strptime(hours.get('option').get('IND').get('sessionHours').get('regularMarket')[0].get('end'), '%Y-%m-%dT%H:%M:%S%z').astimezone(dt.timezone.utc)
-        response.end = end
+        try:
+            response.end = hours['option']['option']['sessionHours']['regularMarket'][0]['end']
+        except Exception as e:
+            self.orders = {}
+            logger.info("{} doesn't exist for the account".format(e.args[0]))
 
         return response
 
