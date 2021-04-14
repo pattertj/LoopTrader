@@ -102,6 +102,14 @@ class TelegramNotifier(Notifier, Component):
         # Send Message
         update.message.reply_text(text=msg, parse_mode=ParseMode.HTML, quote=False)
 
+    # function to handle errors occured in the dispatcher
+    def error(self, update: Update, context: CallbackContext):
+        update.message.reply_text(r"An error occured, check the logs.")
+
+    # function to handle normal text
+    def text(self, update: Update, context: CallbackContext):
+        update.message.reply_text(r"Sorry, I don't recognize your command.")
+
     def build_balances_message(self) -> str:
         # Get Account
         request = GetAccountRequestMessage(False, False)
@@ -141,14 +149,6 @@ class TelegramNotifier(Notifier, Component):
                 reply += " \r\n <code>- {}x {} {} @ ${}</code>".format(str(order.quantity), str(order.legs[0].instruction), str(order.legs[0].symbol), "{:,.2f}".format(order.price))
 
         return reply
-
-    # function to handle errors occured in the dispatcher
-    def error(self, update: Update, context: CallbackContext):
-        update.message.reply_text(r"An error occured, check the logs.")
-
-    # function to handle normal text
-    def text(self, update: Update, context: CallbackContext):
-        update.message.reply_text(r"Sorry, I don't recognize your command.")
 
     def button(self, update: Update, _: CallbackContext) -> None:
         query = update.callback_query
