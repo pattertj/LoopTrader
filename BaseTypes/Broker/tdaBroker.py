@@ -20,6 +20,8 @@ class TdaBroker(Broker, Component):
     credentials_path: str = getenv('CREDENTIALS_PATH')
 
     def get_account(self, request: baseRR.GetAccountRequestMessage) -> baseRR.GetAccountResponseMessage:
+
+        # Build Request
         optionalfields = []
 
         if request.orders:
@@ -27,6 +29,7 @@ class TdaBroker(Broker, Component):
         if request.positions:
             optionalfields.append('positions')
 
+        # Get Account Details
         try:
             account = self.getsession().get_accounts(
                 getenv('TDAMERITRADE_ACCOUNT_NUMBER'), fields=optionalfields)
@@ -34,35 +37,89 @@ class TdaBroker(Broker, Component):
             logger.error(e)
             raise KeyError("Failed to get Account Details.")
 
+        # Stub response message
         response = baseRR.GetAccountResponseMessage()
         response.positions = []
         response.orders = []
         response.currentbalances = baseRR.AccountBalance()
 
-        orders = account.get('securitiesAccount').get('orderStrategies')
-        positions = account.get('securitiesAccount').get('positions')
+        # If we requested Orders, build them
+        if request.orders:
+            orders = account.get('securitiesAccount').get('orderStrategies')
 
-        if orders is not None:
-            for order in orders:
-                order = baseRR.AccountOrder()
-                response.orders.append(order)
+            # Build Orders
+            if orders is not None:
+                order: dict
+                for order in orders:
+                    # TODO: Build Order
+                    accountorder = baseRR.AccountOrder()
+                    accountorder.duration = order.get('duration')
+                    accountorder.quantity = order.get('quantity')
+                    accountorder.filledquantity = order.get('filledQuantity')
+                    accountorder.price = order.get('price')
+                    accountorder.orderid = order.get('orderId')
+                    accountorder.status = order.get('status')
+                    accountorder.enteredtime = order.get('enteredTime')
+                    accountorder.closetime = order.get('closeTime')
+                    accountorder.accountid = order.get('accountId')
+                    accountorder.cancelable = order.get('cancelable')
+                    accountorder.editable = order.get('editable')
+                    accountorder.legs = []
 
-        if positions is not None:
-            for position in positions:
-                accountposition = baseRR.AccountPosition()
-                accountposition.shortquantity = int(position.get('shortQuantity'))
-                accountposition.assettype = position.get('instrument').get('assetType')
-                accountposition.averageprice = float(position.get('averagePrice'))
-                accountposition.longquantity = int(position.get('longQuantity'))
-                accountposition.description = position.get('instrument').get('description')
-                accountposition.putcall = position.get('instrument').get('putCall')
-                accountposition.symbol = position.get('instrument').get('symbol')
-                accountposition.underlyingsymbol = position.get('instrument').get('underlyingsymbol')
-                response.positions.append(accountposition)
+                    leg: dict
+                    for leg in order.get('orderLegCollection'):
+                        # TODO: Build Leg
+                        accountorderleg = baseRR.AccountOrderLeg()
+                        accountorderleg.legid = leg.get('legId')
+                        accountorderleg.instruction = leg.get('instruction')
+                        accountorderleg.positioneffect = leg.get('positionEffect')
+                        accountorderleg.quantity = leg.get('quantity')
 
+                        instrument = dict(leg.get('instrument'))
+
+                        if instrument is not None:
+                            accountorderleg.cusip = instrument.get('cusip')
+                            accountorderleg.symbol = instrument.get('symbol')
+                            accountorderleg.description = instrument.get('description')
+                            accountorderleg.putcall = instrument.get('putCall')
+
+                        # Append Leg
+                        accountorder.legs.append(accountorderleg)
+
+                    # Append Order
+                    response.orders.append(accountorder)
+
+        # If we requested positions, build them
+        if request.positions:
+            positions = account.get('securitiesAccount').get('positions')
+
+            # Build Positions
+            if positions is not None:
+                position: dict
+                for position in positions:
+                    # Build Position
+                    accountposition = baseRR.AccountPosition()
+                    accountposition.shortquantity = int(position.get('shortQuantity'))
+                    accountposition.averageprice = float(position.get('averagePrice'))
+                    accountposition.longquantity = int(position.get('longQuantity'))
+
+                    instrument = dict(position.get('instrument'))
+
+                    if instrument is not None:
+                        accountposition.assettype = instrument.get('assetType')
+                        accountposition.description = instrument.get('description')
+                        accountposition.putcall = instrument.get('putCall')
+                        accountposition.symbol = instrument.get('symbol')
+                        accountposition.underlyingsymbol = instrument.get('underlyingSymbol')
+
+                    # Append Position
+                    response.positions.append(accountposition)
+
+        # Grab Balances
         response.currentbalances.buyingpower = account.get('securitiesAccount').get('currentBalances').get('buyingPower')
         response.currentbalances.liquidationvalue = account.get('securitiesAccount').get('currentBalances').get('liquidationValue')
 
+        # Return Results
         return response
 
     def place_order(self, request: baseRR.PlaceOrderRequestMessage) -> baseRR.PlaceOrderResponseMessage:
@@ -225,19 +282,19 @@ class TdaBroker(Broker, Component):
         response = baseRR.GetMarketHoursResponseMessage()
 
         try:
-            response.isopen = hours['option']['option']['isOpen']
+            response.isopen = hours['option']['EQO']['isOpen']
         except Exception as e:
             self.orders = {}
             logger.info("{} doesn't exist for the account".format(e.args[0]))
 
         try:
-            response.start = hours['option']['option']['sessionHours']['regularMarket'][0]['start']
+            response.start = hours['option']['EQO']['sessionHours']['regularMarket'][0]['start']
         except Exception as e:
             self.orders = {}
             logger.info("{} doesn't exist for the account".format(e.args[0]))
 
         try:
-            response.end = hours['option']['option']['sessionHours']['regularMarket'][0]['end']
+            response.end = hours['option']['EQO']['sessionHours']['regularMarket'][0]['end']
         except Exception as e:
             self.orders = {}
             logger.info("{} doesn't exist for the account".format(e.args[0]))
