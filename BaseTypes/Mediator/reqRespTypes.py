@@ -58,8 +58,32 @@ class AccountPosition():
 
 
 @dataclass(init=False)
-class AccountOrder():
+class AccountOrderLeg():
+    legid: int
     orders: bool
+    cusip: str
+    symbol: str
+    description: str
+    instruction: str
+    positioneffect: str
+    quantity: int
+    putcall: str
+
+
+@dataclass(init=False)
+class AccountOrder():
+    duration: str
+    quantity: int
+    filledquantity: int
+    price: float
+    orderid: str
+    status: str
+    enteredtime: datetime
+    closetime: datetime
+    accountid: int
+    cancelable: bool
+    editable: bool
+    legs: list[AccountOrderLeg] = field(default_factory=list)
 
 
 @dataclass(init=False)
