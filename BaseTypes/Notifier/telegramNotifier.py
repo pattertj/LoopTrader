@@ -84,7 +84,7 @@ class TelegramNotifier(Notifier, Component):
         msg = self.build_orders_message()
 
         # Send Message
-        update.message.reply_text(text=msg, parse_mode=ParseMode.HTML)
+        update.message.reply_text(text=msg, parse_mode=ParseMode.HTML, quote=False)
 
     # function to handle /positions command
     def positions(self, update: Update, context: CallbackContext):
@@ -92,7 +92,7 @@ class TelegramNotifier(Notifier, Component):
         msg = self.build_positions_message()
 
         # Send Message
-        update.message.reply_text(text=msg, parse_mode=ParseMode.HTML)
+        update.message.reply_text(text=msg, parse_mode=ParseMode.HTML, quote=False)
 
     # function to handle /account command
     def balances(self, update: Update, context: CallbackContext):
