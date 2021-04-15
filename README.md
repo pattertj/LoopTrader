@@ -32,13 +32,31 @@ Running LoopTrader does require some development experience. Configuring LoopTra
 
 Connecting to TD Ameritrade from LoopTrader leverages the [td-ameritrade-python-api](https://github.com/areed1192/td-ameritrade-python-api) project. [Installation](https://github.com/areed1192/td-ameritrade-python-api#installation) and the [Authentication Workflow](https://github.com/areed1192/td-ameritrade-python-api#authentication-workflow) should be completed before using LoopTrade with TD Ameritrade.
 
-The required configuration parameters should be setup in LoopTrader's .env file using the documented Environment Variables.
+The required configuration parameters should be setup in LoopTrader's [.env](https://github.com/pattertj/LoopTrader/blob/main/.env) file using the documented Environment Variables.
+
+    # TD Ameritrade Broker Variables
+    TDAMERITRADE_CLIENT_ID= ""
+    TDAMERITRADE_ACCOUNT_NUMBER= ""
+    REDIRECT_URL= ""
+    CREDENTIALS_PATH= ""
 
 ### Configuring Telegram
 
+The Telegram notifier uses the [python-telegram-bot](https://github.com/python-telegram-bot/python-telegram-bot) for communicating with Telegram. For personal use, you must [install](https://github.com/python-telegram-bot/python-telegram-bot#installing) the module and create a [new bot](https://core.telegram.org/bots#6-botfather) through [@BotFather](https://t.me/botfather).
+
+The required configuration parameters should be setup in LoopTrader's [.env](https://github.com/pattertj/LoopTrader/blob/main/.env) file using the documented Environment Variables.
+
+    # Telegram Notifier Variables
+    TELEGRAM_TOKEN= ""
+    TELEGRAM_CHATID= ""
+
 ### Configuring Sqlite3
 
+Sqlite3 is still in development.
+
 ### Configuring Strategies
+
+Strategies are still in development.
 
 ## Architecture
 
