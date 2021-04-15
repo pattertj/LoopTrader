@@ -6,6 +6,10 @@
   <br>
 </h1>
 
+<p align="center">
+<img src="https://img.shields.io/github/issues/pattertj/LoopTrader?style=for-the-badge"> <img src="https://img.shields.io/github/forks/pattertj/LoopTrader?style=for-the-badge"> <img src="https://img.shields.io/github/stars/pattertj/LoopTrader?style=for-the-badge"> <img src="https://img.shields.io/github/license/pattertj/LoopTrader?style=for-the-badge">
+</p>
+
 <h4 align="center">An extensible options trading bot built on top of Python.</h4>
 
 <p align="center">
