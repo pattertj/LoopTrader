@@ -24,13 +24,15 @@ The goal for LoopTrader is to provide a flexible engine for running one or more 
 * Local storage for trades and orders
 * Support for notifications and interactions through tools like Telegram  
 
+LoopTrdaer is very much a work in progress and is currently not feature complete. See the [Issues](https://github.com/pattertj/LoopTrader/issues) for what remains open, or to make a suggestion.
+
 ## How To Use
 
 Running LoopTrader does require some development experience. Configuring LoopTrader for various strategies, brokers, and enabling notifiers all take some editing of LoopTrader to work.
 
 ### Configuring TD Ameritrade/ToS
 
-Connecting to TD Ameritrade from LoopTrader leverages the [td-ameritrade-python-api](https://github.com/areed1192/td-ameritrade-python-api) project. [Installation](https://github.com/areed1192/td-ameritrade-python-api#installation) and the [Authentication Workflow](https://github.com/areed1192/td-ameritrade-python-api#authentication-workflow) should be completed before using LoopTrade with TD Ameritrade.
+Connecting to TD Ameritrade from LoopTrader leverages the [td-ameritrade-python-api](https://github.com/areed1192/td-ameritrade-python-api) project. [Installation](https://github.com/areed1192/td-ameritrade-python-api#installation) and the [Authentication Workflow](https://github.com/areed1192/td-ameritrade-python-api#authentication-workflow) should be completed before using LoopTrade with TD Ameritrade. Additionally, you should be setup with a [TD Ameritrade Developer Account](https://developer.tdameritrade.com/apis)
 
 The required configuration parameters should be setup in LoopTrader's [.env](https://github.com/pattertj/LoopTrader/blob/main/.env) file using the documented Environment Variables.
 
@@ -39,6 +41,10 @@ The required configuration parameters should be setup in LoopTrader's [.env](htt
     TDAMERITRADE_ACCOUNT_NUMBER= ""
     REDIRECT_URL= ""
     CREDENTIALS_PATH= ""
+
+#### How To Add Different Brokers
+
+New Brokers can be added by creating a new class inheriting from Broker and Component and implementing the required abstract methods. This pattern will allow you communicate with the Bot in a standard way and keep Brokers plug-and-play.
 
 ### Configuring Telegram
 
@@ -57,6 +63,10 @@ Sqlite3 is still in development.
 ### Configuring Strategies
 
 Strategies are still in development.
+
+#### How To Add Custom Strategies
+
+Custom Strategies can be added by creating a new class inheriting from Strategy and Component and implementing the required abstract methods. This pattern will allow you communicate with the bot in a standard way and keep strategies plug-and-play.
 
 ## Architecture
 
@@ -83,17 +93,6 @@ The Broker abstract class represents the base class for concrete Broker implemen
 ### Notifier
 
 The Notifier abstract class is how we can receive notifications and interact with our bot.
-
-### How To Add Custom Strategies
-
-Custom Strategies can be added by creating a new class inheriting from Strategy and Component and implementing the required abstract methods. This pattern will allow you communicate with the bot in a standard way and keep strategies plug-and-play.
-
-### How To Add Different Brokers
-
-New Brokers can be added by creating a new class inheriting from Broker and Component and implementing the required abstract methods. This pattern will allow you communicate with the bot in a standard way and keep Brokers plug-and-play.
-
-
-* [TD Ameritrade](https://developer.tdameritrade.com/apis)
 
 ### Database
 
