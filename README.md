@@ -26,20 +26,19 @@ The goal for LoopTrader is to provide a flexible engine for running one or more 
 
 ## How To Use
 
-To clone and run this application, you'll need [Git](https://git-scm.com) installed on your computer. From your command line:
+Running LoopTrader does require some development experience. Configuring LoopTrader for various strategies, brokers, and enabling notifiers all take some editing of LoopTrader to work.
 
-```bash
-# Clone this repository
-$ git clone https://github.com/pattertj/LoopTrader/
+### Configuring TD Ameritrade/ToS
 
-# Go into the repository
-$ cd LoopTrader
+Connecting to TD Ameritrade from LoopTrader leverages the [td-ameritrade-python-api](https://github.com/areed1192/td-ameritrade-python-api) project. [Installation](https://github.com/areed1192/td-ameritrade-python-api#installation) and the [Authentication Workflow](https://github.com/areed1192/td-ameritrade-python-api#authentication-workflow) should be completed before using LoopTrade with TD Ameritrade.
 
-# Setup the relevant environment variables in your .env file
+The required configuration parameters should be setup in LoopTrader's .env file using the documented Environment Variables.
 
-# Run main.py
-$ python main.py
-```
+### Configuring Telegram
+
+### Configuring Sqlite3
+
+### Configuring Strategies
 
 ## Architecture
 
