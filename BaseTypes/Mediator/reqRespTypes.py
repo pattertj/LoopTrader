@@ -1,58 +1,71 @@
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import date, datetime
+
+import attr
 
 
-@dataclass
+@attr.s(auto_attribs=True)
 class PlaceOrderRequestMessage():
-    price: float
-    quantity: int
-    symbol: str
-    orderstrategytype: str = "SINGLE"
-    duration: str = "GOOD_TILL_CANCEL"
-    assettype: str = "OPTION"
-    instruction: str = "SELL_TO_OPEN"
-    ordertype: str = "LIMIT"
-    ordersession: str = "NORMAL"
+    price: float = attr.ib(validator=attr.validators.instance_of(float))
+    quantity: int = attr.ib(validator=attr.validators.instance_of(int))
+    symbol: str = attr.ib(validator=attr.validators.instance_of(str))
+    orderstrategytype: str = attr.ib(validator=attr.validators.in_(['SINGLE', 'OCO', 'TRIGGER']))
+    duration: str = attr.ib(validator=attr.validators.in_(['DAY', 'GOOD_TILL_CANCEL', 'FILL_OR_KILL']))
+    assettype: str = attr.ib(validator=attr.validators.in_(['EQUITY', 'OPTION', 'INDEX', 'MUTUAL_FUND', 'CASH_EQUIVALENT', 'FIXED_INCOME', 'CURRENCY']))
+    instruction: str = attr.ib(validator=attr.validators.in_(['BUY', 'SELL', 'BUY_TO_COVER', 'SELL_SHORT', 'BUY_TO_OPEN', 'BUY_TO_CLOSE', 'SELL_TO_OPEN', 'SELL_TO_CLOSE', 'EXCHANGE']))
+    ordertype: str = attr.ib(validator=attr.validators.in_(['MARKET', 'LIMIT', 'STOP', 'STOP_LIMIT', 'TRAILING_STOP', 'MARKET_ON_CLOSE', 'EXERCISE', 'TRAILING_STOP_LIMIT', 'NET_DEBIT', 'NET_CREDIT', 'NET_ZERO']))
+    ordersession: str = attr.ib(validator=attr.validators.in_(['NORMAL', 'AM', 'PM', 'SEAMLESS']))
+    positioneffect: str = attr.ib(validator=attr.validators.in_(['OPENING', 'CLOSING', 'AUTOMATIC']))
 
 
-@dataclass(init=False)
+@attr.s(auto_attribs=True, init=False)
 class PlaceOrderResponseMessage():
     orderid: int
 
 
-@dataclass
+@attr.s(auto_attribs=True)
 class GetOptionChainRequestMessage():
-    symbol: str
-    contracttype: str
-    includequotes: bool
-    optionrange: str
-    fromdate: datetime
-    todate: datetime
+    symbol: str = attr.ib(validator=attr.validators.instance_of(str))
+    contracttype: str = attr.ib(validator=attr.validators.in_(['CALL', 'PUT', 'ALL']))
+    includequotes: bool = attr.ib(validator=attr.validators.instance_of(bool))
+    optionrange: str = attr.ib(validator=attr.validators.in_(['ITM', 'NTM', 'OTM', 'SAK', 'SBK', 'SNK', 'ALL']))
+    fromdate: date = attr.ib(validator=attr.validators.instance_of(date))
+    todate: date = attr.ib(validator=attr.validators.instance_of(date))
 
 
-@dataclass(init=False)
-class OptionStrike():
-    putcall: str
-    symbol: str
-    description: str
-    bid: float
-    ask: float
-    delta: float
-    gamma: float
-    theta: float
-    gamma: float
-    iv: float
-    strike: float
-    expirationdate: datetime
-
-
-@dataclass(init=False)
+@attr.s(auto_attribs=True, init=False)
 class GetOptionChainResponseMessage():
-    symbol: str
-    status: str
-    underlyinglastprice: float
-    putexpdatemap: dict[datetime, list[OptionStrike]]
-    callexpdatemap: dict[datetime, list[OptionStrike]]
+    # Define Expiration Date Object
+    @attr.s(auto_attribs=True, init=False)
+    class ExpirationDate():
+
+        # Define Strike Object
+        @attr.s(auto_attribs=True, init=False)
+        class Strike():
+            strike: float
+            bid: float
+            ask: float
+            delta: float
+            gamma: float
+            theta: float
+            vega: float
+            rho: float
+            symbol: str
+            description: str
+            putcall: str = attr.ib(validator=attr.validators.in_(['CALL', 'PUT']))
+            settlementtype: str
+            expirationtype: str
+
+        expirationdate: datetime
+        daystoexpiration: int
+        strikes: list[Strike]
+
+    symbol: str = attr.ib(validator=attr.validators.instance_of(str))
+    status: str = attr.ib(validator=attr.validators.instance_of(str))
+    underlyinglastprice: float = attr.ib(validator=attr.validators.instance_of(float))
+    volatility: float = attr.ib(validator=attr.validators.instance_of(float))
+    putexpdatemap: list[ExpirationDate]
+    callexpdatemap: list[ExpirationDate]
 
 
 @dataclass
@@ -144,17 +157,31 @@ class GetOrderResponseMessage():
     positioneffect: str
 
 
-@dataclass
+@attr.s(auto_attribs=True)
 class GetMarketHoursRequestMessage():
-    markets: list[str]
+    markets: list[str] = attr.ib(validator=attr.validators.deep_iterable(member_validator=attr.validators.in_(['OPTION', 'EQUITY', 'FUTURE', 'FOREX', 'BOND']), iterable_validator=attr.validators.instance_of(list)))
     datetime: datetime = datetime.now()
 
 
-@dataclass(init=False)
+@attr.s(auto_attribs=True, init=False)
 class GetMarketHoursResponseMessage():
-    isopen: bool
-    start: datetime
-    end: datetime
+    # Define Product Object
+    @attr.s(auto_attribs=True, init=False)
+    class Product():
+
+        # Define Session Object
+        @attr.s(auto_attribs=True, init=False)
+        class Session():
+            session: str
+            start: datetime
+            end: datetime
+
+        product: str
+        productname: str
+        sessions: list[Session]
+
+    markettype: str
+    products: list[Product]
 
 
 @dataclass
