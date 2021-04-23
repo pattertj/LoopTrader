@@ -58,7 +58,7 @@ class GetOptionChainResponseMessage():
 
         expirationdate: datetime
         daystoexpiration: int
-        strikes: list[Strike]
+        strikes: dict[float, Strike]
 
     symbol: str = attr.ib(validator=attr.validators.instance_of(str))
     status: str = attr.ib(validator=attr.validators.instance_of(str))
@@ -159,29 +159,36 @@ class GetOrderResponseMessage():
 
 @attr.s(auto_attribs=True)
 class GetMarketHoursRequestMessage():
-    markets: list[str] = attr.ib(validator=attr.validators.deep_iterable(member_validator=attr.validators.in_(['OPTION', 'EQUITY', 'FUTURE', 'FOREX', 'BOND']), iterable_validator=attr.validators.instance_of(list)))
+    market: str = attr.ib(validator=attr.validators.in_(['OPTION', 'EQUITY', 'FUTURE', 'FOREX', 'BOND']))
+    product: str = attr.ib(validator=attr.validators.in_(['EQO', 'IND']))
     datetime: datetime = datetime.now()
 
 
 @attr.s(auto_attribs=True, init=False)
 class GetMarketHoursResponseMessage():
-    # Define Product Object
-    @attr.s(auto_attribs=True, init=False)
-    class Product():
+    start: datetime = attr.ib(validator=attr.validators.instance_of(datetime))
+    end: datetime = attr.ib(validator=attr.validators.instance_of(datetime))
+    isopen: bool = attr.ib(validator=attr.validators.instance_of(bool))
 
-        # Define Session Object
-        @attr.s(auto_attribs=True, init=False)
-        class Session():
-            session: str
-            start: datetime
-            end: datetime
+# @attr.s(auto_attribs=True, init=False)
+# class GetMarketHoursResponseMessage():
+#     # Define Product Object
+#     @attr.s(auto_attribs=True, init=False)
+#     class Product():
 
-        product: str
-        productname: str
-        sessions: list[Session]
+#         # Define Session Object
+#         @attr.s(auto_attribs=True, init=False)
+#         class Session():
+#             session: str
+#             start: datetime
+#             end: datetime
 
-    markettype: str
-    products: list[Product]
+#         product: str
+#         productname: str
+#         sessions: list[Session]
+
+#     markettype: str
+#     products: list[Product]
 
 
 @dataclass

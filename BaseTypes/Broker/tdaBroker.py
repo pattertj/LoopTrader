@@ -278,8 +278,8 @@ class TdaBroker(Broker, Component):
 
             expiry = baseRR.GetOptionChainResponseMessage.ExpirationDate()
             expiry.expirationdate = exp[0]
-            expiry.daystoexpiration = exp[1]
-            expiry.strikes = []
+            expiry.daystoexpiration = int(exp[1])
+            expiry.strikes = {}
 
             details: list
             for details in strikes.values():
@@ -300,7 +300,7 @@ class TdaBroker(Broker, Component):
                     strikeresponse.settlementtype = detail.get('settlementType')
                     strikeresponse.expirationtype = detail.get('expirationType')
 
-                    expiry.strikes.append(strikeresponse)
+                    expiry.strikes[float(detail.get('strikePrice'))] = strikeresponse
 
             response.append(expiry)
 
@@ -319,49 +319,43 @@ class TdaBroker(Broker, Component):
         return response
 
     def get_market_hours(self, request: baseRR.GetMarketHoursRequestMessage) -> baseRR.GetMarketHoursResponseMessage:
+        markets = []
+
+        markets.append(request.market)
+
         # Validation
-        for market in request.markets:
+        for market in markets:
             if market == 'FUTURE' or market == 'FOREX' or market == 'BOND':
                 return KeyError("{} markets are not supported at this time.".format(market))
 
         # Get Market Hours
         try:
-            hours = self.getsession().get_market_hours(markets=request.markets, date=str(request.datetime))
+            hours = self.getsession().get_market_hours(markets=markets, date=str(request.datetime))
         except Exception as e:
             logger.error('Failed to get market hours.', exc_info=e.message)
             return None
 
-        response = baseRR.GetMarketHoursResponseMessage()
-
         market: str
         markettype: dict
         for market, markettype in hours.items():
-            response.markettype = market
-            response.products = []
 
             type: str
             details: dict
             for type, details in markettype.items():
-                product = baseRR.GetMarketHoursResponseMessage.Product()
-                product.product = type
-                product.productname = details.get('productName')
-                product.sessions = []
+                if (type == request.product):
+                    sessionhours = dict(details.get('sessionHours'))
 
-                sessionhours = dict(details.get('sessionHours'))
+                    session: str
+                    markethours: list
+                    for session, markethours in sessionhours.items():
+                        if (session == 'regularMarket'):
+                            response = baseRR.GetMarketHoursResponseMessage
 
-                session: str
-                markethours: list
-                for session, markethours in sessionhours.items():
-                    productsession = baseRR.GetMarketHoursResponseMessage.Product.Session()
-                    productsession.session = session
-                    productsession.start = dt.datetime.strptime(str(dict(markethours[0]).get('start')), "%Y-%m-%dT%H:%M:%S%z")
-                    productsession.end = dt.datetime.strptime(str(dict(markethours[0]).get('end')), "%Y-%m-%dT%H:%M:%S%z")
+                            response.start = dt.datetime.strptime(str(dict(markethours[0]).get('start')), "%Y-%m-%dT%H:%M:%S%z")
+                            response.end = dt.datetime.strptime(str(dict(markethours[0]).get('end')), "%Y-%m-%dT%H:%M:%S%z")
+                            response.isopen = details.get('isOpen')
 
-                    product.sessions.append(productsession)
-
-                response.products.append(product)
-
-        return response
+                            return response
 
     def getsession(self) -> TDClient:
         return TDClient(

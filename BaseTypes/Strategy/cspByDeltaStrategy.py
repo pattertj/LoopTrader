@@ -1,6 +1,7 @@
 import datetime as dt
 import logging
 import logging.config
+import math
 import time
 from typing import List
 
@@ -28,7 +29,7 @@ class CspByDeltaStrategy(Strategy, Component):
     # Core Strategy Process
     def processstrategy(self) -> bool:
         # Check market hours
-        request = baseRR.GetMarketHoursRequestMessage(markets={'OPTION'})
+        request = baseRR.GetMarketHoursRequestMessage(market='OPTION', product='IND')
         hours = self.mediator.get_market_hours(request)
 
         # Get current datetime
@@ -69,16 +70,18 @@ class CspByDeltaStrategy(Strategy, Component):
         minutesafterclose = (now - hours.end).total_seconds() / 60
         print("After-Hours")
 
-        # If within 15min after close
-        if minutesafterclose < 15:
-            print("15min after close or less")
-            # Build closing orders
-            closingorders = self.build_closing_orders()
+        # If beyond 15 min after close, exit
+        if minutesafterclose > 15:
+            return
 
-            # Place closing Orders
-            if closingorders is not None:
-                for order in closingorders:
-                    self.mediator.place_order(order)
+        print("15min after close or less")
+        # Build closing orders
+        closingorders = self.build_closing_orders()
+
+        # Place closing Orders
+        if closingorders is not None:
+            for order in closingorders:
+                self.mediator.place_order(order)
 
     # Open Market Helpers
     def process_expiring_positions(self, minutestoclose):
@@ -237,10 +240,9 @@ class CspByDeltaStrategy(Strategy, Component):
         return True
 
     # Helpers
-
     def get_next_expiration(self, expirations: list[baseRR.GetOptionChainResponseMessage.ExpirationDate]) -> baseRR.GetOptionChainResponseMessage.ExpirationDate:
         # Initialize min DTE to infinity
-        mindte = int('inf')
+        mindte = math.inf
 
         # loop through expirations and find the minimum DTE
         for expiration in expirations:
@@ -252,17 +254,17 @@ class CspByDeltaStrategy(Strategy, Component):
         # Return the min expiration
         return minexpiration
 
-    def get_best_strike(self, strikes: list[baseRR.GetOptionChainResponseMessage.ExpirationDate.Strike], delta: float, buyingpower: float) -> baseRR.GetOptionChainResponseMessage.ExpirationDate.Strike:
+    def get_best_strike(self, strikes: dict[float, baseRR.GetOptionChainResponseMessage.ExpirationDate.Strike], delta: float, buyingpower: float) -> float:
         # Set Variables
         bestpremium = float(0)
 
         # Iterate through strikes
-        for strike in strikes:
+        for strike, details in strikes.items():
             # Make sure strike delta is less then our target delta
-            if strike.delta <= self.targetdelta:
+            if details.delta <= self.targetdelta:
                 # Calculate the total premium for the strike based on our buying power
-                qty = self.calculate_order_quantity(strike.strike, buyingpower)
-                totalpremium = ((strike.bid + strike.ask) / 2) * qty
+                qty = self.calculate_order_quantity(strike, buyingpower)
+                totalpremium = ((details.bid + details.ask) / 2) * qty
 
                 # If the strike's premium is larger than our best premium, update it
                 if totalpremium > bestpremium:

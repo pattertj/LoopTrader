@@ -1,12 +1,25 @@
+import os
 import unittest
+
+from BaseTypes.Database.sqliteDatabase import SqliteDatabase
+
 # from unittest import mock
 
-# from BaseTypes.Database.sqliteDatabase import SqliteDatabase
 
+class TestSqliteDatabase(unittest.TestCase):
+    def setUp(self):
+        self.func = SqliteDatabase('testdb.db')
 
-class TestTdaBroker(unittest.TestCase):
+    def tearDown(self):
+        self.func.cursor.close()
+        self.func.connection.close()
+        os.remove('testdb.db')
+
     def test_create_order(self):
-        pass
+        result = self.func.create_order()
+
+        self.assertIsNotNone(result)
+        self.assertTrue(result)
 
     def test_read_order_by_id(self):
         pass
