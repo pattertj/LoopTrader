@@ -41,19 +41,19 @@ class CspByDeltaStrategy(Strategy, Component):
 
         # If In-Market
         elif hours.start < now < hours.end:
-            self.process_open_market(hours, now)
+            self.process_open_market(hours.end, now)
 
         # If After-Hours
         elif hours.end < now:
-            self.process_after_hours(hours, now)
+            self.process_after_hours(hours.end, now)
 
     # Process Market Hours
     def process_pre_market(self):
         # Exit.
         print("Pre-market, nothing to do.")
 
-    def process_open_market(self, hours: baseRR.GetMarketHoursResponseMessage, now: dt.datetime):
-        minutestoclose = (hours.end - now).total_seconds() / 60
+    def process_open_market(self, close: dt.datetime, now: dt.datetime):
+        minutestoclose = (close - now).total_seconds() / 60
         print("Market Open")
 
         # Process Expiring Positions
@@ -65,9 +65,9 @@ class CspByDeltaStrategy(Strategy, Component):
         # Process Closing Orders
         self.process_closing_orders(minutestoclose)
 
-    def process_after_hours(self, hours: baseRR.GetMarketHoursResponseMessage, now: dt.datetime):
+    def process_after_hours(self, close: dt.datetime, now: dt.datetime):
         # Get the number of minutes since close
-        minutesafterclose = (now - hours.end).total_seconds() / 60
+        minutesafterclose = (now - close).total_seconds() / 60
         print("After-Hours")
 
         # If beyond 15 min after close, exit
@@ -257,6 +257,7 @@ class CspByDeltaStrategy(Strategy, Component):
     def get_best_strike(self, strikes: dict[float, baseRR.GetOptionChainResponseMessage.ExpirationDate.Strike], delta: float, buyingpower: float) -> float:
         # Set Variables
         bestpremium = float(0)
+        bestdelta = float(1)
 
         # Iterate through strikes
         for strike, details in strikes.items():
@@ -267,8 +268,9 @@ class CspByDeltaStrategy(Strategy, Component):
                 totalpremium = ((details.bid + details.ask) / 2) * qty
 
                 # If the strike's premium is larger than our best premium, update it
-                if totalpremium > bestpremium:
+                if totalpremium >= bestpremium and details.delta <= bestdelta:
                     bestpremium = totalpremium
+                    bestdelta = details.delta
                     beststrike = strike
 
         # Return the strike with the highest premium
