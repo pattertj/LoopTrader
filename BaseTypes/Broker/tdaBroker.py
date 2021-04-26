@@ -117,7 +117,7 @@ class TdaBroker(Broker, Component):
                     response.positions.append(accountposition)
 
         # Grab Balances
-        response.currentbalances.buyingpower = account.get('securitiesAccount').get('currentBalances').get('buyingPower')
+        response.currentbalances.buyingpower = account.get('securitiesAccount').get('currentBalances').get('buyingPowerNonMarginableTrade')
         response.currentbalances.liquidationvalue = account.get('securitiesAccount').get('currentBalances').get('liquidationValue')
 
         # Return Results
@@ -351,8 +351,8 @@ class TdaBroker(Broker, Component):
                         if (session == 'regularMarket'):
                             response = baseRR.GetMarketHoursResponseMessage
 
-                            response.start = dt.datetime.strptime(str(dict(markethours[0]).get('start')), "%Y-%m-%dT%H:%M:%S%z")
-                            response.end = dt.datetime.strptime(str(dict(markethours[0]).get('end')), "%Y-%m-%dT%H:%M:%S%z")
+                            response.start = dt.datetime.strptime(str(dict(markethours[0]).get('start')), "%Y-%m-%dT%H:%M:%S%z").astimezone(dt.timezone.utc)
+                            response.end = dt.datetime.strptime(str(dict(markethours[0]).get('end')), "%Y-%m-%dT%H:%M:%S%z").astimezone(dt.timezone.utc)
                             response.isopen = details.get('isOpen')
 
                             return response

@@ -4,7 +4,7 @@ from datetime import date, datetime
 import attr
 
 
-@attr.s(auto_attribs=True)
+@attr.s(auto_attribs=True, init=False)
 class PlaceOrderRequestMessage():
     price: float = attr.ib(validator=attr.validators.instance_of(float))
     quantity: int = attr.ib(validator=attr.validators.instance_of(int))

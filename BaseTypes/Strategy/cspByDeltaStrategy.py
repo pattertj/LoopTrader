@@ -19,7 +19,8 @@ class CspByDeltaStrategy(Strategy, Component):
     underlying: str = "$SPX.X"
     portfolioallocationpercent: float = attr.ib(default=1.0, validator=attr.validators.instance_of(float))
     buy_or_sell: str = attr.ib(default='SELL', validator=attr.validators.in_(['SELL', 'BUY']))
-    targetdelta: float = attr.ib(default=.06, validator=attr.validators.instance_of(float))
+    targetdelta: float = attr.ib(default=-.06, validator=attr.validators.instance_of(float))
+    mindelta: float = attr.ib(default=-.03, validator=attr.validators.instance_of(float))
     minimumdte: int = attr.ib(default=1, validator=attr.validators.instance_of(int))
     maximumdte: int = attr.ib(default=4, validator=attr.validators.instance_of(int))
     profittargetpercent: float = attr.ib(default=.7, validator=attr.validators.instance_of(float))
@@ -152,23 +153,21 @@ class CspByDeltaStrategy(Strategy, Component):
         account = self.mediator.get_account(accountrequest)
 
         # Calculate trade date
-        startdate = (dt.date.today() + dt.timedelta(days=self.minimumdte)).strftime("%Y-%m-%d")
-        enddate = (dt.date.today() + dt.timedelta(days=self.maximumdte)).strftime("%Y-%m-%d")
+        startdate = (dt.date.today() + dt.timedelta(days=self.minimumdte))
+        enddate = (dt.date.today() + dt.timedelta(days=self.maximumdte))
 
         # Get option chain
-        chainrequest = baseRR.GetOptionChainRequestMessage()
-        chainrequest.contracttype = 'PUT'
-        chainrequest.fromdate = startdate
-        chainrequest.todate = enddate
-        chainrequest.symbol = self.underlying
-        chainrequest.includequotes = False
-        chainrequest.optionrange = 'OTM'
+        chainrequest = baseRR.GetOptionChainRequestMessage(contracttype='PUT', fromdate=startdate, todate=enddate, symbol=self.underlying, includequotes=False, optionrange='OTM')
 
         chain = self.mediator.get_option_chain(chainrequest)
 
         # Find strike to trade
         expiration = self.get_next_expiration(chain.putexpdatemap)
-        strike = self.get_best_strike(expiration, self.targetdelta, account.currentbalances.buyingpower)
+        strike = self.get_best_strike(expiration.strikes, self.targetdelta, account.currentbalances.buyingpower)
+
+        # If no valid strikes, exit.
+        if strike is None:
+            return None
 
         # Calculate Quantity
         qty = self.calculate_order_quantity(strike.strike, account.currentbalances.buyingpower)
@@ -254,24 +253,23 @@ class CspByDeltaStrategy(Strategy, Component):
         # Return the min expiration
         return minexpiration
 
-    def get_best_strike(self, strikes: dict[float, baseRR.GetOptionChainResponseMessage.ExpirationDate.Strike], delta: float, buyingpower: float) -> float:
+    def get_best_strike(self, strikes: dict[float, baseRR.GetOptionChainResponseMessage.ExpirationDate.Strike], delta: float, buyingpower: float) -> baseRR.GetOptionChainResponseMessage.ExpirationDate.Strike:
         # Set Variables
         bestpremium = float(0)
-        bestdelta = float(1)
+        beststrike = None
 
         # Iterate through strikes
         for strike, details in strikes.items():
             # Make sure strike delta is less then our target delta
-            if details.delta <= self.targetdelta:
+            if (abs(details.delta) <= abs(self.targetdelta)) and (abs(details.delta) >= abs(self.mindelta)):
                 # Calculate the total premium for the strike based on our buying power
                 qty = self.calculate_order_quantity(strike, buyingpower)
                 totalpremium = ((details.bid + details.ask) / 2) * qty
 
                 # If the strike's premium is larger than our best premium, update it
-                if totalpremium >= bestpremium and details.delta <= bestdelta:
+                if totalpremium > bestpremium:
                     bestpremium = totalpremium
-                    bestdelta = details.delta
-                    beststrike = strike
+                    beststrike = details
 
         # Return the strike with the highest premium
         return beststrike
