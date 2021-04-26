@@ -27,17 +27,19 @@ class TestCspByDeltaStrategy(unittest.TestCase):
         strikes[3070] = self.new_strike(3070, .07, 1, 1.1)
         strikes[3060] = self.new_strike(3060, .06, 1, 1.1)
         strikes[3050] = self.new_strike(3050, .05, .9, 1.0)
-        strikes[3040] = self.new_strike(3040, .04, .8, .91)
-        strikes[3030] = self.new_strike(3030, .03, .7, .81)
-        strikes[3020] = self.new_strike(3020, .02, .6, .71)
-        strikes[1010] = self.new_strike(1010, .01, .5, .61)
+        strikes[3040] = self.new_strike(3040, .049, .8, .91)
+        strikes[3030] = self.new_strike(3030, .045, .7, .81)
+        strikes[3020] = self.new_strike(3020, .041, .6, .71)
+        strikes[1010] = self.new_strike(1010, .04, .5, .61)
 
         strike = self.func.get_best_strike(strikes, .06, 200000)
 
-        self.assertEqual(strike, 1010)
+        self.assertEqual(strike.strike, 1010)
 
     def new_strike(self, strike: float, delta: float, bid: float, ask: float) -> baseRR.GetOptionChainResponseMessage.ExpirationDate.Strike:
         new = baseRR.GetOptionChainResponseMessage.ExpirationDate.Strike()
+
+        new.strike = strike
         new.delta = delta
         new.bid = bid
         new.ask = ask
