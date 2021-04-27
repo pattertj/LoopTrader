@@ -25,7 +25,7 @@ class CspByDeltaStrategy(Strategy, Component):
     maximumdte: int = attr.ib(default=4, validator=attr.validators.instance_of(int))
     profittargetpercent: float = attr.ib(default=.7, validator=attr.validators.instance_of(float))
     maxlosscalcpercent: float = attr.ib(default=.2, validator=attr.validators.instance_of(float))
-    openingorderloopseconds: int = attr.ib(default=10, validator=attr.validators.instance_of(int))
+    openingorderloopseconds: int = attr.ib(default=20, validator=attr.validators.instance_of(int))
 
     # Core Strategy Process
     def processstrategy(self) -> bool:
@@ -174,10 +174,18 @@ class CspByDeltaStrategy(Strategy, Component):
 
         # Calculate price
         price = (strike.bid + strike.ask) / 2
+        formattedprice = self.format_order_price(price)
 
         # Build Order
         orderrequest = baseRR.PlaceOrderRequestMessage()
-        orderrequest.price = price
+        orderrequest.orderstrategytype = 'SINGLE'
+        orderrequest.assettype = 'OPTION'
+        orderrequest.duration = 'GOOD_TILL_CANCEL'
+        orderrequest.instruction = 'SELL_TO_OPEN'
+        orderrequest.ordertype = 'LIMIT'
+        orderrequest.ordersession = 'NORMAL'
+        orderrequest.positioneffect = 'OPENING'
+        orderrequest.price = formattedprice
         orderrequest.quantity = qty
         orderrequest.symbol = strike.symbol
 
@@ -191,7 +199,7 @@ class CspByDeltaStrategy(Strategy, Component):
         pass
 
     # Order Placers
-    def place_new_orders_loop(self) -> None:
+    def place_new_orders_loop(self, offset: float) -> None:
         # Build Order
         neworder = self.build_new_order()
 
@@ -290,3 +298,15 @@ class CspByDeltaStrategy(Strategy, Component):
 
         # Return quantity
         return int(trade_size)
+
+    def format_order_price(self, price) -> float:
+        if price > 3:
+            base = .1
+        else:
+            base = .05
+
+        return self.truncate(base * round(price / base), 2)
+
+    def truncate(self, number, digits) -> float:
+        stepper = 10.0 ** digits
+        return math.trunc(stepper * number) / stepper

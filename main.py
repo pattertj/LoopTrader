@@ -13,8 +13,6 @@ logging.config.fileConfig("logConfig.ini", defaults={
 
 # Create our strategies
 cspstrat = CspByDeltaStrategy(strategy_name="CSP1")
-cspstrat1 = CspByDeltaStrategy(strategy_name="CSP2")
-cspstrat2 = CspByDeltaStrategy(strategy_name="CSP3")
 
 # Create our broker
 tdabroker = TdaBroker()
@@ -26,7 +24,7 @@ sqlitedb = SqliteDatabase("LoopTrader.db")
 telegram_bot = TelegramNotifier()
 
 # Create our Bot
-bot = Bot(broker=tdabroker, strategies=[cspstrat, cspstrat1, cspstrat2], database=sqlitedb, notifier=telegram_bot)
+bot = Bot(broker=tdabroker, strategies=[cspstrat], database=sqlitedb, notifier=telegram_bot)
 
 # Run Bot
 bot.process_strategies()

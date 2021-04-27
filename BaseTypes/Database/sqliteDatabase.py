@@ -33,6 +33,18 @@ class SqliteDatabase(Database):
 
         return True
 
+    def create_strategy(self, strategy_class: str, name: str, underlying: str) -> bool:
+        query = "INSERT INTO Strategies(StrategyClass, StrategyName, Underlying) VALUES (?, ?, ?)"
+
+        try:
+            self.connection.execute(query, (strategy_class, name, underlying))
+            self.connection.commit()
+        except Exception as e:
+            print(e)
+            return False
+
+        return True
+
     def read_order_by_id(self) -> bool:
         raise NotImplementedError(
             "Each strategy must implement the 'read_order' method.")
@@ -78,6 +90,7 @@ class SqliteDatabase(Database):
         # Identify the ones you want to check
         positionsexist = False
         ordersexist = False
+        strategiesexist = False
 
         # Check for the required tables
         for row in self.cursor.fetchall():
@@ -86,6 +99,9 @@ class SqliteDatabase(Database):
                 continue
             if row[1] == 'Orders':
                 ordersexist = True
+                continue
+            if row[1] == 'Strategies':
+                strategiesexist = True
                 continue
 
         # If the Positions table is missing, create it
@@ -100,8 +116,14 @@ class SqliteDatabase(Database):
             self.cursor.execute(createorderstable)
             logger.info("Orders Table Created.")
 
+        # If the Strategy table is missing, create it
+        if not strategiesexist:
+            createorderstable = '''CREATE TABLE Strategies(StrategyID INTEGER PRIMARY KEY, StrategyClass TEXT, StrategyName TEXT, Underlying TEXT)'''
+            self.cursor.execute(createorderstable)
+            logger.info("Strategies Table Created.")
+
         # Commit the changes, if they exist, to the db
-        if not positionsexist or not ordersexist:
+        if not positionsexist or not ordersexist or not strategiesexist:
             self.connection.commit()
 
         # Log completion
