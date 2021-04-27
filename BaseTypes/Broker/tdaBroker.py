@@ -331,8 +331,8 @@ class TdaBroker(Broker, Component):
         # Get Market Hours
         try:
             hours = self.getsession().get_market_hours(markets=markets, date=str(request.datetime))
-        except Exception as e:
-            logger.error('Failed to get market hours.', exc_info=e.message)
+        except Exception:
+            logger.error('Failed to get market hours.')
             return None
 
         market: str

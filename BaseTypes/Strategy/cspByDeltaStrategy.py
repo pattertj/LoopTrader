@@ -3,7 +3,6 @@ import logging
 import logging.config
 import math
 import time
-from typing import List
 
 import attr
 import BaseTypes.Mediator.reqRespTypes as baseRR
@@ -38,24 +37,26 @@ class CspByDeltaStrategy(Strategy, Component):
 
         # If Pre-Market
         if now < hours.start:
+            logger.info("Entering Pre-Market")
             self.process_pre_market()
 
         # If In-Market
         elif hours.start < now < hours.end:
+            logger.info("Entering Open-Market")
             self.process_open_market(hours.end, now)
 
         # If After-Hours
         elif hours.end < now:
+            logger.info("Entering After-Hours")
             self.process_after_hours(hours.end, now)
 
     # Process Market Hours
     def process_pre_market(self):
         # Exit.
-        print("Pre-market, nothing to do.")
+        logger.info("Pre-market, nothing to do.")
 
     def process_open_market(self, close: dt.datetime, now: dt.datetime):
         minutestoclose = (close - now).total_seconds() / 60
-        print("Market Open")
 
         # Process Expiring Positions
         self.process_expiring_positions(minutestoclose)
@@ -69,13 +70,12 @@ class CspByDeltaStrategy(Strategy, Component):
     def process_after_hours(self, close: dt.datetime, now: dt.datetime):
         # Get the number of minutes since close
         minutesafterclose = (now - close).total_seconds() / 60
-        print("After-Hours")
 
         # If beyond 15 min after close, exit
         if minutesafterclose > 15:
+            logger.info("{} minutes after close, exiting logic.".format(int(minutesafterclose)))
             return
 
-        print("15min after close or less")
         # Build closing orders
         closingorders = self.build_closing_orders()
 
@@ -83,6 +83,8 @@ class CspByDeltaStrategy(Strategy, Component):
         if closingorders is not None:
             for order in closingorders:
                 self.mediator.place_order(order)
+
+        logger.info("Placed {} Closing Orders".format(len(closingorders)))
 
     # Open Market Helpers
     def process_expiring_positions(self, minutestoclose):
@@ -192,11 +194,56 @@ class CspByDeltaStrategy(Strategy, Component):
         # Return Order
         return orderrequest
 
-    def build_cancel_closing_orders(self) -> List[baseRR.CancelOrderRequestMessage]:
-        pass
+    def build_cancel_closing_orders(self) -> list[baseRR.CancelOrderRequestMessage]:
+        orderrequests = []
 
-    def build_closing_orders(self) -> List[baseRR.PlaceOrderRequestMessage]:
-        pass
+        # Get account balance
+        accountrequest = baseRR.GetAccountRequestMessage(True, False)
+        account = self.mediator.get_account(accountrequest)
+
+        # Look for open positions
+        for order in account.orders:
+            # TODO: If positions belongs to this strat...
+            if order.status == 'QUEUED' and order.legs[0].positioneffect == 'CLOSING':
+                orderrequest = baseRR.CancelOrderRequestMessage()
+                orderrequest.orderid = order.orderid
+
+                orderrequests.append(orderrequest)
+
+        return orderrequests
+
+    def build_closing_orders(self) -> list[baseRR.PlaceOrderRequestMessage]:
+        orderrequests = []
+
+        # Get account balance
+        accountrequest = baseRR.GetAccountRequestMessage(True, True)
+        account = self.mediator.get_account(accountrequest)
+
+        # Look for open positions
+        for position in account.positions:
+            # TODO: If positions belongs to this strat...
+            if position.underlyingsymbol == self.underlying and position.putcall == 'PUT':
+                # Look for closing Orders
+                closingorderexists = self.check_for_closing_orders(position.symbol, account.orders)
+
+                if closingorderexists:
+                    continue
+
+                orderrequest = baseRR.PlaceOrderRequestMessage()
+                orderrequest.orderstrategytype = 'SINGLE'
+                orderrequest.assettype = 'OPTION'
+                orderrequest.duration = 'GOOD_TILL_CANCEL'
+                orderrequest.instruction = 'BUY_TO_CLOSE'
+                orderrequest.ordertype = 'LIMIT'
+                orderrequest.ordersession = 'NORMAL'
+                orderrequest.positioneffect = 'CLOSING'
+                orderrequest.price = self.truncate(self.format_order_price(position.averageprice * (1 - float(self.profittargetpercent))), 2)
+                orderrequest.quantity = position.shortquantity
+                orderrequest.symbol = position.symbol
+
+                orderrequests.append(orderrequest)
+
+        return orderrequests
 
     # Order Placers
     def place_new_orders_loop(self, offset: float) -> None:
@@ -247,6 +294,13 @@ class CspByDeltaStrategy(Strategy, Component):
         return True
 
     # Helpers
+    def check_for_closing_orders(self, symbol: str, orders: list[baseRR.AccountOrder]) -> bool:
+        for order in orders:
+            if order.status == 'QUEUED' and order.legs[0].symbol == symbol and order.legs[0].instruction == 'BUY_TO_CLOSE':
+                return True
+
+        return False
+
     def get_next_expiration(self, expirations: list[baseRR.GetOptionChainResponseMessage.ExpirationDate]) -> baseRR.GetOptionChainResponseMessage.ExpirationDate:
         # Initialize min DTE to infinity
         mindte = math.inf
