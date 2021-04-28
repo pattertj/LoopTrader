@@ -137,33 +137,34 @@ class CspByDeltaStrategy(Strategy, Component):
 
     def build_offsetting_orders(self) -> list[baseRR.PlaceOrderRequestMessage]:
         logger.debug("build_offsetting_orders")
-        # Read positions
-        request = baseRR.GetAccountRequestMessage(False, True)
-        account = self.mediator.get_account(request)
+        pass
+        # # Read positions
+        # request = baseRR.GetAccountRequestMessage(False, True)
+        # account = self.mediator.get_account(request)
 
-        # If not positions, nothing to offset
-        if account.positions is None:
-            return
+        # # If not positions, nothing to offset
+        # if account.positions is None:
+        #     return
 
-        response = [baseRR.PlaceOrderResponseMessage]
+        # response = [baseRR.PlaceOrderResponseMessage]
 
-        # Check all positions
-        for position in account.positions:
-            # Check if position is expiring today
-            if position.expirationdate.date() == dt.datetime.now().date():
-                # TODO: Check DB if it is our positions
-                if True:
-                    # Get today's option chain
-                    optionchainrequest = baseRR.GetOptionChainRequestMessage(symbol=self.underlying, contracttype='PUT', includequotes=True, optionrange='OTM', fromdate=dt.date.today(), todate=(dt.date.today()))
-                    optionchainresponse = self.mediator.get_option_chain(optionchainrequest)
+        # # Check all positions
+        # for position in account.positions:
+        #     # Check if position is expiring today
+        #     if position.expirationdate.date() == dt.datetime.now().date():
+        #         # TODO: Check DB if it is our positions
+        #         if True:
+        #             # Get today's option chain
+        #             optionchainrequest = baseRR.GetOptionChainRequestMessage(symbol=self.underlying, contracttype='PUT', includequotes=True, optionrange='OTM', fromdate=dt.date.today(), todate=(dt.date.today()))
+        #             optionchainresponse = self.mediator.get_option_chain(optionchainrequest)
 
-                    # Find a cheap option to offset
-                    # Build Order
-                    # Append to Reponse
-                    # response.append(offsetorder)
+        #             # Find a cheap option to offset
+        #             # Build Order
+        #             # Append to Reponse
+        #             # response.append(offsetorder)
 
-        # Once we have reviewed all postiions, exit.
-        return response
+        # # Once we have reviewed all postiions, exit.
+        # return response
 
     # Order Builders
     def build_new_order(self) -> baseRR.PlaceOrderRequestMessage:
