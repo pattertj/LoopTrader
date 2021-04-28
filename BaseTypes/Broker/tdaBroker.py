@@ -1,3 +1,4 @@
+import datetime as dt
 import logging
 from collections import OrderedDict
 from dataclasses import dataclass
@@ -116,7 +117,7 @@ class TdaBroker(Broker, Component):
                     response.positions.append(accountposition)
 
         # Grab Balances
-        response.currentbalances.buyingpower = account.get('securitiesAccount').get('currentBalances').get('buyingPower')
+        response.currentbalances.buyingpower = account.get('securitiesAccount').get('currentBalances').get('buyingPowerNonMarginableTrade')
         response.currentbalances.liquidationvalue = account.get('securitiesAccount').get('currentBalances').get('liquidationValue')
 
         # Return Results
@@ -252,11 +253,56 @@ class TdaBroker(Broker, Component):
             raise KeyError("Invalid OptionChainRequest.")
 
         response = baseRR.GetOptionChainResponseMessage()
-        response.symbol = optionschain['symbol']
-        response.status = optionschain['status']
-        response.underlyinglastprice = optionschain['underlyingPrice']
-        response.putexpdatemap = optionschain['putExpDateMap']
-        response.callexpdatemap = optionschain['callExpDateMap']
+        response.symbol = optionschain.get('symbol')
+        response.status = optionschain.get('status')
+        response.underlyinglastprice = optionschain.get('underlyingPrice')
+        response.volatility = optionschain.get('volatility')
+        response.putexpdatemap = []
+        response.callexpdatemap = []
+
+        puts = dict(optionschain.get('putExpDateMap'))
+        calls = dict(optionschain.get('callExpDateMap'))
+
+        response.putexpdatemap = self.get_formatted_option_chain(puts)
+        response.callexpdatemap = self.get_formatted_option_chain(calls)
+
+        return response
+
+    def get_formatted_option_chain(self, rawoptionchain: dict) -> list[baseRR.GetOptionChainResponseMessage.ExpirationDate]:
+        response = []
+
+        expiration: str
+        strikes: dict
+        for expiration, strikes in rawoptionchain.items():
+            exp = expiration.split(":", 1)
+
+            expiry = baseRR.GetOptionChainResponseMessage.ExpirationDate()
+            expiry.expirationdate = exp[0]
+            expiry.daystoexpiration = int(exp[1])
+            expiry.strikes = {}
+
+            details: list
+            for details in strikes.values():
+                detail: dict
+                for detail in details:
+                    strikeresponse = baseRR.GetOptionChainResponseMessage.ExpirationDate.Strike()
+                    strikeresponse.strike = detail.get('strikePrice')
+                    strikeresponse.bid = detail.get('bid')
+                    strikeresponse.ask = detail.get('ask')
+                    strikeresponse.delta = detail.get('delta')
+                    strikeresponse.gamma = detail.get('gamma')
+                    strikeresponse.theta = detail.get('theta')
+                    strikeresponse.vega = detail.get('vega')
+                    strikeresponse.rho = detail.get('rho')
+                    strikeresponse.symbol = detail.get('symbol')
+                    strikeresponse.description = detail.get('description')
+                    strikeresponse.putcall = detail.get('putCall')
+                    strikeresponse.settlementtype = detail.get('settlementType')
+                    strikeresponse.expirationtype = detail.get('expirationType')
+
+                    expiry.strikes[float(detail.get('strikePrice'))] = strikeresponse
+
+            response.append(expiry)
 
         return response
 
@@ -273,33 +319,43 @@ class TdaBroker(Broker, Component):
         return response
 
     def get_market_hours(self, request: baseRR.GetMarketHoursRequestMessage) -> baseRR.GetMarketHoursResponseMessage:
+        markets = []
+
+        markets.append(request.market)
+
+        # Validation
+        for market in markets:
+            if market == 'FUTURE' or market == 'FOREX' or market == 'BOND':
+                return KeyError("{} markets are not supported at this time.".format(market))
+
+        # Get Market Hours
         try:
-            hours = self.getsession().get_market_hours(markets=request.markets, date=str(request.datetime))
-        except Exception as e:
-            logger.error('Failed to get market hours.', exc_info=e.message)
+            hours = self.getsession().get_market_hours(markets=markets, date=str(request.datetime))
+        except Exception:
+            logger.error('Failed to get market hours.')
             return None
 
-        response = baseRR.GetMarketHoursResponseMessage()
+        market: str
+        markettype: dict
+        for market, markettype in hours.items():
 
-        try:
-            response.isopen = hours['option']['EQO']['isOpen']
-        except Exception as e:
-            self.orders = {}
-            logger.info("{} doesn't exist for the account".format(e.args[0]))
+            type: str
+            details: dict
+            for type, details in markettype.items():
+                if (type == request.product):
+                    sessionhours = dict(details.get('sessionHours'))
 
-        try:
-            response.start = hours['option']['EQO']['sessionHours']['regularMarket'][0]['start']
-        except Exception as e:
-            self.orders = {}
-            logger.info("{} doesn't exist for the account".format(e.args[0]))
+                    session: str
+                    markethours: list
+                    for session, markethours in sessionhours.items():
+                        if (session == 'regularMarket'):
+                            response = baseRR.GetMarketHoursResponseMessage
 
-        try:
-            response.end = hours['option']['EQO']['sessionHours']['regularMarket'][0]['end']
-        except Exception as e:
-            self.orders = {}
-            logger.info("{} doesn't exist for the account".format(e.args[0]))
+                            response.start = dt.datetime.strptime(str(dict(markethours[0]).get('start')), "%Y-%m-%dT%H:%M:%S%z").astimezone(dt.timezone.utc)
+                            response.end = dt.datetime.strptime(str(dict(markethours[0]).get('end')), "%Y-%m-%dT%H:%M:%S%z").astimezone(dt.timezone.utc)
+                            response.isopen = details.get('isOpen')
 
-        return response
+                            return response
 
     def getsession(self) -> TDClient:
         return TDClient(

@@ -1,10 +1,10 @@
 import datetime as dt
 import logging
 import logging.config
+import math
 import time
-from dataclasses import dataclass
-from typing import List
 
+import attr
 import BaseTypes.Mediator.reqRespTypes as baseRR
 from BaseTypes.Component.abstractComponent import Component
 from BaseTypes.Strategy.abstractStrategy import Strategy
@@ -12,27 +12,34 @@ from BaseTypes.Strategy.abstractStrategy import Strategy
 logger = logging.getLogger('autotrader')
 
 
-@dataclass
+@attr.s(auto_attribs=True)
 class CspByDeltaStrategy(Strategy, Component):
-    strategy_name: str = 'Sample Strategy'
-    underlying: str = "$SPX.X"
-    portfolioallocationpercent: float = 1.0
-    buy_or_sell: str = 'Sell'
-    targetdelta: float = .06
-    minimumdte: int = 1
-    maximumdte: int = 4
-    profittargetpercent: float = .7
-    maxlosscalcpercent: float = .2
-    openingorderloopseconds: int = 10
+    strategy_name: str = attr.ib(default="Sample Strategy", validator=attr.validators.instance_of(str))
+    underlying: str = attr.ib(default="$SPX.X", validator=attr.validators.instance_of(str))
+    portfolioallocationpercent: float = attr.ib(default=1.0, validator=attr.validators.instance_of(float))
+    buy_or_sell: str = attr.ib(default='SELL', validator=attr.validators.in_(['SELL', 'BUY']))
+    targetdelta: float = attr.ib(default=-.06, validator=attr.validators.instance_of(float))
+    mindelta: float = attr.ib(default=-.03, validator=attr.validators.instance_of(float))
+    minimumdte: int = attr.ib(default=1, validator=attr.validators.instance_of(int))
+    maximumdte: int = attr.ib(default=4, validator=attr.validators.instance_of(int))
+    profittargetpercent: float = attr.ib(default=.7, validator=attr.validators.instance_of(float))
+    maxlosscalcpercent: float = attr.ib(default=.2, validator=attr.validators.instance_of(float))
+    openingorderloopseconds: int = attr.ib(default=20, validator=attr.validators.instance_of(int))
+    sleepuntil: dt.datetime = attr.ib(init=False, default=dt.datetime.now().astimezone(dt.timezone.utc), validator=attr.validators.instance_of(dt.datetime))
 
     # Core Strategy Process
     def processstrategy(self) -> bool:
-        # Check market hours
-        request = baseRR.GetMarketHoursRequestMessage(markets={'OPTION'})
-        hours = self.mediator.get_market_hours(request)
-
         # Get current datetime
         now = dt.datetime.now().astimezone(dt.timezone.utc)
+
+        # Check if should be sleeping
+        if now < self.sleepuntil:
+            logger.debug("Markets Closed. Sleeping until {}".format(self.sleepuntil))
+            return
+
+        # Check market hours
+        request = baseRR.GetMarketHoursRequestMessage(market='OPTION', product='IND')
+        hours = self.mediator.get_market_hours(request)
 
         # If Pre-Market
         if now < hours.start:
@@ -40,31 +47,76 @@ class CspByDeltaStrategy(Strategy, Component):
 
         # If In-Market
         elif hours.start < now < hours.end:
-            self.process_open_market(hours, now)
+            self.process_open_market(hours.end, now)
 
         # If After-Hours
         elif hours.end < now:
-            self.process_after_hours(hours, now)
+            self.process_after_hours(hours.end, now)
 
     # Process Market Hours
     def process_pre_market(self):
-        # Exit.
-        print("Pre-market, nothing to do.")
+        logger.debug("Processing Pre-Market.")
 
-    def process_open_market(self, hours: baseRR.GetMarketHoursResponseMessage, now: dt.datetime):
-        minutestoclose = (hours.end - now).total_seconds() / 60
-        print("Market Open")
+        # Exit.
+        return
+
+    def process_open_market(self, close: dt.datetime, now: dt.datetime):
+        logger.debug("Processing Open-Market")
+
+        # Get the number of minutes till close
+        minutestoclose = (close - now).total_seconds() / 60
 
         # Process Expiring Positions
         self.process_expiring_positions(minutestoclose)
 
         # Place New Orders
-        self.place_new_orders_loop()
+        self.place_new_orders_loop(0)
 
         # Process Closing Orders
         self.process_closing_orders(minutestoclose)
 
+    def process_after_hours(self, close: dt.datetime, now: dt.datetime):
+        logger.debug("Processing After-Hours")
+
+        # Get the number of minutes since close
+        minutesafterclose = (now - close).total_seconds() / 60
+
+        # If beyond 5 min after close, exit
+        if minutesafterclose > 5:
+            # Get Next Open
+            nextmarketsession = self.get_next_market_session_loop(dt.datetime.now())
+            # Set sleepuntil
+            self.sleepuntil = nextmarketsession.start - dt.timedelta(minutes=5)
+
+            logger.info("Markets are closed until {}. Sleeping until {}".format(nextmarketsession.start, self.sleepuntil))
+            return
+
+        # Build closing orders
+        closingorders = self.build_closing_orders()
+
+        # Place closing Orders
+        if closingorders is not None:
+            for order in closingorders:
+                self.mediator.place_order(order)
+
+        logger.info("Placed {} Closing Orders".format(len(closingorders)))
+
+    # Open Market Helpers
+    def process_expiring_positions(self, minutestoclose):
+        logger.debug("process_expiring_positions")
+        # If there is more then 15min to the close, we can skip this logic.
+        if minutestoclose > 15:
+            return
+
+        # Open expiring positions should be off-set to free-up buying power
+        offsettingorders = self.build_offsetting_orders()
+
+        # Place new order loop
+        for order in offsettingorders:
+            self.place_order_loop(order)
+
     def process_closing_orders(self, minutestoclose):
+        logger.debug("process_closing_orders")
         # If 15min from close
         if minutestoclose < 15:
             # Cancel closing orders
@@ -83,68 +135,149 @@ class CspByDeltaStrategy(Strategy, Component):
                 for order in closingorders:
                     self.mediator.place_order(order)
 
-    # Open Market Helpers
-    def process_expiring_positions(self, minutestoclose):
-        # If there is more then 15min to the close, we can skip this logic.
-        if minutestoclose > 15:
+    def build_offsetting_orders(self) -> list[baseRR.PlaceOrderRequestMessage]:
+        logger.debug("build_offsetting_orders")
+        pass
+        # # Read positions
+        # request = baseRR.GetAccountRequestMessage(False, True)
+        # account = self.mediator.get_account(request)
+
+        # # If not positions, nothing to offset
+        # if account.positions is None:
+        #     return
+
+        # response = [baseRR.PlaceOrderResponseMessage]
+
+        # # Check all positions
+        # for position in account.positions:
+        #     # Check if position is expiring today
+        #     if position.expirationdate.date() == dt.datetime.now().date():
+        #         # TODO: Check DB if it is our positions
+        #         if True:
+        #             # Get today's option chain
+        #             optionchainrequest = baseRR.GetOptionChainRequestMessage(symbol=self.underlying, contracttype='PUT', includequotes=True, optionrange='OTM', fromdate=dt.date.today(), todate=(dt.date.today()))
+        #             optionchainresponse = self.mediator.get_option_chain(optionchainrequest)
+
+        #             # Find a cheap option to offset
+        #             # Build Order
+        #             # Append to Reponse
+        #             # response.append(offsetorder)
+
+        # # Once we have reviewed all postiions, exit.
+        # return response
+
+    # Order Builders
+    def build_new_order(self) -> baseRR.PlaceOrderRequestMessage:
+        logger.debug("build_new_order")
+
+        # Get account balance
+        accountrequest = baseRR.GetAccountRequestMessage(False, False)
+        account = self.mediator.get_account(accountrequest)
+
+        # Calculate trade date
+        startdate = (dt.date.today() + dt.timedelta(days=self.minimumdte))
+        enddate = (dt.date.today() + dt.timedelta(days=self.maximumdte))
+
+        # Get option chain
+        chainrequest = baseRR.GetOptionChainRequestMessage(contracttype='PUT', fromdate=startdate, todate=enddate, symbol=self.underlying, includequotes=False, optionrange='OTM')
+
+        chain = self.mediator.get_option_chain(chainrequest)
+
+        # Should we even try?
+        estbp = .9 * (chain.underlyinglastprice * .2 * 100)
+        availbp = account.currentbalances.buyingpower
+
+        if (estbp > availbp):
             return
 
-        print("15min to close or less")
+        # Find strike to trade
+        expiration = self.get_next_expiration(chain.putexpdatemap)
+        strike = self.get_best_strike(expiration.strikes, self.targetdelta, account.currentbalances.buyingpower)
 
-        # Open expiring positions should be off-set to free-up buying power
-        offsettingorders = self.build_offsetting_orders()
+        # If no valid strikes, exit.
+        if strike is None:
+            return None
 
-        # Place new order loop
-        for order in offsettingorders:
-            self.place_order_loop(order)
+        # Calculate Quantity
+        qty = self.calculate_order_quantity(strike.strike, account.currentbalances.buyingpower)
 
-    def build_offsetting_orders(self) -> List[baseRR.PlaceOrderRequestMessage]:
-        # Read positions
-        request = baseRR.GetAccountRequestMessage(False, True)
-        account = self.mediator.get_account(request)
+        # Calculate price
+        price = (strike.bid + strike.ask) / 2
+        formattedprice = self.format_order_price(price)
 
-        # If not positions, nothing to offset
-        if account.positions is None:
-            return
+        # Build Order
+        orderrequest = baseRR.PlaceOrderRequestMessage()
+        orderrequest.orderstrategytype = 'SINGLE'
+        orderrequest.assettype = 'OPTION'
+        orderrequest.duration = 'GOOD_TILL_CANCEL'
+        orderrequest.instruction = 'SELL_TO_OPEN'
+        orderrequest.ordertype = 'LIMIT'
+        orderrequest.ordersession = 'NORMAL'
+        orderrequest.positioneffect = 'OPENING'
+        orderrequest.price = formattedprice
+        orderrequest.quantity = qty
+        orderrequest.symbol = strike.symbol
 
-        response = [baseRR.PlaceOrderResponseMessage]
+        # Return Order
+        return orderrequest
 
-        # Check all positions
+    def build_cancel_closing_orders(self) -> list[baseRR.CancelOrderRequestMessage]:
+        logger.debug("build_cancel_closing_orders")
+
+        orderrequests = []
+
+        # Get account balance
+        accountrequest = baseRR.GetAccountRequestMessage(True, False)
+        account = self.mediator.get_account(accountrequest)
+
+        # Look for open positions
+        for order in account.orders:
+            # TODO: If positions belongs to this strat...
+            if order.status == 'QUEUED' and order.legs[0].positioneffect == 'CLOSING':
+                orderrequest = baseRR.CancelOrderRequestMessage()
+                orderrequest.orderid = order.orderid
+
+                orderrequests.append(orderrequest)
+
+        return orderrequests
+
+    def build_closing_orders(self) -> list[baseRR.PlaceOrderRequestMessage]:
+        logger.debug("build_closing_orders")
+
+        orderrequests = []
+
+        # Get account balance
+        accountrequest = baseRR.GetAccountRequestMessage(True, True)
+        account = self.mediator.get_account(accountrequest)
+
+        # Look for open positions
         for position in account.positions:
-            # Check if position is expiring today
-            if position.expirationdate.date() == dt.datetime.now().date():
-                # Check DB if it is our positions
-                if True:
-                    # Get today's option chain
-                    optionchainrequest = baseRR.GetOptionChainRequestMessage(symbol=self.underlying, contracttype='PUT', includequotes=True, optionrange='OTM', fromdate=dt.date.today().strftime("%Y-%m-%d"), todate=(dt.date.today().strftime("%Y-%m-%d")))
-                    optionchainresponse = self.mediator.get_option_chain(optionchainrequest)
-                    # Find a cheap option to offset
-                    # Build Order
-                    # Append to Reponse
-                    # response.append(offsetorder)
+            # TODO: If positions belongs to this strat...
+            if position.underlyingsymbol == self.underlying and position.putcall == 'PUT':
+                # Look for closing Orders
+                closingorderexists = self.check_for_closing_orders(position.symbol, account.orders)
 
-        # Once we have reviewed all postiions, exit.
-        return response
+                if closingorderexists:
+                    continue
 
-    def process_after_hours(self, hours: baseRR.GetMarketHoursResponseMessage, now: dt.datetime):
-        # Get the number of minutes since close
-        minutesafterclose = (now - hours.end).total_seconds() / 60
-        print("After-Hours")
+                orderrequest = baseRR.PlaceOrderRequestMessage()
+                orderrequest.orderstrategytype = 'SINGLE'
+                orderrequest.assettype = 'OPTION'
+                orderrequest.duration = 'GOOD_TILL_CANCEL'
+                orderrequest.instruction = 'BUY_TO_CLOSE'
+                orderrequest.ordertype = 'LIMIT'
+                orderrequest.ordersession = 'NORMAL'
+                orderrequest.positioneffect = 'CLOSING'
+                orderrequest.price = self.truncate(self.format_order_price(position.averageprice * (1 - float(self.profittargetpercent))), 2)
+                orderrequest.quantity = position.shortquantity
+                orderrequest.symbol = position.symbol
 
-        # If within 15min after close
-        if minutesafterclose < 15:
-            print("15min after close or less")
-            # Build closing orders
-            closingorders = self.build_closing_orders()
+                orderrequests.append(orderrequest)
 
-            # Place closing Orders
-            if closingorders is not None:
-                for order in closingorders:
-                    self.mediator.place_order(order)
+        return orderrequests
 
-    # Helpers
-
-    def place_new_orders_loop(self) -> None:
+    # Order Placers
+    def place_new_orders_loop(self, offset: float) -> None:
         # Build Order
         neworder = self.build_new_order()
 
@@ -152,8 +285,25 @@ class CspByDeltaStrategy(Strategy, Component):
         if neworder is None:
             return
 
+        # Place the order and check the result
+        result = self.place_order_loop(neworder)
+
+        # If successful, return
+        if result:
+            return
+
+        # Otherwise, try again
+        self.place_new_orders_loop()
+
+        return
+
+    def place_order_loop(self, orderrequest: baseRR.PlaceOrderRequestMessage) -> bool:
         # Try to place the Order
-        neworderresult = self.mediator.place_order(neworder)
+        neworderresult = self.mediator.place_order(orderrequest)
+
+        # If closing order, let the order ride, otherwise continue logic
+        if orderrequest.positioneffect == "CLOSING":
+            return True
 
         # Wait to let the Order process
         time.sleep(self.openingorderloopseconds)
@@ -168,27 +318,96 @@ class CspByDeltaStrategy(Strategy, Component):
             cancelorderrequest = baseRR.CancelOrderRequestMessage(neworderresult.orderid)
             self.mediator.cancel_order(cancelorderrequest)
 
-            # Try again
-            self.place_new_orders_loop()
+            # Return failure to fill order
+            return False
 
-        return
+        # If we got here, return success
+        return True
 
-    def build_new_order(self) -> baseRR.PlaceOrderRequestMessage:
-        # Get account balance
-        # Calculate trade date
-        # Get option chain
-        # Find strike to trade
-        # Check if we have enough buying power to sell 1 or more, exit if not
-        # Calculate price
-        # Build Order
-        # Return Order
-        pass
+    # Helpers
+    def get_next_market_session_loop(self, date: dt.datetime) -> baseRR.GetMarketHoursResponseMessage:
+        searchdate = date + dt.timedelta(days=1)
+        request = baseRR.GetMarketHoursRequestMessage(market='OPTION', product='IND', datetime=searchdate)
+        hours = self.mediator.get_market_hours(request)
 
-    def build_cancel_closing_orders(self) -> List[baseRR.CancelOrderRequestMessage]:
-        pass
+        if hours is None:
+            self.get_next_market_session_loop(searchdate)
 
-    def build_closing_orders(self) -> List[baseRR.PlaceOrderRequestMessage]:
-        pass
+        return hours
 
-    def place_order_loop(self) -> None:
-        pass
+    def check_for_closing_orders(self, symbol: str, orders: list[baseRR.AccountOrder]) -> bool:
+        logger.debug("check_for_closing_orders")
+
+        for order in orders:
+            if order.status == 'QUEUED' and order.legs[0].symbol == symbol and order.legs[0].instruction == 'BUY_TO_CLOSE':
+                return True
+
+        return False
+
+    def get_next_expiration(self, expirations: list[baseRR.GetOptionChainResponseMessage.ExpirationDate]) -> baseRR.GetOptionChainResponseMessage.ExpirationDate:
+        logger.debug("get_next_expiration")
+
+        # Initialize min DTE to infinity
+        mindte = math.inf
+
+        # loop through expirations and find the minimum DTE
+        for expiration in expirations:
+            dte = expiration.daystoexpiration
+            if dte < mindte:
+                mindte = dte
+                minexpiration = expiration
+
+        # Return the min expiration
+        return minexpiration
+
+    def get_best_strike(self, strikes: dict[float, baseRR.GetOptionChainResponseMessage.ExpirationDate.Strike], delta: float, buyingpower: float) -> baseRR.GetOptionChainResponseMessage.ExpirationDate.Strike:
+        logger.debug("get_best_strike")
+        # Set Variables
+        bestpremium = float(0)
+        beststrike = None
+
+        # Iterate through strikes
+        for strike, details in strikes.items():
+            # Make sure strike delta is less then our target delta
+            if (abs(details.delta) <= abs(self.targetdelta)) and (abs(details.delta) >= abs(self.mindelta)):
+                # Calculate the total premium for the strike based on our buying power
+                qty = self.calculate_order_quantity(strike, buyingpower)
+                totalpremium = ((details.bid + details.ask) / 2) * qty
+
+                # If the strike's premium is larger than our best premium, update it
+                if totalpremium > bestpremium:
+                    bestpremium = totalpremium
+                    beststrike = details
+
+        # Return the strike with the highest premium
+        return beststrike
+
+    def calculate_order_quantity(self, strike, buyingpower) -> int:
+        logger.debug("calculate_order_quantity")
+
+        # Calculate max loss per contract
+        max_loss = strike * 100 * float(self.maxlosscalcpercent)
+
+        # Calculate max buying power to use
+        balance_to_risk = buyingpower * float(self.portfolioallocationpercent)
+
+        # Calculate trade size
+        trade_size = balance_to_risk // max_loss
+
+        # Return quantity
+        return int(trade_size)
+
+    def format_order_price(self, price) -> float:
+        logger.debug("format_order_price")
+
+        if price > 3:
+            base = .1
+        else:
+            base = .05
+
+        return self.truncate(base * round(price / base), 2)
+
+    def truncate(self, number, digits) -> float:
+        logger.debug("truncate")
+        stepper = 10.0 ** digits
+        return math.trunc(stepper * number) / stepper

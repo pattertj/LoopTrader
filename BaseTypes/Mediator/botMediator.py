@@ -1,7 +1,9 @@
 import logging
 import logging.config
 import time
-from dataclasses import dataclass, field
+# import re
+
+import attr
 
 import BaseTypes.Mediator.reqRespTypes as baseRR
 from BaseTypes.Broker.abstractBroker import Broker
@@ -13,29 +15,43 @@ from BaseTypes.Strategy.abstractStrategy import Strategy
 logger = logging.getLogger('autotrader')
 
 
-@dataclass
+@attr.s(auto_attribs=True)
 class Bot(Mediator):
-    broker: Broker
-    notifier: Notifier
-    database: Database
-    botloopfrequency: int = field(init=False)
-    killswitch: bool = field(init=False)
-    strategies: list[Strategy] = field(default_factory=list)
+    broker: Broker = attr.ib(validator=attr.validators.instance_of(Broker))
+    notifier: Notifier = attr.ib(validator=attr.validators.instance_of(Notifier))
+    database: Database = attr.ib(validator=attr.validators.instance_of(Database))
+    botloopfrequency: int = attr.ib(validator=attr.validators.instance_of(int), init=False)
+    killswitch: bool = attr.ib(validator=attr.validators.instance_of(bool), init=False)
+    strategies: list[Strategy] = attr.ib(validator=attr.validators.deep_iterable(member_validator=attr.validators.instance_of(Strategy), iterable_validator=attr.validators.instance_of(list)))
 
-    def __post_init__(self):
+    def __attrs_post_init__(self):
         self.botloopfrequency = 30
         self.killswitch = False
+
+        # Validate Strategies
+        names = []
+        for strategy in self.strategies:
+            if strategy.strategy_name in names:
+                raise Exception("Duplicate Strategy Name")
+            else:
+                names.append(strategy.strategy_name)
 
         # Set Mediators
         self.database.mediator = self
         self.broker.mediator = self
         self.notifier.mediator = self
         for strategy in self.strategies:
+            # strat = re.findall(r"(\w+(?=\'))", str(type(strategy)))
+            # name = strategy.strategy_name
+            # under = strategy.underlying
             strategy.mediator = self
 
     def process_strategies(self) -> bool:
         # Get the current timestamp
         starttime = time.time()
+
+        # If the loop is exited, send a notification
+        self.send_notification(baseRR.SendNotificationRequestMessage(message="Bot Started."))
 
         # While the kill switch is not enabled, loop through strategies
         while not self.killswitch:
@@ -45,6 +61,7 @@ class Bot(Mediator):
                 strategy.processstrategy()
 
             # Sleep for the specified time.
+            logger.debug("Sleeping...")
             time.sleep(self.botloopfrequency - ((time.time() - starttime) % self.botloopfrequency))
 
         # If the loop is exited, send a notification

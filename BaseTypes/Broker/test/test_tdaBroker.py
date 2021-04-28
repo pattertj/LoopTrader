@@ -44,8 +44,12 @@ class TestTdaBroker(unittest.TestCase):
     #     self.assertIsNotNone(response)
 
     def test_get_option_chain(self):
-        request = baseRR.GetOptionChainRequestMessage(symbol='$SPX.X', contracttype='PUT', includequotes=True, optionrange='OTM', fromdate=dt.date.today().strftime("%Y-%m-%d"), todate=(dt.date.today() + dt.timedelta(days=4)).strftime("%Y-%m-%d"))
+        request = baseRR.GetOptionChainRequestMessage(symbol='$SPX.X', contracttype='PUT', includequotes=True, optionrange='OTM', fromdate=dt.date.today(), todate=dt.date.today() + dt.timedelta(days=4))
         response = self.func.get_option_chain(request)
+
+        for foo, bar in response.putexpdatemap[1].strikes.items():
+            print(foo)
+            print(bar)
 
         self.assertIsNotNone(response)
 
@@ -64,11 +68,10 @@ class TestTdaBroker(unittest.TestCase):
         self.assertEqual(len(response.callexpdatemap), 0)
 
     def test_get_market_hours(self):
-        request = baseRR.GetMarketHoursRequestMessage(datetime=dt.datetime.now(), markets={'OPTION'})
+        request = baseRR.GetMarketHoursRequestMessage(datetime=dt.datetime.now(), market='OPTION', product='IND')
         response = self.func.get_market_hours(request)
 
         self.assertIsNotNone(response)
-        self.assertIsNotNone(response.isopen)
 
 
 if __name__ == '__main__':
