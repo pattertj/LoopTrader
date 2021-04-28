@@ -161,7 +161,7 @@ class GetOrderResponseMessage():
 class GetMarketHoursRequestMessage():
     market: str = attr.ib(validator=attr.validators.in_(['OPTION', 'EQUITY', 'FUTURE', 'FOREX', 'BOND']))
     product: str = attr.ib(validator=attr.validators.in_(['EQO', 'IND']))
-    datetime: datetime = datetime.now()
+    datetime: datetime = attr.ib(default=datetime.now(), validator=attr.validators.instance_of(datetime))
 
 
 @attr.s(auto_attribs=True, init=False)

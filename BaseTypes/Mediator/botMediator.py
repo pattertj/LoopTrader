@@ -61,6 +61,7 @@ class Bot(Mediator):
                 strategy.processstrategy()
 
             # Sleep for the specified time.
+            logger.debug("Sleeping...")
             time.sleep(self.botloopfrequency - ((time.time() - starttime) % self.botloopfrequency))
 
         # If the loop is exited, send a notification
