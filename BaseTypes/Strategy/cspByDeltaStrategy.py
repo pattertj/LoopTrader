@@ -37,25 +37,27 @@ class CspByDeltaStrategy(Strategy, Component):
 
         # If Pre-Market
         if now < hours.start:
-            logger.info("Entering Pre-Market")
             self.process_pre_market()
 
         # If In-Market
         elif hours.start < now < hours.end:
-            logger.info("Entering Open-Market")
             self.process_open_market(hours.end, now)
 
         # If After-Hours
         elif hours.end < now:
-            logger.info("Entering After-Hours")
             self.process_after_hours(hours.end, now)
 
     # Process Market Hours
     def process_pre_market(self):
+        logger.info("Processing Pre-Market.")
+
         # Exit.
-        logger.info("Pre-market, nothing to do.")
+        return
 
     def process_open_market(self, close: dt.datetime, now: dt.datetime):
+        logger.info("Processing Open-Market")
+
+        # Get the number of minutes till close
         minutestoclose = (close - now).total_seconds() / 60
 
         # Process Expiring Positions
@@ -68,6 +70,8 @@ class CspByDeltaStrategy(Strategy, Component):
         self.process_closing_orders(minutestoclose)
 
     def process_after_hours(self, close: dt.datetime, now: dt.datetime):
+        logger.info("Processing After-Hours")
+
         # Get the number of minutes since close
         minutesafterclose = (now - close).total_seconds() / 60
 
@@ -119,34 +123,33 @@ class CspByDeltaStrategy(Strategy, Component):
                     self.mediator.place_order(order)
 
     def build_offsetting_orders(self) -> list[baseRR.PlaceOrderRequestMessage]:
-        pass
+        # Read positions
+        request = baseRR.GetAccountRequestMessage(False, True)
+        account = self.mediator.get_account(request)
 
-        # # Read positions
-        # request = baseRR.GetAccountRequestMessage(False, True)
-        # account = self.mediator.get_account(request)
+        # If not positions, nothing to offset
+        if account.positions is None:
+            return
 
-        # # If not positions, nothing to offset
-        # if account.positions is None:
-        #     return
+        response = [baseRR.PlaceOrderResponseMessage]
 
-        # response = [baseRR.PlaceOrderResponseMessage]
+        # Check all positions
+        for position in account.positions:
+            # Check if position is expiring today
+            if position.expirationdate.date() == dt.datetime.now().date():
+                # TODO: Check DB if it is our positions
+                if True:
+                    # Get today's option chain
+                    optionchainrequest = baseRR.GetOptionChainRequestMessage(symbol=self.underlying, contracttype='PUT', includequotes=True, optionrange='OTM', fromdate=dt.date.today(), todate=(dt.date.today()))
+                    optionchainresponse = self.mediator.get_option_chain(optionchainrequest)
 
-        # # Check all positions
-        # for position in account.positions:
-        #     # Check if position is expiring today
-        #     if position.expirationdate.date() == dt.datetime.now().date():
-        #         # Check DB if it is our positions
-        #         if True:
-        #             # Get today's option chain
-        #             optionchainrequest = baseRR.GetOptionChainRequestMessage(symbol=self.underlying, contracttype='PUT', includequotes=True, optionrange='OTM', fromdate=dt.date.today(), todate=(dt.date.today()))
-        #             optionchainresponse = self.mediator.get_option_chain(optionchainrequest)
-        #             # Find a cheap option to offset
-        #             # Build Order
-        #             # Append to Reponse
-        #             # response.append(offsetorder)
+                    # Find a cheap option to offset
+                    # Build Order
+                    # Append to Reponse
+                    # response.append(offsetorder)
 
-        # # Once we have reviewed all postiions, exit.
-        # return response
+        # Once we have reviewed all postiions, exit.
+        return response
 
     # Order Builders
     def build_new_order(self) -> baseRR.PlaceOrderRequestMessage:
