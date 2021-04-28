@@ -88,7 +88,7 @@ class CspByDeltaStrategy(Strategy, Component):
             # Set sleepuntil
             self.sleepuntil = nextmarketsession.start - dt.timedelta(minutes=5)
 
-            logger.debug("Markets are closed until {}. Sleeping until {}".format(nextmarketsession.start, self.sleepuntil))
+            logger.info("Markets are closed until {}. Sleeping until {}".format(nextmarketsession.start, self.sleepuntil))
             return
 
         # Build closing orders
