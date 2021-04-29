@@ -13,11 +13,22 @@
 <h4 align="center">An extensible options trading bot built on top of Python.</h4>
 
 <p align="center">
+  <a href="#description">Description</a> •
   <a href="#installation">Installation</a> •
   <a href="#usage">Usage</a> •
   <a href="#contributing">Contributing</a> •
   <a href="#license">License</a>
 </p>
+
+## Description
+The goal for LoopTrader is to provide a flexible engine for running one or more option trading strategies in real-time against provided broker API's. The Key Features include:
+
+* Simple to setup and run multiple trading bots
+* Extensibility for various brokers, trading strategies, and logging patterns
+* Local storage for trades and orders
+* Support for notifications and interactions through tools like Telegram  
+
+LoopTrader is very much a work in progress and is currently not feature complete. See the [Issues](https://github.com/pattertj/LoopTrader/issues) for what remains open, or to make a suggestion.
 
 ## Installation
 Installation is the next section in an effective README. Tell other users how to install your project locally. Optionally, include a gif to make the process even more clear for other people.
@@ -30,7 +41,6 @@ Larger projects often have sections on contributing to their project, in which c
 
 ## Credits
 Include a section for credits in order to highlight and link to the authors of your project.
-
 
 ## License
 
