@@ -119,8 +119,9 @@ class CspByDeltaStrategy(Strategy, Component):
         offsettingorders = self.build_offsetting_orders()
 
         # Place new order loop
-        for order in offsettingorders:
-            self.place_order_loop(order)
+        if offsettingorders is not None:
+            for order in offsettingorders:
+                self.place_order_loop(order)
 
     def process_closing_orders(self, minutestoclose):
         logger.debug("process_closing_orders")
@@ -336,7 +337,7 @@ class CspByDeltaStrategy(Strategy, Component):
         request = baseRR.GetMarketHoursRequestMessage(market='OPTION', product='IND', datetime=date)
         hours = self.mediator.get_market_hours(request)
 
-        if hours is None or hours.end < dt.datetime.now():
+        if hours is None or hours.end < dt.datetime.now().astimezone(dt.timezone.utc):
             self.get_market_session_loop(date + dt.timedelta(days=1))
 
         return hours
