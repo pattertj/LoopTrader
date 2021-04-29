@@ -31,13 +31,21 @@ The goal for LoopTrader is to provide a flexible engine for running one or more 
 LoopTrader is very much a work in progress and is currently not feature complete. See the [Issues](https://github.com/pattertj/LoopTrader/issues) for what remains open, or to make a suggestion.
 
 ## Installation
-Installation is the next section in an effective README. Tell other users how to install your project locally. Optionally, include a gif to make the process even more clear for other people.
+Eventually I plan to publish a first release which can be installed via pip install. For now, clone the repo and run it locally from your Python command line or IDE.
 
 ## Usage
-The next section is usage, in which you instruct other people on how to use your project after they’ve installed it. This would also be a good place to include screenshots of your project in action.
+Currently all configuration of LoopTrader is done in the code when creating the bot in [main.py](https://github.com/pattertj/LoopTrader/blob/main/main.py) and in the [.env](https://github.com/pattertj/LoopTrader/blob/main/sample.env) file. A sample .env file is provided, but it should be renamed to ".env" and the configuration variables populated.
+
+
 
 ## Contributing
-Larger projects often have sections on contributing to their project, in which contribution instructions are outlined. Sometimes, this is a separate file. If you have specific contribution preferences, explain them so that other developers know how to best contribute to your work. To learn more about how to help others contribute, check out the guide for setting guidelines for repository contributors.
+### Start contributing right now:
+
+#### Open an issue
+If you've found a problem, you can open an [issue](https://github.com/pattertj/LoopTrader/issues/new)!
+
+#### Solve an issue
+If you have a solution to one of the open issues, you will need to fork the repository and submit a pull request. 
 
 ## Credits
 Include a section for credits in order to highlight and link to the authors of your project.
