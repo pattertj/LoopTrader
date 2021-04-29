@@ -7,7 +7,7 @@
 </h1>
 
 <p align="center">
-<img src="https://github.com/pattertj/LoopTrader/actions/workflows/python-app.yml/badge.svg"> <img src="https://github.com/pattertj/LoopTrader/actions/workflows/codeql-analysis.yml/badge.svg"> <img src="https://img.shields.io/github/issues/pattertj/LoopTrader?style=flat&logo=github"> <img src="https://img.shields.io/github/forks/pattertj/LoopTrader?style=flat&logo=github"> <img src="https://img.shields.io/github/stars/pattertj/LoopTrader?style=flat&logo=github"> <img src="https://img.shields.io/github/license/pattertj/LoopTrader">
+<img src="https://img.shields.io/github/workflow/status/pattertj/looptrader/PythonBuild?style=flat&logo=github)"> <img src="https://img.shields.io/github/workflow/status/pattertj/looptrader/CodeQL?style=flat&logo=github)"> <img src="https://img.shields.io/github/forks/pattertj/LoopTrader?style=flat&logo=github"> <img src="https://img.shields.io/github/stars/pattertj/LoopTrader?style=flat&logo=github"> <img src="https://img.shields.io/github/license/pattertj/LoopTrader?style=flat&logo=github">
 </p>
 
 <h4 align="center">An extensible options trading bot built on top of Python.</h4>
