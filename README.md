@@ -48,7 +48,7 @@ If you've found a problem, you can open an [issue](https://github.com/pattertj/L
 If you have a solution to one of the open issues, you will need to fork the repository and submit a pull request. 
 
 ## Credits
-Include a section for credits in order to highlight and link to the authors of your project.
+Big thanks to the great people on Discord. You know who you are.
 
 ## License
 
