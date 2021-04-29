@@ -57,6 +57,13 @@ class CspByDeltaStrategy(Strategy, Component):
     def process_pre_market(self):
         logger.debug("Processing Pre-Market.")
 
+        # Get Next Open
+        nextmarketsession = self.get_market_session_loop(dt.datetime.now())
+        # Set sleepuntil
+        self.sleepuntil = nextmarketsession.start - dt.timedelta(minutes=5)
+
+        logger.info("Markets are closed until {}. Sleeping until {}".format(nextmarketsession.start, self.sleepuntil))
+
         # Exit.
         return
 
@@ -84,7 +91,7 @@ class CspByDeltaStrategy(Strategy, Component):
         # If beyond 5 min after close, exit
         if minutesafterclose > 5:
             # Get Next Open
-            nextmarketsession = self.get_next_market_session_loop(dt.datetime.now())
+            nextmarketsession = self.get_market_session_loop(dt.datetime.now() + dt.timedelta(days=1))
             # Set sleepuntil
             self.sleepuntil = nextmarketsession.start - dt.timedelta(minutes=5)
 
@@ -325,13 +332,12 @@ class CspByDeltaStrategy(Strategy, Component):
         return True
 
     # Helpers
-    def get_next_market_session_loop(self, date: dt.datetime) -> baseRR.GetMarketHoursResponseMessage:
-        searchdate = date + dt.timedelta(days=1)
-        request = baseRR.GetMarketHoursRequestMessage(market='OPTION', product='IND', datetime=searchdate)
+    def get_market_session_loop(self, date: dt.datetime) -> baseRR.GetMarketHoursResponseMessage:
+        request = baseRR.GetMarketHoursRequestMessage(market='OPTION', product='IND', datetime=date)
         hours = self.mediator.get_market_hours(request)
 
-        if hours is None:
-            self.get_next_market_session_loop(searchdate)
+        if hours is None or hours.end < dt.datetime.now():
+            self.get_market_session_loop(date + dt.timedelta(days=1))
 
         return hours
 
