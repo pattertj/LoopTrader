@@ -1,8 +1,8 @@
 import logging
 import re
-from dataclasses import dataclass, field
 from os import getenv
 
+import attr
 import BaseTypes.Mediator.reqRespTypes as baseRR
 from BaseTypes.Component.abstractComponent import Component
 from BaseTypes.Mediator.reqRespTypes import GetAccountRequestMessage
@@ -17,14 +17,14 @@ from telegram.inline.inlinekeyboardmarkup import InlineKeyboardMarkup
 logger = logging.getLogger('autotrader')
 
 
-@dataclass
+@attr.s(auto_attribs=True)
 class TelegramNotifier(Notifier, Component):
-    updater: Updater = field(init=False)
-    chatid: int = field(init=False)
+    updater: Updater = attr.ib(validator=attr.validators.instance_of(Updater), init=False)
+    chatid: int = attr.ib(validator=attr.validators.instance_of(int), init=False)
 
-    def __post_init__(self):
+    def __attrs_post_init__(self):
         token = getenv('TELEGRAM_TOKEN')
-        self.chatid = getenv('TELEGRAM_CHATID')
+        self.chatid = int(getenv('TELEGRAM_CHATID'))
 
         # create the updater, that will automatically create also a dispatcher and a queue to make them dialoge
         self.updater = Updater(token, use_context=True)

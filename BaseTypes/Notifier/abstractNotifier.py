@@ -1,12 +1,10 @@
 import abc
-from dataclasses import dataclass
 
+import attr
 from BaseTypes.Component.abstractComponent import Component
 
-# import BaseTypes.Mediator.reqRespTypes as baseRR
 
-
-@dataclass
+@attr.s(auto_attribs=True)
 class Notifier(abc.ABC, Component):
 
     @abc.abstractmethod

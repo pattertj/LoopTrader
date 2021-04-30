@@ -1,11 +1,12 @@
-from BaseTypes.Component.abstractComponent import Component
 import abc
-from dataclasses import dataclass
+
+import attr
+from BaseTypes.Component.abstractComponent import Component
 
 
-@dataclass
+@attr.s(auto_attribs=True)
 class Database(abc.ABC, Component):
-    connectionstring: str
+    connectionstring: str = attr.ib(validator=attr.validators.instance_of(str))
 
     @abc.abstractmethod
     def create_order(self) -> bool:
