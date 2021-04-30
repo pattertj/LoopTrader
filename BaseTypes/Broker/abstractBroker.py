@@ -1,16 +1,16 @@
-from BaseTypes.Component.abstractComponent import Component
 import abc
-from dataclasses import dataclass
 
+import attr
 import BaseTypes.Mediator.reqRespTypes as baseRR
+from BaseTypes.Component.abstractComponent import Component
 
 
-@dataclass
+@attr.s(auto_attribs=True)
 class Broker(abc.ABC, Component):
-    client_id: str
-    redirect_uri: str
-    account_number: str
-    credentials_path: str
+    client_id: str = attr.ib(validator=attr.validators.instance_of(str))
+    redirect_uri: str = attr.ib(validator=attr.validators.instance_of(str))
+    account_number: str = attr.ib(validator=attr.validators.instance_of(str))
+    credentials_path: str = attr.ib(validator=attr.validators.instance_of(str))
 
     @abc.abstractmethod
     def get_account(self, request: baseRR.GetAccountRequestMessage) -> baseRR.GetAccountResponseMessage:

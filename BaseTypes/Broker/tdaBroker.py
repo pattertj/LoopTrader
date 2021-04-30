@@ -1,9 +1,9 @@
 import datetime as dt
 import logging
 from collections import OrderedDict
-from dataclasses import dataclass
 from os import getenv
 
+import attr
 import BaseTypes.Mediator.reqRespTypes as baseRR
 from BaseTypes.Broker.abstractBroker import Broker
 from BaseTypes.Component.abstractComponent import Component
@@ -13,12 +13,12 @@ from td.option_chain import OptionChain
 logger = logging.getLogger('autotrader')
 
 
-@dataclass
+@attr.s(auto_attribs=True)
 class TdaBroker(Broker, Component):
-    client_id: str = getenv('TDAMERITRADE_CLIENT_ID')
-    redirect_uri: str = getenv('REDIRECT_URL')
-    account_number: str = getenv('TDAMERITRADE_ACCOUNT_NUMBER')
-    credentials_path: str = getenv('CREDENTIALS_PATH')
+    client_id: str = attr.ib(default=getenv('TDAMERITRADE_CLIENT_ID'), validator=attr.validators.instance_of(str))
+    redirect_uri: str = attr.ib(default=getenv('REDIRECT_URL'), validator=attr.validators.instance_of(str))
+    account_number: str = attr.ib(default=getenv('TDAMERITRADE_ACCOUNT_NUMBER'), validator=attr.validators.instance_of(str))
+    credentials_path: str = attr.ib(default=getenv('CREDENTIALS_PATH'), validator=attr.validators.instance_of(str))
 
     def get_account(self, request: baseRR.GetAccountRequestMessage) -> baseRR.GetAccountResponseMessage:
 
