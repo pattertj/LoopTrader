@@ -34,9 +34,8 @@ class TdaBroker(Broker, Component):
         try:
             account = self.getsession().get_accounts(
                 getenv('TDAMERITRADE_ACCOUNT_NUMBER'), fields=optionalfields)
-        except Exception as e:
-            logger.error(e)
-            raise KeyError("Failed to get Account Details.")
+        except Exception:
+            logger.exception("Failed to get Account Details.")
 
         # Stub response message
         response = baseRR.GetAccountResponseMessage()
@@ -155,9 +154,8 @@ class TdaBroker(Broker, Component):
             orderresponse = self.getsession().place_order(
                 account=self.account_number, order=orderrequest)
             logger.info("Order {} Placed".format(orderresponse['order_id']))
-        except Exception as e:
-            logger.error('Error at %s', 'Place Order', exc_info=e.message)
-            raise e
+        except Exception:
+            logger.exception("Failed to place order.")
 
         response = baseRR.PlaceOrderResponseMessage()
         response.orderid = orderresponse.get('order_id')
@@ -170,7 +168,10 @@ class TdaBroker(Broker, Component):
             logger.error("Order ID is None.")
             raise KeyError("OrderID was not provided")
 
-        order = self.getsession().get_orders(account=self.account_number, order_id=str(request.orderid))
+        try:
+            order = self.getsession().get_orders(account=self.account_number, order_id=str(request.orderid))
+        except Exception:
+            logger.exception("Failed to read order {}.".format(str(request.orderid)))
 
         response = baseRR.GetOrderResponseMessage()
 
@@ -247,7 +248,10 @@ class TdaBroker(Broker, Component):
         optionchainobj.query_parameters = optionchainrequest
 
         if optionchainobj.validate_chain():
-            optionschain = self.getsession().get_options_chain(optionchainrequest)
+            try:
+                optionschain = self.getsession().get_options_chain(optionchainrequest)
+            except Exception:
+                logger.exception("Failed to get options chain.")
         else:
             logger.error("Invalid OptionChainRequest.")
             raise KeyError("Invalid OptionChainRequest.")
@@ -268,6 +272,75 @@ class TdaBroker(Broker, Component):
 
         return response
 
+    def cancel_order(self, request: baseRR.CancelOrderRequestMessage) -> baseRR.CancelOrderResponseMessage:
+        if request.orderid is None:
+            logger.error("Order ID is None.")
+            raise KeyError("OrderID was not provided")
+
+        try:
+            cancelresponse = self.getsession().cancel_order(account=getenv('TDAMERITRADE_ACCOUNT_NUMBER'), order_id=str(request.orderid))
+        except Exception:
+            logger.exception("Failed to cancel order {}.".format(str(request.orderid)))
+
+        response = baseRR.CancelOrderResponseMessage()
+        response.responsecode = cancelresponse.get('status_code')
+
+        return response
+
+    def get_market_hours(self, request: baseRR.GetMarketHoursRequestMessage) -> baseRR.GetMarketHoursResponseMessage:
+        markets = []
+
+        markets.append(request.market)
+
+        # Validation
+        for market in markets:
+            if market == 'FUTURE' or market == 'FOREX' or market == 'BOND':
+                return KeyError("{} markets are not supported at this time.".format(market))
+
+        # Get Market Hours
+        try:
+            hours = self.getsession().get_market_hours(markets=markets, date=str(request.datetime))
+        except Exception:
+            logger.exception('Failed to get market hours.')
+            return None
+
+        market: str
+        markettype: dict
+        for market, markettype in hours.items():
+
+            type: str
+            details: dict
+            for type, details in markettype.items():
+                if (type == request.product):
+                    sessionhours = dict(details.get('sessionHours'))
+
+                    session: str
+                    markethours: list
+                    for session, markethours in sessionhours.items():
+                        if (session == 'regularMarket'):
+                            response = baseRR.GetMarketHoursResponseMessage
+
+                            response.start = dt.datetime.strptime(str(dict(markethours[0]).get('start')), "%Y-%m-%dT%H:%M:%S%z").astimezone(dt.timezone.utc)
+                            response.end = dt.datetime.strptime(str(dict(markethours[0]).get('end')), "%Y-%m-%dT%H:%M:%S%z").astimezone(dt.timezone.utc)
+                            response.isopen = details.get('isOpen')
+
+                            return response
+
+    def getsession(self) -> TDClient:
+        return TDClient(
+            client_id=self.client_id,
+            redirect_uri=self.redirect_uri,
+            account_number=self.account_number,
+            credentials_path=self.credentials_path
+        )
+
+    def getaccesstoken(self):
+        try:
+            self.getsession().grab_access_token()
+        except Exception:
+            logger.exception('Failed to get access token.')
+
+    # Helper Function
     def get_formatted_option_chain(self, rawoptionchain: dict) -> list[baseRR.GetOptionChainResponseMessage.ExpirationDate]:
         response = []
 
@@ -305,65 +378,3 @@ class TdaBroker(Broker, Component):
             response.append(expiry)
 
         return response
-
-    def cancel_order(self, request: baseRR.CancelOrderRequestMessage) -> baseRR.CancelOrderResponseMessage:
-        if request.orderid is None:
-            logger.error("Order ID is None.")
-            raise KeyError("OrderID was not provided")
-
-        cancelresponse = self.getsession().cancel_order(account=getenv('TDAMERITRADE_ACCOUNT_NUMBER'), order_id=str(request.orderid))
-
-        response = baseRR.CancelOrderResponseMessage()
-        response.responsecode = cancelresponse.get('status_code')
-
-        return response
-
-    def get_market_hours(self, request: baseRR.GetMarketHoursRequestMessage) -> baseRR.GetMarketHoursResponseMessage:
-        markets = []
-
-        markets.append(request.market)
-
-        # Validation
-        for market in markets:
-            if market == 'FUTURE' or market == 'FOREX' or market == 'BOND':
-                return KeyError("{} markets are not supported at this time.".format(market))
-
-        # Get Market Hours
-        try:
-            hours = self.getsession().get_market_hours(markets=markets, date=str(request.datetime))
-        except Exception:
-            logger.error('Failed to get market hours.')
-            return None
-
-        market: str
-        markettype: dict
-        for market, markettype in hours.items():
-
-            type: str
-            details: dict
-            for type, details in markettype.items():
-                if (type == request.product):
-                    sessionhours = dict(details.get('sessionHours'))
-
-                    session: str
-                    markethours: list
-                    for session, markethours in sessionhours.items():
-                        if (session == 'regularMarket'):
-                            response = baseRR.GetMarketHoursResponseMessage
-
-                            response.start = dt.datetime.strptime(str(dict(markethours[0]).get('start')), "%Y-%m-%dT%H:%M:%S%z").astimezone(dt.timezone.utc)
-                            response.end = dt.datetime.strptime(str(dict(markethours[0]).get('end')), "%Y-%m-%dT%H:%M:%S%z").astimezone(dt.timezone.utc)
-                            response.isopen = details.get('isOpen')
-
-                            return response
-
-    def getsession(self) -> TDClient:
-        return TDClient(
-            client_id=self.client_id,
-            redirect_uri=self.redirect_uri,
-            account_number=self.account_number,
-            credentials_path=self.credentials_path
-        )
-
-    def getaccesstoken(self):
-        self.getsession().grab_access_token()
