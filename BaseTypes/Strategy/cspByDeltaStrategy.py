@@ -317,7 +317,7 @@ class CspByDeltaStrategy(Strategy, Component):
         time.sleep(self.openingorderloopseconds)
 
         # Re-get the Order
-        getorderrequest = baseRR.GetOrderRequestMessage(neworderresult.orderid)
+        getorderrequest = baseRR.GetOrderRequestMessage(int(neworderresult.orderid))
         processedorder = self.mediator.get_order(getorderrequest)
 
         # If the order isn't filled
