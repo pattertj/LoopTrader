@@ -242,9 +242,7 @@ class CspByDeltaStrategy(Strategy, Component):
         for order in account.orders:
             # TODO: If positions belongs to this strat...
             if order.status == 'QUEUED' and order.legs[0].positioneffect == 'CLOSING':
-                orderrequest = baseRR.CancelOrderRequestMessage()
-                orderrequest.orderid = order.orderid
-
+                orderrequest = baseRR.CancelOrderRequestMessage(order.orderid)
                 orderrequests.append(orderrequest)
 
         return orderrequests

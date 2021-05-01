@@ -8,11 +8,15 @@ from BaseTypes.Component.abstractComponent import Component
 from BaseTypes.Mediator.reqRespTypes import GetAccountRequestMessage
 from BaseTypes.Notifier.abstractNotifier import Notifier
 from telegram import ParseMode, Update
+from telegram.bot import Bot
+from telegram.callbackquery import CallbackQuery
 from telegram.ext import (CallbackQueryHandler, CommandHandler, Filters,
                           MessageHandler, Updater)
 from telegram.ext.callbackcontext import CallbackContext
+from telegram.ext.dispatcher import Dispatcher
 from telegram.inline.inlinekeyboardbutton import InlineKeyboardButton
 from telegram.inline.inlinekeyboardmarkup import InlineKeyboardMarkup
+from telegram.message import Message
 
 logger = logging.getLogger('autotrader')
 
@@ -28,7 +32,7 @@ class TelegramNotifier(Notifier, Component):
 
         # create the updater, that will automatically create also a dispatcher and a queue to make them dialoge
         self.updater = Updater(token, use_context=True)
-        dispatcher = self.updater.dispatcher
+        dispatcher = Dispatcher(self.updater.dispatcher)
 
         # add handlers for start and help commands
         dispatcher.add_handler(CommandHandler("start", self.start))
@@ -49,7 +53,7 @@ class TelegramNotifier(Notifier, Component):
         self.updater.start_polling()
 
     def send_notification(self, request: baseRR.SendNotificationRequestMessage) -> None:
-        self.updater.bot.send_message(chat_id=self.chatid, text=re.escape(request.message), parse_mode=ParseMode.MARKDOWN_V2)
+        self.send_message(text=re.escape(request.message), parsemode=ParseMode.MARKDOWN_V2)
 
     # function to handle the /start command
     def start(self, update: Update, context: CallbackContext):
@@ -65,18 +69,18 @@ class TelegramNotifier(Notifier, Component):
 
         try:
             text = r"Welcome to LoopTrader, I'm a Telegram bot here to help you manage your LoopTrader\! There are a few things I can do:"
-            update.message.reply_text(text, reply_markup=reply_markup, quote=False, parse_mode=ParseMode.MARKDOWN_V2)
+            self.reply_text(text, update.message, reply_markup, ParseMode.MARKDOWN_V2)
         except Exception as e:
             print(e)
 
     # function to handle the /killswitch command
     def killswitch(self, update: Update, context: CallbackContext):
         self.mediator.set_kill_switch(True)
-        update.message.reply_text(r"Kill switch, flipped. Awaiting confirmation...")
+        self.reply_text(r"Kill switch, flipped. Awaiting confirmation...", update.message, None, ParseMode.MARKDOWN_V2)
 
     # function to handle the /help command
     def help(self, update: Update, context: CallbackContext):
-        update.message.reply_text(text=r"Welcome to LoopTrader, I'm a Telegram bot here to help you manage your LoopTrader\! There are a few things I can do: \r\n\n \- *Push Notifications* will alert you to alerts you setup in your LoopTrader\. \r\n \- */killswitch* will shutdown your LoopTrader\\. \r\n \- */account* will display your latest account details\. \r\n \- */orders* will display your open Orders. \r\n \- */positions* will show your open Positions\\.", parse_mode=ParseMode.MARKDOWN_V2)
+        self.reply_text(r"Welcome to LoopTrader, I'm a Telegram bot here to help you manage your LoopTrader\! There are a few things I can do: \r\n\n \- *Push Notifications* will alert you to alerts you setup in your LoopTrader\. \r\n \- */killswitch* will shutdown your LoopTrader\\. \r\n \- */account* will display your latest account details\. \r\n \- */orders* will display your open Orders. \r\n \- */positions* will show your open Positions\\.", update.message, None, ParseMode.MARKDOWN_V2)
 
     # function to handle /orders command
     def orders(self, update: Update, context: CallbackContext):
@@ -84,7 +88,7 @@ class TelegramNotifier(Notifier, Component):
         msg = self.build_orders_message()
 
         # Send Message
-        update.message.reply_text(text=msg, parse_mode=ParseMode.HTML, quote=False)
+        self.reply_text(msg, update.message, None, ParseMode.HTML)
 
     # function to handle /positions command
     def positions(self, update: Update, context: CallbackContext):
@@ -92,7 +96,7 @@ class TelegramNotifier(Notifier, Component):
         msg = self.build_positions_message()
 
         # Send Message
-        update.message.reply_text(text=msg, parse_mode=ParseMode.HTML, quote=False)
+        self.reply_text(msg, update.message, None, ParseMode.HTML)
 
     # function to handle /account command
     def balances(self, update: Update, context: CallbackContext):
@@ -100,15 +104,15 @@ class TelegramNotifier(Notifier, Component):
         msg = self.build_balances_message()
 
         # Send Message
-        update.message.reply_text(text=msg, parse_mode=ParseMode.HTML, quote=False)
+        self.reply_text(msg, update.message, None, ParseMode.HTML)
 
     # function to handle errors occured in the dispatcher
     def error(self, update: Update, context: CallbackContext):
-        update.message.reply_text(r"An error occured, check the logs.")
+        self.reply_text(r"An error occured, check the logs.", update.message, None, ParseMode.HTML)
 
     # function to handle normal text
     def text(self, update: Update, context: CallbackContext):
-        update.message.reply_text(r"Sorry, I don't recognize your command.")
+        self.reply_text(r"Sorry, I don't recognize your command.", update.message, None, ParseMode.HTML)
 
     def build_balances_message(self) -> str:
         # Get Account
@@ -151,7 +155,7 @@ class TelegramNotifier(Notifier, Component):
         return reply
 
     def button(self, update: Update, _: CallbackContext) -> None:
-        query = update.callback_query
+        query = CallbackQuery(update.callback_query)
 
         query.answer()
 
@@ -163,6 +167,29 @@ class TelegramNotifier(Notifier, Component):
             msg = self.build_orders_message()
 
         try:
-            query.edit_message_text(text=msg, parse_mode=ParseMode.HTML)
+            self.edit_message_text(query, msg, ParseMode.HTML)
         except Exception as e:
             print(e)
+
+    # Send Message/Reply Helpers
+    def send_message(self, message: str, parsemode: ParseMode):
+        try:
+            bot = Bot(self.updater.bot)
+            bot.send_message(chat_id=self.chatid, text=message, parse_mode=parsemode)
+        except Exception:
+            logger.exception("Telegram failed to send message.")
+            pass
+
+    def reply_text(self, text: str, message: Message, reply_markup: InlineKeyboardMarkup, parsemode: ParseMode):
+        try:
+            message.reply_text(text, reply_markup=reply_markup, quote=False, parse_mode=parsemode)
+        except Exception:
+            logger.exception("Telegram failed to reply.")
+            pass
+
+    def edit_message_text(self, query: CallbackQuery, msg: str, parsemode: ParseMode):
+        try:
+            query.edit_message_text(text=msg, parse_mode=parsemode)
+        except Exception:
+            logger.exception("Telegram failed to callback.")
+            pass
