@@ -8,12 +8,10 @@ from BaseTypes.Component.abstractComponent import Component
 from BaseTypes.Mediator.reqRespTypes import GetAccountRequestMessage
 from BaseTypes.Notifier.abstractNotifier import Notifier
 from telegram import ParseMode, Update
-from telegram.bot import Bot
 from telegram.callbackquery import CallbackQuery
 from telegram.ext import (CallbackQueryHandler, CommandHandler, Filters,
                           MessageHandler, Updater)
 from telegram.ext.callbackcontext import CallbackContext
-from telegram.ext.dispatcher import Dispatcher
 from telegram.inline.inlinekeyboardbutton import InlineKeyboardButton
 from telegram.inline.inlinekeyboardmarkup import InlineKeyboardMarkup
 from telegram.message import Message
@@ -32,7 +30,7 @@ class TelegramNotifier(Notifier, Component):
 
         # create the updater, that will automatically create also a dispatcher and a queue to make them dialoge
         self.updater = Updater(token, use_context=True)
-        dispatcher = Dispatcher(self.updater.dispatcher)
+        dispatcher = self.updater.dispatcher
 
         # add handlers for start and help commands
         dispatcher.add_handler(CommandHandler("start", self.start))
@@ -47,13 +45,13 @@ class TelegramNotifier(Notifier, Component):
         dispatcher.add_handler(MessageHandler(Filters.text, self.text))
 
         # add an handler for errors
-        dispatcher.add_error_handler(self.error)
+        dispatcher.add_error_handler(self.error, False)
 
         # start your shiny new bot
         self.updater.start_polling()
 
     def send_notification(self, request: baseRR.SendNotificationRequestMessage) -> None:
-        self.send_message(text=re.escape(request.message), parsemode=ParseMode.MARKDOWN_V2)
+        self.send_message(message=re.escape(request.message), parsemode=ParseMode.MARKDOWN_V2)
 
     # function to handle the /start command
     def start(self, update: Update, context: CallbackContext):
@@ -150,12 +148,13 @@ class TelegramNotifier(Notifier, Component):
 
         for order in account.orders:
             if order.status == 'OPEN' or order.status == 'QUEUED':
-                reply += " \r\n <code>- {}x {} {} @ ${}</code>".format(str(order.quantity), str(order.legs[0].instruction), str(order.legs[0].symbol), "{:,.2f}".format(order.price))
+                price = 0 if order.price is None else order.price
+                reply += " \r\n <code>- {}x {} {} @ ${}</code>".format(str(order.quantity), str(order.legs[0].instruction), str(order.legs[0].symbol), "{:,.2f}".format(price))
 
         return reply
 
     def button(self, update: Update, _: CallbackContext) -> None:
-        query = CallbackQuery(update.callback_query)
+        query = update.callback_query
 
         query.answer()
 
@@ -174,7 +173,7 @@ class TelegramNotifier(Notifier, Component):
     # Send Message/Reply Helpers
     def send_message(self, message: str, parsemode: ParseMode):
         try:
-            bot = Bot(self.updater.bot)
+            bot = self.updater.bot
             bot.send_message(chat_id=self.chatid, text=message, parse_mode=parsemode)
         except Exception:
             logger.exception("Telegram failed to send message.")
