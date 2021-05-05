@@ -1,4 +1,3 @@
-from BaseTypes.Mediator.botMediator import Bot
 import logging
 import re
 from os import getenv
@@ -13,7 +12,6 @@ from telegram.callbackquery import CallbackQuery
 from telegram.ext import (CallbackQueryHandler, CommandHandler, Filters,
                           MessageHandler, Updater)
 from telegram.ext.callbackcontext import CallbackContext
-from telegram.ext.dispatcher import Dispatcher
 from telegram.inline.inlinekeyboardbutton import InlineKeyboardButton
 from telegram.inline.inlinekeyboardmarkup import InlineKeyboardMarkup
 from telegram.message import Message
