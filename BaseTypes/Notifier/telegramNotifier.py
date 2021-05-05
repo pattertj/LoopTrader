@@ -12,7 +12,6 @@ from telegram.callbackquery import CallbackQuery
 from telegram.ext import (CallbackQueryHandler, CommandHandler, Filters,
                           MessageHandler, Updater)
 from telegram.ext.callbackcontext import CallbackContext
-from telegram.ext.dispatcher import Dispatcher
 from telegram.inline.inlinekeyboardbutton import InlineKeyboardButton
 from telegram.inline.inlinekeyboardmarkup import InlineKeyboardMarkup
 from telegram.message import Message
@@ -31,7 +30,7 @@ class TelegramNotifier(Notifier, Component):
 
         # create the updater, that will automatically create also a dispatcher and a queue to make them dialoge
         self.updater = Updater(token, use_context=True)
-        dispatcher = Dispatcher(self.updater.dispatcher, self.updater.update_queue)
+        dispatcher = self.updater.dispatcher
 
         # add handlers for start and help commands
         dispatcher.add_handler(CommandHandler("start", self.start))
@@ -149,12 +148,13 @@ class TelegramNotifier(Notifier, Component):
 
         for order in account.orders:
             if order.status == 'OPEN' or order.status == 'QUEUED':
-                reply += " \r\n <code>- {}x {} {} @ ${}</code>".format(str(order.quantity), str(order.legs[0].instruction), str(order.legs[0].symbol), "{:,.2f}".format(order.price))
+                price = 0 if order.price is None else order.price
+                reply += " \r\n <code>- {}x {} {} @ ${}</code>".format(str(order.quantity), str(order.legs[0].instruction), str(order.legs[0].symbol), "{:,.2f}".format(price))
 
         return reply
 
     def button(self, update: Update, _: CallbackContext) -> None:
-        query = CallbackQuery(update.callback_query)
+        query = update.callback_query
 
         query.answer()
 
