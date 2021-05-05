@@ -36,6 +36,7 @@ class TdaBroker(Broker, Component):
                 getenv('TDAMERITRADE_ACCOUNT_NUMBER'), fields=optionalfields)
         except Exception:
             logger.exception("Failed to get Account Details.")
+            return None
 
         # Stub response message
         response = baseRR.GetAccountResponseMessage()
@@ -301,7 +302,7 @@ class TdaBroker(Broker, Component):
         try:
             hours = self.getsession().get_market_hours(markets=markets, date=str(request.datetime))
         except Exception:
-            logger.exception('Failed to get market hours.')
+            logger.exception('Failed to get market hours for {} on {}.'.format(markets, request.datetime))
             return None
 
         market: str

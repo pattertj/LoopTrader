@@ -26,6 +26,7 @@ class CspByDeltaStrategy(Strategy, Component):
     maxlosscalcpercent: float = attr.ib(default=.2, validator=attr.validators.instance_of(float))
     openingorderloopseconds: int = attr.ib(default=20, validator=attr.validators.instance_of(int))
     sleepuntil: dt.datetime = attr.ib(init=False, default=dt.datetime.now().astimezone(dt.timezone.utc), validator=attr.validators.instance_of(dt.datetime))
+    minutesafteropendelay: int = attr.ib(default=3, validator=attr.validators.instance_of(int))
 
     # Core Strategy Process
     def processstrategy(self) -> bool:
@@ -41,12 +42,16 @@ class CspByDeltaStrategy(Strategy, Component):
         request = baseRR.GetMarketHoursRequestMessage(market='OPTION', product='IND')
         hours = self.mediator.get_market_hours(request)
 
+        if hours is None:
+            logger.error("Failed to get market hours, exiting and retrying.")
+            return
+
         # If Pre-Market
-        if now < hours.start:
+        if now < hours.start + dt.timedelta(minutes=self.minutesafteropendelay):
             self.process_pre_market()
 
         # If In-Market
-        elif hours.start < now < hours.end:
+        elif hours.start + dt.timedelta(minutes=self.minutesafteropendelay) < now < hours.end:
             self.process_open_market(hours.end, now)
 
         # If After-Hours
@@ -60,9 +65,9 @@ class CspByDeltaStrategy(Strategy, Component):
         # Get Next Open
         nextmarketsession = self.get_market_session_loop(dt.datetime.now())
         # Set sleepuntil
-        self.sleepuntil = nextmarketsession.start - dt.timedelta(minutes=5)
+        self.sleepuntil = nextmarketsession.start + dt.timedelta(minutes=self.minutesafteropendelay) - dt.timedelta(minutes=5)
 
-        logger.info("Markets are closed until {}. Sleeping until {}".format(nextmarketsession.start, self.sleepuntil))
+        logger.info("Markets are closed until {}. Sleeping until {}".format(nextmarketsession.start + dt.timedelta(minutes=self.minutesafteropendelay), self.sleepuntil))
 
         # Exit.
         return
@@ -351,6 +356,10 @@ class CspByDeltaStrategy(Strategy, Component):
 
     def get_next_expiration(self, expirations: list[baseRR.GetOptionChainResponseMessage.ExpirationDate]) -> baseRR.GetOptionChainResponseMessage.ExpirationDate:
         logger.debug("get_next_expiration")
+
+        if expirations is None:
+            logger.error("No expirations provided.")
+            return None
 
         # Initialize min DTE to infinity
         mindte = math.inf
