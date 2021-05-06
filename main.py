@@ -1,3 +1,4 @@
+from BaseTypes.Strategy.staggeredStrangleStrategy import StaggeredStrangleStrategy
 import logging
 import logging.config
 
@@ -12,7 +13,7 @@ logging.config.fileConfig("logConfig.ini", defaults={
                           'logfilename': 'autotrader.log'}, disable_existing_loggers=False)
 
 # Create our strategies
-cspstrat = CspByDeltaStrategy(strategy_name="CSP1")
+cspstrat = StaggeredStrangleStrategy(strategy_name="SSS")
 
 # Create our broker
 tdabroker = TdaBroker()
