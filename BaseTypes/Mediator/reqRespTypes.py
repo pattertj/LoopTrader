@@ -4,6 +4,28 @@ import attr
 
 
 @attr.s(auto_attribs=True, init=False)
+class DBCreateStrategyRequestMessage():
+    strategy_class: bool = attr.ib(validator=attr.validators.instance_of(bool))
+    name: bool = attr.ib(validator=attr.validators.instance_of(bool))
+    underlying: bool = attr.ib(validator=attr.validators.instance_of(bool))
+
+
+@attr.s(auto_attribs=True, init=False)
+class DBCreateStrategyResponseMessage():
+    result: bool
+
+
+@attr.s(auto_attribs=True, init=False)
+class DBCreateOrderRequestMessage():
+    orderid: int = attr.ib(validator=attr.validators.instance_of(int))
+
+
+@attr.s(auto_attribs=True, init=False)
+class DBCreateOrderResponseMessage():
+    result: bool = attr.ib(validator=attr.validators.instance_of(bool))
+
+
+@attr.s(auto_attribs=True, init=False)
 class PlaceOrderRequestMessage():
     price: float = attr.ib(validator=attr.validators.instance_of(float))
     quantity: int = attr.ib(validator=attr.validators.instance_of(int))

@@ -21,6 +21,12 @@ class TestSqliteDatabase(unittest.TestCase):
         self.assertIsNotNone(result)
         self.assertTrue(result)
 
+    def test_create_strategy(self):
+        result = self.func.create_strategy("CSP", "Foo", "SPX")
+
+        self.assertIsNotNone(result)
+        self.assertTrue(result)
+
     def test_read_order_by_id(self):
         pass
 
