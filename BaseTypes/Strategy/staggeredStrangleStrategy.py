@@ -24,9 +24,9 @@ class StaggeredStrangleStrategy(Strategy, Component):
     putmindelta: float = attr.ib(default=-.03, validator=attr.validators.instance_of(float))
     putprofittargetpercent: float = attr.ib(default=.7, validator=attr.validators.instance_of(float))
     putmaxlosscalcpercent: float = attr.ib(default=.2, validator=attr.validators.instance_of(float))
-    calltargetdelta: float = attr.ib(default=-.06, validator=attr.validators.instance_of(float))
-    callmindelta: float = attr.ib(default=-.03, validator=attr.validators.instance_of(float))
-    callprofittargetpercent: float = attr.ib(default=.7, validator=attr.validators.instance_of(float))
+    calltargetdelta: float = attr.ib(default=-.02, validator=attr.validators.instance_of(float))
+    callmindelta: float = attr.ib(default=-.01, validator=attr.validators.instance_of(float))
+    callprofittargetpercent: float = attr.ib(default=.79, validator=attr.validators.instance_of(float))
     callmaxlosscalcpercent: float = attr.ib(default=.2, validator=attr.validators.instance_of(float))
     openingorderloopseconds: int = attr.ib(default=20, validator=attr.validators.instance_of(int))
     sleepuntil: dt.datetime = attr.ib(init=False, default=dt.datetime.now().astimezone(dt.timezone.utc), validator=attr.validators.instance_of(dt.datetime))
@@ -86,7 +86,8 @@ class StaggeredStrangleStrategy(Strategy, Component):
         self.process_expiring_positions(minutestoclose)
 
         # Place New Orders
-        self.place_new_orders_loop(0)
+        self.place_new_orders_loop('PUT')
+        self.place_new_orders_loop('CALL')
 
         # Process Closing Orders
         self.process_closing_orders(minutestoclose)
@@ -184,7 +185,7 @@ class StaggeredStrangleStrategy(Strategy, Component):
         # return response
 
     # Order Builders
-    def build_new_order(self) -> baseRR.PlaceOrderRequestMessage:
+    def build_new_order(self, putorcall: str) -> baseRR.PlaceOrderRequestMessage:
         logger.debug("build_new_order")
 
         # Get account balance
@@ -196,7 +197,7 @@ class StaggeredStrangleStrategy(Strategy, Component):
         enddate = (dt.date.today() + dt.timedelta(days=self.maximumdte))
 
         # Get option chain
-        chainrequest = baseRR.GetOptionChainRequestMessage(contracttype='PUT', fromdate=startdate, todate=enddate, symbol=self.underlying, includequotes=False, optionrange='OTM')
+        chainrequest = baseRR.GetOptionChainRequestMessage(contracttype=putorcall, fromdate=startdate, todate=enddate, symbol=self.underlying, includequotes=False, optionrange='OTM')
 
         chain = self.mediator.get_option_chain(chainrequest)
 
@@ -208,15 +209,20 @@ class StaggeredStrangleStrategy(Strategy, Component):
             return
 
         # Find strike to trade
-        expiration = self.get_next_expiration(chain.putexpdatemap)
-        strike = self.get_best_strike(expiration.strikes, self.targetdelta, account.currentbalances.buyingpower)
+        if putorcall == 'PUT':
+            expdatemap = chain.putexpdatemap
+        else:
+            expdatemap = chain.callexpdatemap
+
+        expiration = self.get_next_expiration(expdatemap)
+        strike = self.get_best_strike(expiration.strikes, account.currentbalances.buyingpower, account.currentbalances.liquidationvalue, putorcall)
 
         # If no valid strikes, exit.
         if strike is None:
             return None
 
         # Calculate Quantity
-        qty = self.calculate_order_quantity(strike.strike, account.currentbalances.buyingpower)
+        qty = self.calculate_order_quantity(strike.strike, account.currentbalances.buyingpower, account.currentbalances.liquidationvalue, putorcall)
 
         # Calculate price
         price = (strike.bid + strike.ask) / 2
@@ -292,9 +298,9 @@ class StaggeredStrangleStrategy(Strategy, Component):
         return orderrequests
 
     # Order Placers
-    def place_new_orders_loop(self, offset: float) -> None:
+    def place_new_orders_loop(self, putorcall: str) -> None:
         # Build Order
-        neworder = self.build_new_order()
+        neworder = self.build_new_order(putorcall)
 
         # If neworder is None, exit.
         if neworder is None:
@@ -308,7 +314,7 @@ class StaggeredStrangleStrategy(Strategy, Component):
             return
 
         # Otherwise, try again
-        self.place_new_orders_loop()
+        self.place_new_orders_loop(putorcall)
 
         return
 
@@ -378,18 +384,25 @@ class StaggeredStrangleStrategy(Strategy, Component):
         # Return the min expiration
         return minexpiration
 
-    def get_best_strike(self, strikes: dict[float, baseRR.GetOptionChainResponseMessage.ExpirationDate.Strike], delta: float, buyingpower: float) -> baseRR.GetOptionChainResponseMessage.ExpirationDate.Strike:
+    def get_best_strike(self, strikes: dict[float, baseRR.GetOptionChainResponseMessage.ExpirationDate.Strike], buyingpower: float, liquidationvalue: float, putorcall: str) -> baseRR.GetOptionChainResponseMessage.ExpirationDate.Strike:
         logger.debug("get_best_strike")
         # Set Variables
         bestpremium = float(0)
         beststrike = None
 
+        if putorcall == 'PUT':
+            targetdelta = self.puttargetdelta
+            mindelta = self.putmindelta
+        else:
+            targetdelta = self.calltargetdelta
+            mindelta = self.callmindelta
+
         # Iterate through strikes
         for strike, details in strikes.items():
             # Make sure strike delta is less then our target delta
-            if (abs(details.delta) <= abs(self.targetdelta)) and (abs(details.delta) >= abs(self.mindelta)):
+            if (abs(details.delta) <= abs(targetdelta)) and (abs(details.delta) >= abs(mindelta)):
                 # Calculate the total premium for the strike based on our buying power
-                qty = self.calculate_order_quantity(strike, buyingpower)
+                qty = self.calculate_order_quantity(strike, buyingpower, liquidationvalue)
                 totalpremium = ((details.bid + details.ask) / 2) * qty
 
                 # If the strike's premium is larger than our best premium, update it
@@ -400,22 +413,29 @@ class StaggeredStrangleStrategy(Strategy, Component):
         # Return the strike with the highest premium
         return beststrike
 
-    def calculate_order_quantity(self, strike, buyingpower) -> int:
+    def calculate_order_quantity(self, strike: float, buyingpower: float, liquidationvalue: float, putorcall: str) -> int:
         logger.debug("calculate_order_quantity")
 
+        if putorcall == 'PUT':
+            maxlosscalcpercent = self.putmaxlosscalcpercent
+        else:
+            maxlosscalcpercent = self.callmaxlosscalcpercent
+
         # Calculate max loss per contract
-        max_loss = strike * 100 * float(self.maxlosscalcpercent)
+        max_loss = strike * 100 * float(maxlosscalcpercent)
 
         # Calculate max buying power to use
-        balance_to_risk = buyingpower * float(self.portfolioallocationpercent)
+        balance_to_risk = liquidationvalue * float(self.portfolioallocationpercent)
+
+        remainingbalance = buyingpower - (liquidationvalue - balance_to_risk)
 
         # Calculate trade size
-        trade_size = balance_to_risk // max_loss
+        trade_size = remainingbalance // max_loss
 
         # Return quantity
         return int(trade_size)
 
-    def format_order_price(self, price) -> float:
+    def format_order_price(self, price: float) -> float:
         logger.debug("format_order_price")
 
         if price > 3:
@@ -425,7 +445,7 @@ class StaggeredStrangleStrategy(Strategy, Component):
 
         return self.truncate(base * round(price / base), 2)
 
-    def truncate(self, number, digits) -> float:
+    def truncate(self, number: float, digits: int) -> float:
         logger.debug("truncate")
         stepper = 10.0 ** digits
         return math.trunc(stepper * number) / stepper
