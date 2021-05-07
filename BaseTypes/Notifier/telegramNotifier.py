@@ -37,6 +37,7 @@ class TelegramNotifier(Notifier, Component):
         dispatcher.add_handler(CommandHandler("help", self.help))
         dispatcher.add_handler(CommandHandler("balances", self.balances))
         dispatcher.add_handler(CommandHandler("orders", self.orders))
+        dispatcher.add_handler(CommandHandler("tail", self.tail, pass_args=True))
         dispatcher.add_handler(CommandHandler("positions", self.positions))
         dispatcher.add_handler(CommandHandler("killswitch", self.killswitch))
         dispatcher.add_handler(CallbackQueryHandler(self.button))
@@ -95,6 +96,37 @@ class TelegramNotifier(Notifier, Component):
 
         # Send Message
         self.reply_text(msg, update.message, None, ParseMode.HTML)
+
+    # function to handle /tail command
+    def tail(self, update: Update, context: CallbackContext):
+        # Make sure only one arg was sent
+        if len(context.args) != 1:
+            self.reply_text("There was an error with your input. Please enter a single integer.", update.message, None, ParseMode.HTML)
+            return
+
+        # Try to read the arg
+        try:
+            rows = int(context.args[0])
+        except Exception:
+            self.reply_text("There was an error with your input. Please enter an integer.", update.message, None, ParseMode.HTML)
+            return
+
+        # Validate the provided integer
+        if rows <= 0:
+            self.reply_text("There was an error with your input. Please enter a positive integer.", update.message, None, ParseMode.HTML)
+            return
+
+        # Build reply
+        reply = "Log Tail:"
+
+        # Open the log using with() method so that the file gets closed after completing the work
+        with open("autotrader.log") as file:
+            # Loop to read iterate last X rows
+            for line in (file.readlines()[-rows:]):
+                reply += "\r\n {}".format(line)
+
+        # Send Message
+        self.reply_text(reply, update.message, None, ParseMode.HTML)
 
     # function to handle /account command
     def balances(self, update: Update, context: CallbackContext):
