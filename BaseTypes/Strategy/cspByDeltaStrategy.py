@@ -187,6 +187,10 @@ class CspByDeltaStrategy(Strategy, Component):
         accountrequest = baseRR.GetAccountRequestMessage(False, False)
         account = self.mediator.get_account(accountrequest)
 
+        if account is None:
+            logger.error("Failed to get Account")
+            return
+
         # Calculate trade date
         startdate = (dt.date.today() + dt.timedelta(days=self.minimumdte))
         enddate = (dt.date.today() + dt.timedelta(days=self.maximumdte))
@@ -205,14 +209,14 @@ class CspByDeltaStrategy(Strategy, Component):
 
         # Find strike to trade
         expiration = self.get_next_expiration(chain.putexpdatemap)
-        strike = self.get_best_strike(expiration.strikes, self.targetdelta, account.currentbalances.buyingpower)
+        strike = self.get_best_strike(expiration.strikes, account.currentbalances.buyingpower, account.currentbalances.liquidationvalue)
 
         # If no valid strikes, exit.
         if strike is None:
             return None
 
         # Calculate Quantity
-        qty = self.calculate_order_quantity(strike.strike, account.currentbalances.buyingpower)
+        qty = self.calculate_order_quantity(strike.strike, account.currentbalances.buyingpower, account.currentbalances.liquidationvalue)
 
         # Calculate price
         price = (strike.bid + strike.ask) / 2
@@ -374,7 +378,7 @@ class CspByDeltaStrategy(Strategy, Component):
         # Return the min expiration
         return minexpiration
 
-    def get_best_strike(self, strikes: dict[float, baseRR.GetOptionChainResponseMessage.ExpirationDate.Strike], delta: float, buyingpower: float) -> baseRR.GetOptionChainResponseMessage.ExpirationDate.Strike:
+    def get_best_strike(self, strikes: dict[float, baseRR.GetOptionChainResponseMessage.ExpirationDate.Strike], buyingpower: float, liquidationvalue: float) -> baseRR.GetOptionChainResponseMessage.ExpirationDate.Strike:
         logger.debug("get_best_strike")
         # Set Variables
         bestpremium = float(0)
@@ -385,7 +389,7 @@ class CspByDeltaStrategy(Strategy, Component):
             # Make sure strike delta is less then our target delta
             if (abs(details.delta) <= abs(self.targetdelta)) and (abs(details.delta) >= abs(self.mindelta)):
                 # Calculate the total premium for the strike based on our buying power
-                qty = self.calculate_order_quantity(strike, buyingpower)
+                qty = self.calculate_order_quantity(strike, buyingpower, liquidationvalue)
                 totalpremium = ((details.bid + details.ask) / 2) * qty
 
                 # If the strike's premium is larger than our best premium, update it
@@ -396,22 +400,24 @@ class CspByDeltaStrategy(Strategy, Component):
         # Return the strike with the highest premium
         return beststrike
 
-    def calculate_order_quantity(self, strike, buyingpower) -> int:
+    def calculate_order_quantity(self, strike: float, buyingpower: float, liquidationvalue: float) -> int:
         logger.debug("calculate_order_quantity")
 
         # Calculate max loss per contract
         max_loss = strike * 100 * float(self.maxlosscalcpercent)
 
         # Calculate max buying power to use
-        balance_to_risk = buyingpower * float(self.portfolioallocationpercent)
+        balance_to_risk = liquidationvalue * float(self.portfolioallocationpercent)
+
+        remainingbalance = buyingpower - (liquidationvalue - balance_to_risk)
 
         # Calculate trade size
-        trade_size = balance_to_risk // max_loss
+        trade_size = remainingbalance // max_loss
 
         # Return quantity
         return int(trade_size)
 
-    def format_order_price(self, price) -> float:
+    def format_order_price(self, price: float) -> float:
         logger.debug("format_order_price")
 
         if price > 3:
@@ -421,7 +427,7 @@ class CspByDeltaStrategy(Strategy, Component):
 
         return self.truncate(base * round(price / base), 2)
 
-    def truncate(self, number, digits) -> float:
+    def truncate(self, number: float, digits: int) -> float:
         logger.debug("truncate")
         stepper = 10.0 ** digits
         return math.trunc(stepper * number) / stepper
