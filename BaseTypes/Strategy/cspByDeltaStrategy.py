@@ -29,8 +29,8 @@ class CspByDeltaStrategy(Strategy, Component):
     minutesafteropendelay: int = attr.ib(default=3, validator=attr.validators.instance_of(int))
 
     # Core Strategy Process
-    def processstrategy(self) -> bool:
-        logger.info("Processing.")
+    def process_strategy(self) -> bool:
+        logger.debug("processstrategy")
 
         # Get current datetime
         now = dt.datetime.now().astimezone(dt.timezone.utc)
@@ -41,11 +41,16 @@ class CspByDeltaStrategy(Strategy, Component):
             return
 
         # Check market hours
-        request = baseRR.GetMarketHoursRequestMessage(market='OPTION', product='IND')
-        hours = self.mediator.get_market_hours(request)
+        hours = self.get_market_session_loop(dt.datetime.now())
 
         if hours is None:
             logger.error("Failed to get market hours, exiting and retrying.")
+            return
+
+        # If the next market session is not today, wait for it
+        if hours.start.day != now.day:
+            self.sleepuntil = hours.start + dt.timedelta(minutes=self.minutesafteropendelay) - dt.timedelta(minutes=5)
+            logger.info("Markets are closed until {}. Sleeping until {}".format(hours.start, self.sleepuntil))
             return
 
         # If Pre-Market
@@ -66,6 +71,7 @@ class CspByDeltaStrategy(Strategy, Component):
 
         # Get Next Open
         nextmarketsession = self.get_market_session_loop(dt.datetime.now())
+
         # Set sleepuntil
         self.sleepuntil = nextmarketsession.start + dt.timedelta(minutes=self.minutesafteropendelay) - dt.timedelta(minutes=5)
 

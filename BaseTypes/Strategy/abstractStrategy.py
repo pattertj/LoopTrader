@@ -13,6 +13,6 @@ class Strategy(abc.ABC, Component):
     underlying: str = attr.ib(validator=attr.validators.instance_of(str))
 
     @abc.abstractmethod
-    def processstrategy(self) -> bool:
+    def process_strategy(self) -> bool:
         raise NotImplementedError(
             "Each strategy must implement the 'ProcessStrategy' method.")

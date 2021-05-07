@@ -57,11 +57,12 @@ class Bot(Mediator):
         while not self.killswitch:
 
             # Process each strategy sequentially
+            strategy: Strategy
             for strategy in self.strategies:
-                strategy.processstrategy()
+                strategy.process_strategy()
 
             # Sleep for the specified time.
-            logger.debug("Sleeping...")
+            logger.info("Sleeping...")
             time.sleep(self.botloopfrequency - ((time.time() - starttime) % self.botloopfrequency))
 
         # If the loop is exited, send a notification
