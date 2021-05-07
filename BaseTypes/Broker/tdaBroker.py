@@ -19,6 +19,7 @@ class TdaBroker(Broker, Component):
     redirect_uri: str = attr.ib(default=getenv('REDIRECT_URL'), validator=attr.validators.instance_of(str))
     account_number: str = attr.ib(default=getenv('TDAMERITRADE_ACCOUNT_NUMBER'), validator=attr.validators.instance_of(str))
     credentials_path: str = attr.ib(default=getenv('CREDENTIALS_PATH'), validator=attr.validators.instance_of(str))
+    maxretries: int = attr.ib(default=3, validator=attr.validators.instance_of(int), init=False)
 
     def get_account(self, request: baseRR.GetAccountRequestMessage) -> baseRR.GetAccountResponseMessage:
 
@@ -31,12 +32,21 @@ class TdaBroker(Broker, Component):
             optionalfields.append('positions')
 
         # Get Account Details
-        try:
-            account = self.getsession().get_accounts(
-                getenv('TDAMERITRADE_ACCOUNT_NUMBER'), fields=optionalfields)
-        except Exception:
-            logger.exception("Failed to get Account Details.")
-            return None
+        for attempt in range(self.maxretries):
+            try:
+                account = self.getsession().get_accounts(
+                    getenv('TDAMERITRADE_ACCOUNT_NUMBER'), fields=optionalfields)
+            except Exception:
+                # Work backwards on severity level of logging based on the maxretry value
+                if attempt >= self.maxretries:
+                    logger.exception('Failed to get Account {}. Attempt #{}'.format(getenv('TDAMERITRADE_ACCOUNT_NUMBER'), attempt))
+                elif attempt == self.maxretries - 1:
+                    logger.error('Failed to get Account {}. Attempt #{}'.format(getenv('TDAMERITRADE_ACCOUNT_NUMBER'), attempt))
+                elif attempt == self.maxretries - 2:
+                    logger.warning('Failed to get Account {}. Attempt #{}'.format(getenv('TDAMERITRADE_ACCOUNT_NUMBER'), attempt))
+                elif attempt <= self.maxretries - 3:
+                    logger.info('Failed to get Account {}. Attempt #{}'.format(getenv('TDAMERITRADE_ACCOUNT_NUMBER'), attempt))
+                pass
 
         # Stub response message
         response = baseRR.GetAccountResponseMessage()
@@ -249,10 +259,20 @@ class TdaBroker(Broker, Component):
         optionchainobj.query_parameters = optionchainrequest
 
         if optionchainobj.validate_chain():
-            try:
-                optionschain = self.getsession().get_options_chain(optionchainrequest)
-            except Exception:
-                logger.exception("Failed to get options chain.")
+            for attempt in range(self.maxretries):
+                try:
+                    optionschain = self.getsession().get_options_chain(optionchainrequest)
+                except Exception:
+                    # Work backwards on severity level of logging based on the maxretry value
+                    if attempt >= self.maxretries:
+                        logger.exception('Failed to get Options Chain. Attempt #{}'.format(attempt))
+                    elif attempt == self.maxretries - 1:
+                        logger.error('Failed to get Options Chain. Attempt #{}'.format(attempt))
+                    elif attempt == self.maxretries - 2:
+                        logger.warning('Failed to get Options Chain. Attempt #{}'.format(attempt))
+                    elif attempt <= self.maxretries - 3:
+                        logger.info('Failed to get Options Chain. Attempt #{}'.format(attempt))
+                    pass
         else:
             logger.error("Invalid OptionChainRequest.")
             raise KeyError("Invalid OptionChainRequest.")
@@ -299,11 +319,21 @@ class TdaBroker(Broker, Component):
                 return KeyError("{} markets are not supported at this time.".format(market))
 
         # Get Market Hours
-        try:
-            hours = self.getsession().get_market_hours(markets=markets, date=str(request.datetime))
-        except Exception:
-            logger.exception('Failed to get market hours for {} on {}.'.format(markets, request.datetime))
-            return None
+        for attempt in range(self.maxretries):
+            try:
+                hours = self.getsession().get_market_hours(markets=markets, date=str(request.datetime))
+                break
+            except Exception:
+                # Work backwards on severity level of logging based on the maxretry value
+                if attempt >= self.maxretries:
+                    logger.exception('Failed to get market hours for {} on {}. Attempt #{}'.format(markets, request.datetime, attempt),)
+                elif attempt == self.maxretries - 1:
+                    logger.error('Failed to get market hours for {} on {}. Attempt #{}'.format(markets, request.datetime, attempt))
+                elif attempt == self.maxretries - 2:
+                    logger.warning('Failed to get market hours for {} on {}. Attempt #{}'.format(markets, request.datetime, attempt))
+                elif attempt <= self.maxretries - 3:
+                    logger.info('Failed to get market hours for {} on {}. Attempt #{}'.format(markets, request.datetime, attempt))
+                pass
 
         market: str
         markettype: dict

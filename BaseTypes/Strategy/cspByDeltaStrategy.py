@@ -30,6 +30,8 @@ class CspByDeltaStrategy(Strategy, Component):
 
     # Core Strategy Process
     def processstrategy(self) -> bool:
+        logger.info("Processing.")
+
         # Get current datetime
         now = dt.datetime.now().astimezone(dt.timezone.utc)
 
@@ -341,11 +343,12 @@ class CspByDeltaStrategy(Strategy, Component):
 
     # Helpers
     def get_market_session_loop(self, date: dt.datetime) -> baseRR.GetMarketHoursResponseMessage:
+        logger.debug("get_market_session_loop")
         request = baseRR.GetMarketHoursRequestMessage(market='OPTION', product='IND', datetime=date)
         hours = self.mediator.get_market_hours(request)
 
         if hours is None or hours.end < dt.datetime.now().astimezone(dt.timezone.utc):
-            self.get_market_session_loop(date + dt.timedelta(days=1))
+            return self.get_market_session_loop(date + dt.timedelta(days=1))
 
         return hours
 
@@ -361,7 +364,7 @@ class CspByDeltaStrategy(Strategy, Component):
     def get_next_expiration(self, expirations: list[baseRR.GetOptionChainResponseMessage.ExpirationDate]) -> baseRR.GetOptionChainResponseMessage.ExpirationDate:
         logger.debug("get_next_expiration")
 
-        if expirations is None:
+        if expirations is None or expirations == []:
             logger.error("No expirations provided.")
             return None
 
@@ -413,6 +416,9 @@ class CspByDeltaStrategy(Strategy, Component):
 
         # Calculate trade size
         trade_size = remainingbalance // max_loss
+
+        # Log Values
+        logger.info("Strike: {} BuyingPower: {} LiquidationValue: {} MaxLoss: {} BalanceToRisk: {} RemainingBalance: {} TradeSize: {} ".format(strike, buyingpower, liquidationvalue, max_loss, balance_to_risk, remainingbalance, trade_size))
 
         # Return quantity
         return int(trade_size)
