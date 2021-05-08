@@ -314,9 +314,8 @@ class TdaBroker(Broker, Component):
                 elif attempt <= self.maxretries - 3:
                     logger.info('Failed to get market hours for {} on {}. Attempt #{}'.format(markets, request.datetime, attempt))
 
-        market: str
         markettype: dict
-        for market, markettype in hours.items():
+        for markettype in hours.values():
 
             type: str
             details: dict
