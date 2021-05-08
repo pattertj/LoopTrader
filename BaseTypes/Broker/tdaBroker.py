@@ -1,3 +1,20 @@
+'''
+The concrete implementation of the generic LoopTrader Broker class for communication with TD Ameritrade.
+
+Classes:
+
+    TdaBroker
+
+Functions:
+
+    get_account()
+    place_order()
+    get_order()
+    cancel_order()
+    get_option_chain()
+    get_market_hours()
+'''
+
 import datetime as dt
 import logging
 from collections import OrderedDict
@@ -15,6 +32,8 @@ logger = logging.getLogger('autotrader')
 
 @attr.s(auto_attribs=True)
 class TdaBroker(Broker, Component):
+    '''The concrete implementation of the generic LoopTrader Broker class for communication with TD Ameritrade.'''
+
     client_id: str = attr.ib(default=getenv('TDAMERITRADE_CLIENT_ID'), validator=attr.validators.instance_of(str))
     redirect_uri: str = attr.ib(default=getenv('REDIRECT_URL'), validator=attr.validators.instance_of(str))
     account_number: str = attr.ib(default=getenv('TDAMERITRADE_ACCOUNT_NUMBER'), validator=attr.validators.instance_of(str))
@@ -307,7 +326,7 @@ class TdaBroker(Broker, Component):
         except Exception:
             logger.exception('Failed to get access token.')
 
-    # Helper Function
+    # Static Methods
     @staticmethod
     def build_option_chain(rawoptionchain: dict) -> list[baseRR.GetOptionChainResponseMessage.ExpirationDate]:
         '''Transforms a TDA option chain dictionary into a LoopTrader option chain'''
