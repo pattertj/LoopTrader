@@ -103,59 +103,17 @@ class TdaBroker(Broker, Component):
         # Return Results
         return response
 
-    @staticmethod
-    def build_account_position(self, position: dict):
-        accountposition = baseRR.AccountPosition()
-        accountposition.shortquantity = int(position.get('shortQuantity'))
-        accountposition.averageprice = float(position.get('averagePrice'))
-        accountposition.longquantity = int(position.get('longQuantity'))
-
-        instrument = dict(position.get('instrument'))
-
-        if instrument is not None:
-            accountposition.assettype = instrument.get('assetType')
-            accountposition.description = instrument.get('description')
-            accountposition.putcall = instrument.get('putCall')
-            accountposition.symbol = instrument.get('symbol')
-            accountposition.underlyingsymbol = instrument.get('underlyingSymbol')
-        return accountposition
-
-    @staticmethod
-    def build_account_order_leg(leg: dict):
-        accountorderleg = baseRR.AccountOrderLeg()
-        accountorderleg.legid = leg.get('legId')
-        accountorderleg.instruction = leg.get('instruction')
-        accountorderleg.positioneffect = leg.get('positionEffect')
-        accountorderleg.quantity = leg.get('quantity')
-
-        instrument = dict(leg.get('instrument'))
-
-        if instrument is not None:
-            accountorderleg.cusip = instrument.get('cusip')
-            accountorderleg.symbol = instrument.get('symbol')
-            accountorderleg.description = instrument.get('description')
-            accountorderleg.putcall = instrument.get('putCall')
-        return accountorderleg
-
-    @staticmethod
-    def build_account_order(order: dict):
-        accountorder = baseRR.AccountOrder()
-        accountorder.duration = order.get('duration')
-        accountorder.quantity = order.get('quantity')
-        accountorder.filledquantity = order.get('filledQuantity')
-        accountorder.price = order.get('price')
-        accountorder.orderid = order.get('orderId')
-        accountorder.status = order.get('status')
-        accountorder.enteredtime = order.get('enteredTime')
-        accountorder.closetime = order.get('closeTime')
-        accountorder.accountid = order.get('accountId')
-        accountorder.cancelable = order.get('cancelable')
-        accountorder.editable = order.get('editable')
-        accountorder.legs = []
-        return accountorder
-
     def place_order(self, request: baseRR.PlaceOrderRequestMessage) -> baseRR.PlaceOrderResponseMessage:
-        # Validate the request
+        """
+        The function for placing an order with TD Ameritrade.
+
+        Parameters:
+        request (PlaceOrderRequestMessage): Generic request message for placing an Order
+
+        Returns:
+        PlaceOrderResponseMessage: Generic response mesage for placing an Order
+
+        """        # Validate the request
         if request is None:
             logger.error("Order is None")
             raise KeyError("Order is None")
@@ -196,6 +154,8 @@ class TdaBroker(Broker, Component):
         return response
 
     def get_order(self, request: baseRR.GetOrderRequestMessage) -> baseRR.GetOrderResponseMessage:
+        '''Reads a single order from TDA and returns it's details'''
+
         if request.orderid is None:
             logger.error("Order ID is None.")
             raise KeyError("OrderID was not provided")
@@ -264,6 +224,8 @@ class TdaBroker(Broker, Component):
         return response
 
     def get_option_chain(self, request: baseRR.GetOptionChainRequestMessage) -> baseRR.GetOptionChainResponseMessage:
+        '''Reads the option chain for a given symbol, date range, and contract type.'''
+
         if request is None:
             logger.error("OptionChainRequest is None.")
 
@@ -309,12 +271,14 @@ class TdaBroker(Broker, Component):
         puts = dict(optionschain.get('putExpDateMap'))
         calls = dict(optionschain.get('callExpDateMap'))
 
-        response.putexpdatemap = self.get_formatted_option_chain(puts)
-        response.callexpdatemap = self.get_formatted_option_chain(calls)
+        response.putexpdatemap = self.build_option_chain(puts)
+        response.callexpdatemap = self.build_option_chain(calls)
 
         return response
 
     def cancel_order(self, request: baseRR.CancelOrderRequestMessage) -> baseRR.CancelOrderResponseMessage:
+        '''Cancels a given order.'''
+
         if request.orderid is None:
             logger.error("Order ID is None.")
             raise KeyError("OrderID was not provided")
@@ -330,6 +294,7 @@ class TdaBroker(Broker, Component):
         return response
 
     def get_market_hours(self, request: baseRR.GetMarketHoursRequestMessage) -> baseRR.GetMarketHoursResponseMessage:
+        '''Gets the opening and closing market hours for a given day.'''
         markets = []
 
         markets.append(request.market)
@@ -378,6 +343,8 @@ class TdaBroker(Broker, Component):
                             return response
 
     def getsession(self) -> TDClient:
+        '''Generates a TD Client session'''
+
         return TDClient(
             client_id=self.client_id,
             redirect_uri=self.redirect_uri,
@@ -386,13 +353,18 @@ class TdaBroker(Broker, Component):
         )
 
     def getaccesstoken(self):
+        '''Retrieves a new access token.'''
+
         try:
             self.getsession().grab_access_token()
         except Exception:
             logger.exception('Failed to get access token.')
 
     # Helper Function
-    def get_formatted_option_chain(self, rawoptionchain: dict) -> list[baseRR.GetOptionChainResponseMessage.ExpirationDate]:
+    @staticmethod
+    def build_option_chain(rawoptionchain: dict) -> list[baseRR.GetOptionChainResponseMessage.ExpirationDate]:
+        '''Transforms a TDA option chain dictionary into a LoopTrader option chain'''
+
         response = []
 
         expiration: str
@@ -429,3 +401,59 @@ class TdaBroker(Broker, Component):
             response.append(expiry)
 
         return response
+
+    @staticmethod
+    def build_account_position(position: dict):
+        '''Transforms a TDA position dictionary into a LoopTrader position'''
+
+        accountposition = baseRR.AccountPosition()
+        accountposition.shortquantity = int(position.get('shortQuantity'))
+        accountposition.averageprice = float(position.get('averagePrice'))
+        accountposition.longquantity = int(position.get('longQuantity'))
+
+        instrument = dict(position.get('instrument'))
+
+        if instrument is not None:
+            accountposition.assettype = instrument.get('assetType')
+            accountposition.description = instrument.get('description')
+            accountposition.putcall = instrument.get('putCall')
+            accountposition.symbol = instrument.get('symbol')
+            accountposition.underlyingsymbol = instrument.get('underlyingSymbol')
+        return accountposition
+
+    @staticmethod
+    def build_account_order_leg(leg: dict):
+        '''Transforms a TDA order leg dictionary into a LoopTrader order leg'''
+        accountorderleg = baseRR.AccountOrderLeg()
+        accountorderleg.legid = leg.get('legId')
+        accountorderleg.instruction = leg.get('instruction')
+        accountorderleg.positioneffect = leg.get('positionEffect')
+        accountorderleg.quantity = leg.get('quantity')
+
+        instrument = dict(leg.get('instrument'))
+
+        if instrument is not None:
+            accountorderleg.cusip = instrument.get('cusip')
+            accountorderleg.symbol = instrument.get('symbol')
+            accountorderleg.description = instrument.get('description')
+            accountorderleg.putcall = instrument.get('putCall')
+        return accountorderleg
+
+    @staticmethod
+    def build_account_order(order: dict):
+        '''Transforms a TDA order dictionary into a LoopTrader order'''
+
+        accountorder = baseRR.AccountOrder()
+        accountorder.duration = order.get('duration')
+        accountorder.quantity = order.get('quantity')
+        accountorder.filledquantity = order.get('filledQuantity')
+        accountorder.price = order.get('price')
+        accountorder.orderid = order.get('orderId')
+        accountorder.status = order.get('status')
+        accountorder.enteredtime = order.get('enteredTime')
+        accountorder.closetime = order.get('closeTime')
+        accountorder.accountid = order.get('accountId')
+        accountorder.cancelable = order.get('cancelable')
+        accountorder.editable = order.get('editable')
+        accountorder.legs = []
+        return accountorder
