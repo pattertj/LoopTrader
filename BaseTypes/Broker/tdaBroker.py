@@ -295,12 +295,8 @@ class TdaBroker(Broker, Component):
 
     def get_market_hours(self, request: baseRR.GetMarketHoursRequestMessage) -> baseRR.GetMarketHoursResponseMessage:
         '''Gets the opening and closing market hours for a given day.'''
-        markets = [request.market]
 
-        # Validation
-        for market in markets:
-            if market in ('FUTURE', 'FOREX', 'BOND'):
-                return KeyError("{} markets are not supported at this time.".format(market))
+        markets = [request.market]
 
         # Get Market Hours
         for attempt in range(self.maxretries):
