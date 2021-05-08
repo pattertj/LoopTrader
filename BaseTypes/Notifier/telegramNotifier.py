@@ -69,8 +69,8 @@ class TelegramNotifier(Notifier, Component):
         try:
             text = r"Welcome to LoopTrader, I'm a Telegram bot here to help you manage your LoopTrader\! There are a few things I can do:"
             self.reply_text(text, update.message, reply_markup, ParseMode.MARKDOWN_V2)
-        except Exception as e:
-            print(e)
+        except Exception:
+            logger.exception("Failed to reply to /start command.")
 
     # function to handle the /killswitch command
     def killswitch(self, update: Update, context: CallbackContext):
@@ -122,7 +122,7 @@ class TelegramNotifier(Notifier, Component):
         # Open the log using with() method so that the file gets closed after completing the work
         with open("autotrader.log") as file:
             # Loop to read iterate last X rows
-            for line in (file.readlines()[-rows:]):
+            for line in file.readlines()[-rows:]:
                 reply += "\r\n {}".format(line)
 
         # Send Message
@@ -199,8 +199,8 @@ class TelegramNotifier(Notifier, Component):
 
         try:
             self.edit_message_text(query, msg, ParseMode.HTML)
-        except Exception as e:
-            print(e)
+        except Exception:
+            logger.exception("Telegram failed to callback.")
 
     # Send Message/Reply Helpers
     def send_message(self, message: str, parsemode: ParseMode):
