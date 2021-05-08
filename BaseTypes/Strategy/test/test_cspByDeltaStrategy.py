@@ -19,9 +19,8 @@ class TestCspByDeltaStrategy(unittest.TestCase):
         self.assertEqual(qty, 0)
 
     def test_get_best_strike(self):
-        strikes = {}
+        strikes = {4000: self.new_strike(4000, .10, 1, 1.1)}
 
-        strikes[4000] = self.new_strike(4000, .10, 1, 1.1)
         strikes[3090] = self.new_strike(3090, .09, 1, 1.1)
         strikes[3080] = self.new_strike(3080, .08, 1, 1.1)
         strikes[3070] = self.new_strike(3070, .07, 1, 1.1)
