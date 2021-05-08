@@ -107,8 +107,9 @@ class TdaBroker(Broker, Component):
                     response.positions.append(accountposition)
 
         # Grab Balances
-        response.currentbalances.buyingpower = account.get('securitiesAccount').get('currentBalances').get('buyingPowerNonMarginableTrade')
-        response.currentbalances.liquidationvalue = account.get('securitiesAccount').get('currentBalances').get('liquidationValue')
+        currentbalances = account.get('securitiesAccount').get('currentBalances')
+        response.currentbalances.buyingpower = currentbalances.get('buyingPowerNonMarginableTrade')
+        response.currentbalances.liquidationvalue = currentbalances.get('liquidationValue')
 
         # Return Results
         return response
@@ -250,12 +251,11 @@ class TdaBroker(Broker, Component):
     def cancel_order(self, request: baseRR.CancelOrderRequestMessage) -> baseRR.CancelOrderResponseMessage:
         '''Cancels a given order.'''
 
-        if request.orderid is None:
-            logger.error("Order ID is None.")
-            raise KeyError("OrderID was not provided")
-
         try:
-            cancelresponse = self.getsession().cancel_order(account=getenv('TDAMERITRADE_ACCOUNT_NUMBER'), order_id=str(request.orderid))
+            accountnumber = getenv('TDAMERITRADE_ACCOUNT_NUMBER')
+            orderidstr = str(request.orderid)
+
+            cancelresponse = self.getsession().cancel_order(account=accountnumber, order_id=orderidstr)
         except Exception:
             logger.exception("Failed to cancel order {}.".format(str(request.orderid)))
 
@@ -275,20 +275,20 @@ class TdaBroker(Broker, Component):
                 hours = self.getsession().get_market_hours(markets=markets, date=str(request.datetime))
                 break
             except Exception:
+                err = 'Failed to get market hours for {} on {}. Attempt #{}'
                 # Work backwards on severity level of logging based on the maxretry value
                 if attempt >= self.maxretries:
-                    logger.exception('Failed to get market hours for {} on {}. Attempt #{}'.format(markets, request.datetime, attempt),)
+                    logger.exception(err.format(markets, request.datetime, attempt),)
                 elif attempt == self.maxretries - 1:
-                    logger.error('Failed to get market hours for {} on {}. Attempt #{}'.format(markets, request.datetime, attempt))
+                    logger.error(err.format(markets, request.datetime, attempt))
                 elif attempt == self.maxretries - 2:
-                    logger.warning('Failed to get market hours for {} on {}. Attempt #{}'.format(markets, request.datetime, attempt))
+                    logger.warning(err.format(markets, request.datetime, attempt))
                 elif attempt <= self.maxretries - 3:
-                    logger.info('Failed to get market hours for {} on {}. Attempt #{}'.format(markets, request.datetime, attempt))
+                    logger.info(err.format(markets, request.datetime, attempt))
 
         markettype: dict
         for markettype in hours.values():
 
-            type: str
             details: dict
             for type, details in markettype.items():
                 if type == request.product:
@@ -300,8 +300,11 @@ class TdaBroker(Broker, Component):
                         if session == 'regularMarket':
                             response = baseRR.GetMarketHoursResponseMessage
 
-                            response.start = dtime.datetime.strptime(str(dict(markethours[0]).get('start')), "%Y-%m-%dT%H:%M:%S%z").astimezone(dtime.timezone.utc)
-                            response.end = dtime.datetime.strptime(str(dict(markethours[0]).get('end')), "%Y-%m-%dT%H:%M:%S%z").astimezone(dtime.timezone.utc)
+                            startdt = dtime.datetime.strptime(str(dict(markethours[0]).get('start')), "%Y-%m-%dT%H:%M:%S%z")
+                            enddt = dtime.datetime.strptime(str(dict(markethours[0]).get('end')), "%Y-%m-%dT%H:%M:%S%z")
+                            
+                            response.start = startdt.astimezone(dtime.timezone.utc)
+                            response.end = enddt.astimezone(dtime.timezone.utc)
                             response.isopen = details.get('isOpen')
 
                             return response
