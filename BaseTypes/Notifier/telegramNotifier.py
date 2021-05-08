@@ -179,7 +179,7 @@ class TelegramNotifier(Notifier, Component):
         reply = r"Open Orders:"
 
         for order in account.orders:
-            if order.status == 'OPEN' or order.status == 'QUEUED':
+            if order.status in ['OPEN', 'QUEUED']:
                 price = 0 if order.price is None else order.price
                 reply += " \r\n <code>- {}x {} {} @ ${}</code>".format(str(order.quantity), str(order.legs[0].instruction), str(order.legs[0].symbol), "{:,.2f}".format(price))
 
@@ -209,18 +209,15 @@ class TelegramNotifier(Notifier, Component):
             bot.send_message(chat_id=self.chatid, text=message, parse_mode=parsemode)
         except Exception:
             logger.exception("Telegram failed to send message.")
-            pass
 
     def reply_text(self, text: str, message: Message, reply_markup: InlineKeyboardMarkup, parsemode: ParseMode):
         try:
             message.reply_text(text, reply_markup=reply_markup, quote=False, parse_mode=parsemode)
         except Exception:
             logger.exception("Telegram failed to reply.")
-            pass
 
     def edit_message_text(self, query: CallbackQuery, msg: str, parsemode: ParseMode):
         try:
             query.edit_message_text(text=msg, parse_mode=parsemode)
         except Exception:
             logger.exception("Telegram failed to callback.")
-            pass

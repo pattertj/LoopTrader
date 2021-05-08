@@ -7,7 +7,7 @@
 </h1>
 
 <p align="center">
-<img src="https://img.shields.io/github/last-commit/pattertj/LoopTrader"> <img src="https://img.shields.io/github/workflow/status/pattertj/looptrader/PythonBuild?style=flat"> <img src="https://img.shields.io/github/workflow/status/pattertj/looptrader/CodeQL?style=flat&label=CodeQL"> <img src="https://img.shields.io/github/forks/pattertj/LoopTrader?style=flat"> <img src="https://img.shields.io/github/stars/pattertj/LoopTrader?style=flat"> <img src="https://img.shields.io/github/license/pattertj/LoopTrader?style=flat">
+<img src="https://img.shields.io/github/last-commit/pattertj/LoopTrader"> <img src="https://img.shields.io/github/workflow/status/pattertj/looptrader/PythonBuild?style=flat"> <img src="https://img.shields.io/github/workflow/status/pattertj/looptrader/CodeQL?style=flat&label=CodeQL"><img src="https://img.shields.io/codefactor/grade/github/pattertj/looptrader?style=flat&label=Codefactor"> <img src="https://img.shields.io/github/forks/pattertj/LoopTrader?style=flat"> <img src="https://img.shields.io/github/stars/pattertj/LoopTrader?style=flat"> <img src="https://img.shields.io/github/license/pattertj/LoopTrader?style=flat">
 </p>
 
 <h4 align="center">An extensible options trading bot built on top of Python.</h4>
@@ -28,7 +28,7 @@ The goal for LoopTrader is to provide a flexible engine for running one or more 
 * Local storage for trades and orders
 * Support for notifications and interactions through tools like Telegram  
 
-LoopTrader is very much a work in progress and is currently not feature complete. See the [Issues](https://github.com/pattertj/LoopTrader/issues) for what remains open, or to make a suggestion.
+<b>LoopTrader is very much a work in progress and is currently not feature complete. See the [Issues](https://github.com/pattertj/LoopTrader/issues) for what remains open, or to make a suggestion.</b>
 
 ## Installation
 Eventually I plan to publish a first release which can be installed via pip install. For now, clone the repo and run it locally from your Python command line or IDE.
