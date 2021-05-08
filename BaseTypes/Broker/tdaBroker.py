@@ -1,4 +1,21 @@
-import datetime as dt
+'''
+The concrete implementation of the generic LoopTrader Broker class for communication with TD Ameritrade.
+
+Classes:
+
+    TdaBroker
+
+Functions:
+
+    get_account()
+    place_order()
+    get_order()
+    cancel_order()
+    get_option_chain()
+    get_market_hours()
+'''
+
+import datetime as dtime
 import logging
 from collections import OrderedDict
 from os import getenv
@@ -15,6 +32,8 @@ logger = logging.getLogger('autotrader')
 
 @attr.s(auto_attribs=True)
 class TdaBroker(Broker, Component):
+    '''The concrete implementation of the generic LoopTrader Broker class for communication with TD Ameritrade.'''
+
     client_id: str = attr.ib(default=getenv('TDAMERITRADE_CLIENT_ID'), validator=attr.validators.instance_of(str))
     redirect_uri: str = attr.ib(default=getenv('REDIRECT_URL'), validator=attr.validators.instance_of(str))
     account_number: str = attr.ib(default=getenv('TDAMERITRADE_ACCOUNT_NUMBER'), validator=attr.validators.instance_of(str))
@@ -22,16 +41,7 @@ class TdaBroker(Broker, Component):
     maxretries: int = attr.ib(default=3, validator=attr.validators.instance_of(int), init=False)
 
     def get_account(self, request: baseRR.GetAccountRequestMessage) -> baseRR.GetAccountResponseMessage:
-        """
-        The function for reading account details from TD Ameritrade.
-
-        Parameters:
-        request (GetAccountRequestMessage): Generic request message for reading account details
-
-        Returns:
-        GetAccountResponseMessage: Generic response mesage for account details
-
-        """
+        '''The function for reading account details from TD Ameritrade.'''
 
         # Build Request
         optionalfields = []
@@ -97,23 +107,17 @@ class TdaBroker(Broker, Component):
                     response.positions.append(accountposition)
 
         # Grab Balances
-        response.currentbalances.buyingpower = account.get('securitiesAccount').get('currentBalances').get('buyingPowerNonMarginableTrade')
-        response.currentbalances.liquidationvalue = account.get('securitiesAccount').get('currentBalances').get('liquidationValue')
+        currentbalances = account.get('securitiesAccount').get('currentBalances')
+        response.currentbalances.buyingpower = currentbalances.get('buyingPowerNonMarginableTrade')
+        response.currentbalances.liquidationvalue = currentbalances.get('liquidationValue')
 
         # Return Results
         return response
 
     def place_order(self, request: baseRR.PlaceOrderRequestMessage) -> baseRR.PlaceOrderResponseMessage:
-        """
-        The function for placing an order with TD Ameritrade.
+        ''' The function for placing an order with TD Ameritrade.'''
 
-        Parameters:
-        request (PlaceOrderRequestMessage): Generic request message for placing an Order
-
-        Returns:
-        PlaceOrderResponseMessage: Generic response mesage for placing an Order
-
-        """        # Validate the request
+        # Validate the request
         if request is None:
             logger.error("Order is None")
             raise KeyError("Order is None")
@@ -156,70 +160,38 @@ class TdaBroker(Broker, Component):
     def get_order(self, request: baseRR.GetOrderRequestMessage) -> baseRR.GetOrderResponseMessage:
         '''Reads a single order from TDA and returns it's details'''
 
-        if request.orderid is None:
-            logger.error("Order ID is None.")
-            raise KeyError("OrderID was not provided")
-
-        try:
-            order = self.getsession().get_orders(account=self.account_number, order_id=str(request.orderid))
-        except Exception:
-            logger.exception("Failed to read order {}.".format(str(request.orderid)))
+        for attempt in range(self.maxretries):
+            try:
+                order = self.getsession().get_orders(account=self.account_number, order_id=str(request.orderid))
+            except Exception:
+                # Work backwards on severity level of logging based on the maxretry value
+                if attempt >= self.maxretries:
+                    logger.exception("Failed to read order {}.".format(str(request.orderid)))
+                elif attempt == self.maxretries - 1:
+                    logger.error("Failed to read order {}.".format(str(request.orderid)))
+                elif attempt == self.maxretries - 2:
+                    logger.warning("Failed to read order {}.".format(str(request.orderid)))
+                elif attempt <= self.maxretries - 3:
+                    logger.info("Failed to read order {}.".format(str(request.orderid)))
 
         response = baseRR.GetOrderResponseMessage()
+        response.accountid = order.get('accountId')
+        response.closetime = order.get('closeTime')
+        response.enteredtime = order.get('enteredTime')
+        response.orderid = order.get('orderId')
+        response.status = order.get('status')
 
-        try:
-            response.accountid = order['accountId']
-        except Exception as e:
-            self.orders = {}
-            logger.info("{} doesn't exist for the account".format(e.args[0]))
+        orderleg = order.get('orderLegCollection')[0]
 
-        try:
-            response.closetime = order['closeTime']
-        except Exception as e:
-            self.orders = {}
-            logger.info("{} doesn't exist for the account".format(e.args[0]))
+        if orderleg is not None:
+            response.instruction = orderleg.get('instruction')
+            response.positioneffect = orderleg.get('positionEffect')
 
-        try:
-            response.description = order['orderLegCollection'][0]['instrument']['description']
-        except Exception as e:
-            self.orders = {}
-            logger.info("{} doesn't exist for the account".format(e.args[0]))
+        instrument = orderleg.get('instrument')
 
-        try:
-            response.enteredtime = order['enteredTime']
-        except Exception as e:
-            self.orders = {}
-            logger.info("{} doesn't exist for the account".format(e.args[0]))
-
-        try:
-            response.instruction = order['orderLegCollection'][0]['instruction']
-        except Exception as e:
-            self.orders = {}
-            logger.info("{} doesn't exist for the account".format(e.args[0]))
-
-        try:
-            response.orderid = order['orderId']
-        except Exception as e:
-            self.orders = {}
-            logger.info("{} doesn't exist for the account".format(e.args[0]))
-
-        try:
-            response.positioneffect = order['orderLegCollection'][0]['positionEffect']
-        except Exception as e:
-            self.orders = {}
-            logger.info("{} doesn't exist for the account".format(e.args[0]))
-
-        try:
-            response.status = order['status']
-        except Exception as e:
-            self.orders = {}
-            logger.info("{} doesn't exist for the account".format(e.args[0]))
-
-        try:
-            response.symbol = order['orderLegCollection'][0]['instrument']['symbol']
-        except Exception as e:
-            self.orders = {}
-            logger.info("{} doesn't exist for the account".format(e.args[0]))
+        if instrument is not None:
+            response.description = instrument.get('description')
+            response.symbol = instrument.get('symbol')
 
         return response
 
@@ -279,12 +251,11 @@ class TdaBroker(Broker, Component):
     def cancel_order(self, request: baseRR.CancelOrderRequestMessage) -> baseRR.CancelOrderResponseMessage:
         '''Cancels a given order ID.'''
 
-        if request.orderid is None:
-            logger.error("Order ID is None.")
-            raise KeyError("OrderID was not provided")
-
         try:
-            cancelresponse = self.getsession().cancel_order(account=getenv('TDAMERITRADE_ACCOUNT_NUMBER'), order_id=str(request.orderid))
+            accountnumber = getenv('TDAMERITRADE_ACCOUNT_NUMBER')
+            orderidstr = str(request.orderid)
+
+            cancelresponse = self.getsession().cancel_order(account=accountnumber, order_id=orderidstr)
         except Exception:
             logger.exception("Failed to cancel order {}.".format(str(request.orderid)))
 
@@ -304,36 +275,41 @@ class TdaBroker(Broker, Component):
                 hours = self.getsession().get_market_hours(markets=markets, date=str(request.datetime))
                 break
             except Exception:
+                err = 'Failed to get market hours for {} on {}. Attempt #{}'
                 # Work backwards on severity level of logging based on the maxretry value
                 if attempt >= self.maxretries:
-                    logger.exception('Failed to get market hours for {} on {}. Attempt #{}'.format(markets, request.datetime, attempt),)
+                    logger.exception(err.format(markets, request.datetime, attempt),)
                 elif attempt == self.maxretries - 1:
-                    logger.error('Failed to get market hours for {} on {}. Attempt #{}'.format(markets, request.datetime, attempt))
+                    logger.error(err.format(markets, request.datetime, attempt))
                 elif attempt == self.maxretries - 2:
-                    logger.warning('Failed to get market hours for {} on {}. Attempt #{}'.format(markets, request.datetime, attempt))
+                    logger.warning(err.format(markets, request.datetime, attempt))
                 elif attempt <= self.maxretries - 3:
-                    logger.info('Failed to get market hours for {} on {}. Attempt #{}'.format(markets, request.datetime, attempt))
+                    logger.info(err.format(markets, request.datetime, attempt))
 
         markettype: dict
         for markettype in hours.values():
 
-            type: str
             details: dict
             for type, details in markettype.items():
-                if (type == request.product):
+                if type == request.product:
                     sessionhours = dict(details.get('sessionHours'))
 
                     session: str
                     markethours: list
                     for session, markethours in sessionhours.items():
-                        if (session == 'regularMarket'):
+                        if session == 'regularMarket':
                             response = baseRR.GetMarketHoursResponseMessage
 
-                            response.start = dt.datetime.strptime(str(dict(markethours[0]).get('start')), "%Y-%m-%dT%H:%M:%S%z").astimezone(dt.timezone.utc)
-                            response.end = dt.datetime.strptime(str(dict(markethours[0]).get('end')), "%Y-%m-%dT%H:%M:%S%z").astimezone(dt.timezone.utc)
+                            startdt = dtime.datetime.strptime(str(dict(markethours[0]).get('start')), "%Y-%m-%dT%H:%M:%S%z")
+                            enddt = dtime.datetime.strptime(str(dict(markethours[0]).get('end')), "%Y-%m-%dT%H:%M:%S%z")
+                            
+                            response.start = startdt.astimezone(dtime.timezone.utc)
+                            response.end = enddt.astimezone(dtime.timezone.utc)
                             response.isopen = details.get('isOpen')
 
                             return response
+
+        return None
 
     def getsession(self) -> TDClient:
         '''Generates a TD Client session'''
@@ -353,7 +329,7 @@ class TdaBroker(Broker, Component):
         except Exception:
             logger.exception('Failed to get access token.')
 
-    # Helper Function
+    # Static Methods
     @staticmethod
     def build_option_chain(rawoptionchain: dict) -> list[baseRR.GetOptionChainResponseMessage.ExpirationDate]:
         '''Transforms a TDA option chain dictionary into a LoopTrader option chain'''
