@@ -7,7 +7,7 @@
 </h1>
 
 <p align="center">
-<img src="https://img.shields.io/github/last-commit/pattertj/LoopTrader"> <img src="https://img.shields.io/github/workflow/status/pattertj/looptrader/PythonBuild?style=flat"> <img src="https://img.shields.io/github/workflow/status/pattertj/looptrader/CodeQL?style=flat&label=CodeQL"> <img src="https://img.shields.io/github/forks/pattertj/LoopTrader?style=flat"> <img src="https://img.shields.io/github/stars/pattertj/LoopTrader?style=flat"> <img src="https://img.shields.io/github/license/pattertj/LoopTrader?style=flat">
+<img src="https://img.shields.io/github/last-commit/pattertj/LoopTrader"> <img src="https://img.shields.io/github/workflow/status/pattertj/looptrader/PythonBuild?style=flat"> <img src="https://img.shields.io/github/workflow/status/pattertj/looptrader/CodeQL?style=flat&label=CodeQL"><img src="https://img.shields.io/codefactor/grade/github/pattertj/looptrader?style=flat&label=Codefactor"> <img src="https://img.shields.io/github/forks/pattertj/LoopTrader?style=flat"> <img src="https://img.shields.io/github/stars/pattertj/LoopTrader?style=flat"> <img src="https://img.shields.io/github/license/pattertj/LoopTrader?style=flat">
 </p>
 
 <h4 align="center">An extensible options trading bot built on top of Python.</h4>
