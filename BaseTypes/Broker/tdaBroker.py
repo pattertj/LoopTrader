@@ -277,7 +277,7 @@ class TdaBroker(Broker, Component):
         return response
 
     def cancel_order(self, request: baseRR.CancelOrderRequestMessage) -> baseRR.CancelOrderResponseMessage:
-        '''Cancels a given order.'''
+        '''Cancels a given order ID.'''
 
         if request.orderid is None:
             logger.error("Order ID is None.")
