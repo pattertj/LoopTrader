@@ -291,13 +291,13 @@ class TdaBroker(Broker, Component):
             type: str
             details: dict
             for type, details in markettype.items():
-                if (type == request.product):
+                if type == request.product:
                     sessionhours = dict(details.get('sessionHours'))
 
                     session: str
                     markethours: list
                     for session, markethours in sessionhours.items():
-                        if (session == 'regularMarket'):
+                        if session == 'regularMarket':
                             response = baseRR.GetMarketHoursResponseMessage
 
                             response.start = dt.datetime.strptime(str(dict(markethours[0]).get('start')), "%Y-%m-%dT%H:%M:%S%z").astimezone(dt.timezone.utc)
