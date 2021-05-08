@@ -155,7 +155,6 @@ class StaggeredStrangleStrategy(Strategy, Component):
 
     def build_offsetting_orders(self) -> list[baseRR.PlaceOrderRequestMessage]:
         logger.debug("build_offsetting_orders")
-        pass
         # # Read positions
         # request = baseRR.GetAccountRequestMessage(False, True)
         # account = self.mediator.get_account(request)
@@ -358,11 +357,12 @@ class StaggeredStrangleStrategy(Strategy, Component):
     def check_for_closing_orders(self, symbol: str, orders: list[baseRR.AccountOrder]) -> bool:
         logger.debug("check_for_closing_orders")
 
-        for order in orders:
-            if order.status == 'QUEUED' and order.legs[0].symbol == symbol and order.legs[0].instruction == 'BUY_TO_CLOSE':
-                return True
-
-        return False
+        return any(
+            order.status == 'QUEUED'
+            and order.legs[0].symbol == symbol
+            and order.legs[0].instruction == 'BUY_TO_CLOSE'
+            for order in orders
+        )
 
     def get_next_expiration(self, expirations: list[baseRR.GetOptionChainResponseMessage.ExpirationDate]) -> baseRR.GetOptionChainResponseMessage.ExpirationDate:
         logger.debug("get_next_expiration")
@@ -438,11 +438,7 @@ class StaggeredStrangleStrategy(Strategy, Component):
     def format_order_price(self, price: float) -> float:
         logger.debug("format_order_price")
 
-        if price > 3:
-            base = .1
-        else:
-            base = .05
-
+        base = .1 if price > 3 else .05
         return self.truncate(base * round(price / base), 2)
 
     def truncate(self, number: float, digits: int) -> float:
