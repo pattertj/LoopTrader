@@ -28,7 +28,7 @@ The goal for LoopTrader is to provide a flexible engine for running one or more 
 * Local storage for trades and orders
 * Support for notifications and interactions through tools like Telegram  
 
-LoopTrader is very much a work in progress and is currently not feature complete. See the [Issues](https://github.com/pattertj/LoopTrader/issues) for what remains open, or to make a suggestion.
+<b>LoopTrader is very much a work in progress and is currently not feature complete. See the [Issues](https://github.com/pattertj/LoopTrader/issues) for what remains open, or to make a suggestion.</b>
 
 ## Installation
 Eventually I plan to publish a first release which can be installed via pip install. For now, clone the repo and run it locally from your Python command line or IDE.
