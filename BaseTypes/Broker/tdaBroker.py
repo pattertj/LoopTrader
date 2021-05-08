@@ -15,7 +15,7 @@ Functions:
     get_market_hours()
 '''
 
-import datetime as dt
+import datetime as dtime
 import logging
 from collections import OrderedDict
 from os import getenv
@@ -300,8 +300,8 @@ class TdaBroker(Broker, Component):
                         if session == 'regularMarket':
                             response = baseRR.GetMarketHoursResponseMessage
 
-                            response.start = dt.datetime.strptime(str(dict(markethours[0]).get('start')), "%Y-%m-%dT%H:%M:%S%z").astimezone(dt.timezone.utc)
-                            response.end = dt.datetime.strptime(str(dict(markethours[0]).get('end')), "%Y-%m-%dT%H:%M:%S%z").astimezone(dt.timezone.utc)
+                            response.start = dtime.datetime.strptime(str(dict(markethours[0]).get('start')), "%Y-%m-%dT%H:%M:%S%z").astimezone(dtime.timezone.utc)
+                            response.end = dtime.datetime.strptime(str(dict(markethours[0]).get('end')), "%Y-%m-%dT%H:%M:%S%z").astimezone(dtime.timezone.utc)
                             response.isopen = details.get('isOpen')
 
                             return response
