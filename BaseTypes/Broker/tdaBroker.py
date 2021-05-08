@@ -295,9 +295,7 @@ class TdaBroker(Broker, Component):
 
     def get_market_hours(self, request: baseRR.GetMarketHoursRequestMessage) -> baseRR.GetMarketHoursResponseMessage:
         '''Gets the opening and closing market hours for a given day.'''
-        markets = []
-
-        markets.append(request.market)
+        markets = [request.market]
 
         # Validation
         for market in markets:
