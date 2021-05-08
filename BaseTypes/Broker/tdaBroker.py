@@ -22,16 +22,7 @@ class TdaBroker(Broker, Component):
     maxretries: int = attr.ib(default=3, validator=attr.validators.instance_of(int), init=False)
 
     def get_account(self, request: baseRR.GetAccountRequestMessage) -> baseRR.GetAccountResponseMessage:
-        """
-        The function for reading account details from TD Ameritrade.
-
-        Parameters:
-        request (GetAccountRequestMessage): Generic request message for reading account details
-
-        Returns:
-        GetAccountResponseMessage: Generic response mesage for account details
-
-        """
+        '''The function for reading account details from TD Ameritrade.'''
 
         # Build Request
         optionalfields = []
@@ -104,16 +95,9 @@ class TdaBroker(Broker, Component):
         return response
 
     def place_order(self, request: baseRR.PlaceOrderRequestMessage) -> baseRR.PlaceOrderResponseMessage:
-        """
-        The function for placing an order with TD Ameritrade.
+        ''' The function for placing an order with TD Ameritrade.'''
 
-        Parameters:
-        request (PlaceOrderRequestMessage): Generic request message for placing an Order
-
-        Returns:
-        PlaceOrderResponseMessage: Generic response mesage for placing an Order
-
-        """        # Validate the request
+        # Validate the request
         if request is None:
             logger.error("Order is None")
             raise KeyError("Order is None")
@@ -334,6 +318,8 @@ class TdaBroker(Broker, Component):
                             response.isopen = details.get('isOpen')
 
                             return response
+
+        return None
 
     def getsession(self) -> TDClient:
         '''Generates a TD Client session'''
