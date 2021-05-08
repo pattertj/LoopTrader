@@ -46,8 +46,6 @@ class TdaBroker(Broker, Component):
                     logger.warning('Failed to get Account {}. Attempt #{}'.format(getenv('TDAMERITRADE_ACCOUNT_NUMBER'), attempt))
                 elif attempt <= self.maxretries - 3:
                     logger.info('Failed to get Account {}. Attempt #{}'.format(getenv('TDAMERITRADE_ACCOUNT_NUMBER'), attempt))
-                pass
-
         # Stub response message
         response = baseRR.GetAccountResponseMessage()
         response.positions = []
@@ -272,7 +270,6 @@ class TdaBroker(Broker, Component):
                         logger.warning('Failed to get Options Chain. Attempt #{}'.format(attempt))
                     elif attempt <= self.maxretries - 3:
                         logger.info('Failed to get Options Chain. Attempt #{}'.format(attempt))
-                    pass
         else:
             logger.error("Invalid OptionChainRequest.")
             raise KeyError("Invalid OptionChainRequest.")
@@ -309,13 +306,11 @@ class TdaBroker(Broker, Component):
         return response
 
     def get_market_hours(self, request: baseRR.GetMarketHoursRequestMessage) -> baseRR.GetMarketHoursResponseMessage:
-        markets = []
-
-        markets.append(request.market)
+        markets = [request.market]
 
         # Validation
         for market in markets:
-            if market == 'FUTURE' or market == 'FOREX' or market == 'BOND':
+            if market in ['FUTURE', 'FOREX', 'BOND']:
                 return KeyError("{} markets are not supported at this time.".format(market))
 
         # Get Market Hours
@@ -333,8 +328,6 @@ class TdaBroker(Broker, Component):
                     logger.warning('Failed to get market hours for {} on {}. Attempt #{}'.format(markets, request.datetime, attempt))
                 elif attempt <= self.maxretries - 3:
                     logger.info('Failed to get market hours for {} on {}. Attempt #{}'.format(markets, request.datetime, attempt))
-                pass
-
         market: str
         markettype: dict
         for market, markettype in hours.items():
