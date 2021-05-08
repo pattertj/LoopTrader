@@ -140,70 +140,38 @@ class TdaBroker(Broker, Component):
     def get_order(self, request: baseRR.GetOrderRequestMessage) -> baseRR.GetOrderResponseMessage:
         '''Reads a single order from TDA and returns it's details'''
 
-        if request.orderid is None:
-            logger.error("Order ID is None.")
-            raise KeyError("OrderID was not provided")
-
-        try:
-            order = self.getsession().get_orders(account=self.account_number, order_id=str(request.orderid))
-        except Exception:
-            logger.exception("Failed to read order {}.".format(str(request.orderid)))
+        for attempt in range(self.maxretries):
+            try:
+                order = self.getsession().get_orders(account=self.account_number, order_id=str(request.orderid))
+            except Exception:
+                # Work backwards on severity level of logging based on the maxretry value
+                if attempt >= self.maxretries:
+                    logger.exception("Failed to read order {}.".format(str(request.orderid)))
+                elif attempt == self.maxretries - 1:
+                    logger.error("Failed to read order {}.".format(str(request.orderid)))
+                elif attempt == self.maxretries - 2:
+                    logger.warning("Failed to read order {}.".format(str(request.orderid)))
+                elif attempt <= self.maxretries - 3:
+                    logger.info("Failed to read order {}.".format(str(request.orderid)))
 
         response = baseRR.GetOrderResponseMessage()
+        response.accountid = order.get('accountId')
+        response.closetime = order.get('closeTime')
+        response.enteredtime = order.get('enteredTime')
+        response.orderid = order.get('orderId')
+        response.status = order.get('status')
 
-        try:
-            response.accountid = order['accountId']
-        except Exception as e:
-            self.orders = {}
-            logger.info("{} doesn't exist for the account".format(e.args[0]))
+        orderleg = order.get('orderLegCollection')[0]
 
-        try:
-            response.closetime = order['closeTime']
-        except Exception as e:
-            self.orders = {}
-            logger.info("{} doesn't exist for the account".format(e.args[0]))
+        if orderleg is not None:
+            response.instruction = orderleg.get('instruction')
+            response.positioneffect = orderleg.get('positionEffect')
 
-        try:
-            response.description = order['orderLegCollection'][0]['instrument']['description']
-        except Exception as e:
-            self.orders = {}
-            logger.info("{} doesn't exist for the account".format(e.args[0]))
+        instrument = orderleg.get('instrument')
 
-        try:
-            response.enteredtime = order['enteredTime']
-        except Exception as e:
-            self.orders = {}
-            logger.info("{} doesn't exist for the account".format(e.args[0]))
-
-        try:
-            response.instruction = order['orderLegCollection'][0]['instruction']
-        except Exception as e:
-            self.orders = {}
-            logger.info("{} doesn't exist for the account".format(e.args[0]))
-
-        try:
-            response.orderid = order['orderId']
-        except Exception as e:
-            self.orders = {}
-            logger.info("{} doesn't exist for the account".format(e.args[0]))
-
-        try:
-            response.positioneffect = order['orderLegCollection'][0]['positionEffect']
-        except Exception as e:
-            self.orders = {}
-            logger.info("{} doesn't exist for the account".format(e.args[0]))
-
-        try:
-            response.status = order['status']
-        except Exception as e:
-            self.orders = {}
-            logger.info("{} doesn't exist for the account".format(e.args[0]))
-
-        try:
-            response.symbol = order['orderLegCollection'][0]['instrument']['symbol']
-        except Exception as e:
-            self.orders = {}
-            logger.info("{} doesn't exist for the account".format(e.args[0]))
+        if instrument is not None:
+            response.description = instrument.get('description')
+            response.symbol = instrument.get('symbol')
 
         return response
 
