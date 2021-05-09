@@ -379,9 +379,7 @@ class CspByDeltaStrategy(Strategy, Component):
         logger.debug("check_for_closing_orders")
 
         return any(
-            order.status == 'QUEUED'
-            and order.legs[0].symbol == symbol
-            and order.legs[0].instruction == 'BUY_TO_CLOSE'
+            order.status == 'QUEUED' and order.legs[0].symbol == symbol and order.legs[0].instruction == 'BUY_TO_CLOSE'
             for order in orders
         )
 
