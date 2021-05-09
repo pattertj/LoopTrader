@@ -14,7 +14,6 @@ import re
 from os import getenv
 
 import attr
-from telegram.ext.dispatcher import Dispatcher
 import BaseTypes.Mediator.reqRespTypes as baseRR
 from BaseTypes.Component.abstractComponent import Component
 from BaseTypes.Mediator.reqRespTypes import GetAccountRequestMessage
@@ -24,6 +23,7 @@ from telegram.callbackquery import CallbackQuery
 from telegram.ext import (CallbackQueryHandler, CommandHandler, Filters,
                           MessageHandler, Updater)
 from telegram.ext.callbackcontext import CallbackContext
+from telegram.ext.dispatcher import Dispatcher
 from telegram.inline.inlinekeyboardbutton import InlineKeyboardButton
 from telegram.inline.inlinekeyboardmarkup import InlineKeyboardMarkup
 from telegram.message import Message
@@ -53,6 +53,7 @@ class TelegramNotifier(Notifier, Component):
         self.updater.start_polling()
 
     def send_notification(self, request: baseRR.SendNotificationRequestMessage) -> None:
+        '''Method to handle bot requests to push notifications'''
         self.send_message(message=re.escape(request.message), parsemode=ParseMode.MARKDOWN_V2)
 
     def start(self, update: Update, context: CallbackContext):
@@ -159,6 +160,7 @@ class TelegramNotifier(Notifier, Component):
 
     # Helper Methods
     def add_handlers(self, dispatcher: Dispatcher):
+        '''Method to add handlers to our dispatcher'''
         dispatcher.add_handler(CommandHandler("start", self.start))
         dispatcher.add_handler(CommandHandler("help", self.help))
         dispatcher.add_handler(CommandHandler("balances", self.balances))
@@ -173,7 +175,7 @@ class TelegramNotifier(Notifier, Component):
 
         # add an handler for errors
         dispatcher.add_error_handler(self.error, False)
-        
+
     def build_balances_message(self) -> str:
         '''Method to build the message string for the /balances command'''
         # Get Account
