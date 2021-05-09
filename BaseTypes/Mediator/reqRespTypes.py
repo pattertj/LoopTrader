@@ -5,6 +5,7 @@ import attr
 
 @attr.s(auto_attribs=True, init=False)
 class PlaceOrderRequestMessage():
+    '''Generic request object for placing an order.'''
     price: float = attr.ib(validator=attr.validators.instance_of(float))
     quantity: int = attr.ib(validator=attr.validators.instance_of(int))
     symbol: str = attr.ib(validator=attr.validators.instance_of(str))
@@ -19,11 +20,13 @@ class PlaceOrderRequestMessage():
 
 @attr.s(auto_attribs=True, init=False)
 class PlaceOrderResponseMessage():
+    '''Generic response object for placing an order.'''
     orderid: int = attr.ib(validator=attr.validators.instance_of(int))
 
 
 @attr.s(auto_attribs=True)
 class GetOptionChainRequestMessage():
+    '''Generic request object for retrieving the Option Chain.'''
     symbol: str = attr.ib(validator=attr.validators.instance_of(str))
     contracttype: str = attr.ib(validator=attr.validators.in_(['CALL', 'PUT', 'ALL']))
     includequotes: bool = attr.ib(validator=attr.validators.instance_of(bool))
@@ -34,6 +37,7 @@ class GetOptionChainRequestMessage():
 
 @attr.s(auto_attribs=True, init=False)
 class GetOptionChainResponseMessage():
+    '''Generic response object for retrieving an Option Chain.'''
     # Define Expiration Date Object
     @attr.s(auto_attribs=True, init=False)
     class ExpirationDate():
@@ -52,7 +56,6 @@ class GetOptionChainResponseMessage():
             symbol: str = attr.ib(validator=attr.validators.instance_of(str))
             description: str = attr.ib(validator=attr.validators.instance_of(str))
             putcall: str = attr.ib(validator=attr.validators.in_(['CALL', 'PUT']))
-            # TODO: Change to IN
             settlementtype: str = attr.ib(validator=attr.validators.instance_of(str))
             expirationtype: str = attr.ib(validator=attr.validators.instance_of(str))
 
@@ -70,12 +73,14 @@ class GetOptionChainResponseMessage():
 
 @attr.s(auto_attribs=True)
 class GetAccountRequestMessage():
+    '''Generic request object for retrieving account details.'''
     orders: bool = attr.ib(validator=attr.validators.instance_of(bool))
     positions: bool = attr.ib(validator=attr.validators.instance_of(bool))
 
 
 @attr.s(auto_attribs=True, init=False)
 class AccountPosition():
+    '''Generic object for retrieving position details on an account.'''
     shortquantity: int = attr.ib(validator=attr.validators.instance_of(int))
     averageprice: float = attr.ib(validator=attr.validators.instance_of(float))
     longquantity: int = attr.ib(validator=attr.validators.instance_of(int))
@@ -89,6 +94,7 @@ class AccountPosition():
 
 @attr.s(auto_attribs=True, init=False)
 class AccountOrderLeg():
+    '''Generic object for retrieving order leg details on an account.'''
     legid: int = attr.ib(validator=attr.validators.instance_of(int))
     orders: bool = attr.ib(validator=attr.validators.instance_of(bool))
     cusip: str = attr.ib(validator=attr.validators.instance_of(str))
@@ -102,13 +108,13 @@ class AccountOrderLeg():
 
 @attr.s(auto_attribs=True, init=False)
 class AccountOrder():
+    '''Generic object to hold order details for an account.'''
     duration: str = attr.ib(validator=attr.validators.in_(['DAY', 'GOOD_TILL_CANCEL', 'FILL_OR_KILL']))
     quantity: int = attr.ib(validator=attr.validators.instance_of(int))
     filledquantity: int = attr.ib(validator=attr.validators.instance_of(int))
     price: float = attr.ib(validator=attr.validators.instance_of(float))
     orderid: str = attr.ib(validator=attr.validators.instance_of(str))
-    # TODO: Change to IN
-    status: str = attr.ib(validator=attr.validators.instance_of(str))
+    status: str = attr.ib(validator=attr.validators.in_(['AWAITING_PARENT_ORDER', 'AWAITING_CONDITION', 'AWAITING_MANUAL_REVIEW', 'ACCEPTED', 'AWAITING_UR_OUT', 'PENDING_ACTIVATION', 'QUEUED', 'WORKING', 'REJECTED', 'PENDING_CANCEL', 'CANCELED', 'PENDING_REPLACE', 'REPLACED', 'FILLED', 'EXPIRED']))
     enteredtime: datetime = attr.ib(validator=attr.validators.instance_of(datetime))
     closetime: datetime = attr.ib(validator=attr.validators.instance_of(datetime))
     accountid: int = attr.ib(validator=attr.validators.instance_of(int))
@@ -119,12 +125,14 @@ class AccountOrder():
 
 @attr.s(auto_attribs=True, init=False)
 class AccountBalance():
+    '''Generic object to hold balance details for an account.'''
     liquidationvalue: float = attr.ib(validator=attr.validators.instance_of(float))
     buyingpower: float = attr.ib(validator=attr.validators.instance_of(float))
 
 
 @attr.s(auto_attribs=True, init=False)
 class GetAccountResponseMessage():
+    '''Generic response object for retrieving account details.'''
     currentbalances: AccountBalance = attr.ib(validator=attr.validators.instance_of(AccountBalance))
     positions: list[AccountPosition] = attr.ib(validator=attr.validators.instance_of(list[AccountPosition]))
     orders: list[AccountOrder] = attr.ib(validator=attr.validators.instance_of(list[AccountOrder]))
@@ -132,24 +140,27 @@ class GetAccountResponseMessage():
 
 @attr.s(auto_attribs=True)
 class CancelOrderRequestMessage():
+    '''Generic request object for cancelling an order.'''
     orderid: int = attr.ib(validator=attr.validators.instance_of(int))
 
 
 @attr.s(auto_attribs=True, init=False)
 class CancelOrderResponseMessage():
+    '''Generic response object for cancelling an order.'''
     responsecode: str = attr.ib(validator=attr.validators.instance_of(str))
 
 
 @attr.s(auto_attribs=True)
 class GetOrderRequestMessage():
+    '''Generic request object for reading an order.'''
     orderid: int = attr.ib(validator=attr.validators.instance_of(int))
 
 
 @attr.s(auto_attribs=True, init=False)
 class GetOrderResponseMessage():
+    '''Generic response object for reading an order.'''
     orderid: int = attr.ib(validator=attr.validators.instance_of(int))
-    # TODO: Change to IN
-    status: str = attr.ib(validator=attr.validators.instance_of(str))
+    status: str = attr.ib(validator=attr.validators.in_(['AWAITING_PARENT_ORDER', 'AWAITING_CONDITION', 'AWAITING_MANUAL_REVIEW', 'ACCEPTED', 'AWAITING_UR_OUT', 'PENDING_ACTIVATION', 'QUEUED', 'WORKING', 'REJECTED', 'PENDING_CANCEL', 'CANCELED', 'PENDING_REPLACE', 'REPLACED', 'FILLED', 'EXPIRED']))
     accountid: int = attr.ib(validator=attr.validators.instance_of(int))
     enteredtime: datetime = attr.ib(validator=attr.validators.instance_of(datetime))
     closetime: datetime = attr.ib(validator=attr.validators.instance_of(datetime))
@@ -161,6 +172,7 @@ class GetOrderResponseMessage():
 
 @attr.s(auto_attribs=True)
 class GetMarketHoursRequestMessage():
+    '''Generic request object for getting Market Hours.'''
     market: str = attr.ib(validator=attr.validators.in_(['OPTION', 'EQUITY', 'FUTURE', 'FOREX', 'BOND']))
     product: str = attr.ib(validator=attr.validators.in_(['EQO', 'IND']))
     datetime: datetime = attr.ib(default=datetime.now(), validator=attr.validators.instance_of(datetime))
@@ -168,6 +180,7 @@ class GetMarketHoursRequestMessage():
 
 @attr.s(auto_attribs=True, init=False)
 class GetMarketHoursResponseMessage():
+    '''Generic reponse object for getting Market Hours.'''
     start: datetime = attr.ib(validator=attr.validators.instance_of(datetime))
     end: datetime = attr.ib(validator=attr.validators.instance_of(datetime))
     isopen: bool = attr.ib(validator=attr.validators.instance_of(bool))
@@ -175,9 +188,11 @@ class GetMarketHoursResponseMessage():
 
 @attr.s(auto_attribs=True)
 class SendNotificationRequestMessage():
+    '''Generic request object for sending a notification.'''
     message: str = attr.ib(validator=attr.validators.instance_of(str))
 
 
 @attr.s(auto_attribs=True)
 class SetKillSwitchRequestMessage():
+    '''Generic request object for setting the bot killswitch.'''
     kill_switch: bool = attr.ib(validator=attr.validators.instance_of(bool))
