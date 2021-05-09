@@ -294,6 +294,7 @@ class CspByDeltaStrategy(Strategy, Component):
         return orderrequests
 
     def build_closing_order_request(self, position: baseRR.AccountPosition):
+        '''Builds a closing order request message for a given position.'''
         orderrequest = baseRR.PlaceOrderRequestMessage()
         orderrequest.orderstrategytype = 'SINGLE'
         orderrequest.assettype = 'OPTION'

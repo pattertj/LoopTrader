@@ -299,12 +299,15 @@ class TdaBroker(Broker, Component):
         return None
 
     def process_session_hours(self, sessionhours: dict, details: dict) -> baseRR.GetMarketHoursResponseMessage:
+        '''Iterates session hours to build a market hours response'''
         for session, markethours in sessionhours.items():
             if session == 'regularMarket':
                 response = self.build_market_hours_response(markethours, details)
         return response
 
-    def build_market_hours_response(self, markethours: list, details: dict) -> baseRR.GetMarketHoursResponseMessage:
+    @staticmethod
+    def build_market_hours_response(markethours: list, details: dict) -> baseRR.GetMarketHoursResponseMessage:
+        '''Builds a Market Hours reponse Message for given details'''
         response = baseRR.GetMarketHoursResponseMessage
 
         startdt = dtime.datetime.strptime(str(dict(markethours[0]).get('start')), "%Y-%m-%dT%H:%M:%S%z")
