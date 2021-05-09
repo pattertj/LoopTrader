@@ -288,21 +288,25 @@ class CspByDeltaStrategy(Strategy, Component):
                 if closingorderexists:
                     continue
 
-                orderrequest = baseRR.PlaceOrderRequestMessage()
-                orderrequest.orderstrategytype = 'SINGLE'
-                orderrequest.assettype = 'OPTION'
-                orderrequest.duration = 'GOOD_TILL_CANCEL'
-                orderrequest.instruction = 'BUY_TO_CLOSE'
-                orderrequest.ordertype = 'LIMIT'
-                orderrequest.ordersession = 'NORMAL'
-                orderrequest.positioneffect = 'CLOSING'
-                orderrequest.price = self.truncate(self.format_order_price(position.averageprice * (1 - float(self.profittargetpercent))), 2)
-                orderrequest.quantity = position.shortquantity
-                orderrequest.symbol = position.symbol
+                orderrequest = self.build_closing_order_request(position)
 
                 orderrequests.append(orderrequest)
 
         return orderrequests
+
+    def build_closing_order_request(self, position: baseRR.AccountPosition):
+        orderrequest = baseRR.PlaceOrderRequestMessage()
+        orderrequest.orderstrategytype = 'SINGLE'
+        orderrequest.assettype = 'OPTION'
+        orderrequest.duration = 'GOOD_TILL_CANCEL'
+        orderrequest.instruction = 'BUY_TO_CLOSE'
+        orderrequest.ordertype = 'LIMIT'
+        orderrequest.ordersession = 'NORMAL'
+        orderrequest.positioneffect = 'CLOSING'
+        orderrequest.price = self.truncate(self.format_order_price(position.averageprice * (1 - float(self.profittargetpercent))), 2)
+        orderrequest.quantity = position.shortquantity
+        orderrequest.symbol = position.symbol
+        return orderrequest
 
     # Order Placers
     def place_new_orders_loop(self) -> None:
