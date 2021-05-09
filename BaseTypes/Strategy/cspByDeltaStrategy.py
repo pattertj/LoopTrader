@@ -14,6 +14,8 @@ logger = logging.getLogger('autotrader')
 
 @attr.s(auto_attribs=True)
 class CspByDeltaStrategy(Strategy, Component):
+    '''The concrete implementation of the generic LoopTrader Strategy class for trading Cash-Secured Puts by Delta.'''
+
     strategy_name: str = attr.ib(default="Sample Strategy", validator=attr.validators.instance_of(str))
     underlying: str = attr.ib(default="$SPX.X", validator=attr.validators.instance_of(str))
     portfolioallocationpercent: float = attr.ib(default=1.0, validator=attr.validators.instance_of(float))
@@ -67,6 +69,7 @@ class CspByDeltaStrategy(Strategy, Component):
 
     # Process Market Hours
     def process_pre_market(self):
+        '''Pre-Market Trading Logic'''
         logger.debug("Processing Pre-Market.")
 
         # Get Next Open
@@ -77,10 +80,8 @@ class CspByDeltaStrategy(Strategy, Component):
 
         logger.info("Markets are closed until {}. Sleeping until {}".format(nextmarketsession.start + dt.timedelta(minutes=self.minutesafteropendelay), self.sleepuntil))
 
-        # Exit.
-        return
-
     def process_open_market(self, close: dt.datetime, now: dt.datetime):
+        '''Open Market Trading Logic'''
         logger.debug("Processing Open-Market")
 
         # Get the number of minutes till close
@@ -96,6 +97,7 @@ class CspByDeltaStrategy(Strategy, Component):
         self.process_closing_orders(minutestoclose)
 
     def process_after_hours(self, close: dt.datetime, now: dt.datetime):
+        '''After-Hours Trading Logic'''
         logger.debug("Processing After-Hours")
 
         # Get the number of minutes since close
@@ -123,6 +125,7 @@ class CspByDeltaStrategy(Strategy, Component):
 
     # Open Market Helpers
     def process_expiring_positions(self, minutestoclose):
+        '''Expiring Open Positions Trading Logic'''
         logger.debug("process_expiring_positions")
         # If there is more then 15min to the close, we can skip this logic.
         if minutestoclose > 15:
@@ -134,9 +137,10 @@ class CspByDeltaStrategy(Strategy, Component):
         # Place new order loop
         if offsettingorders is not None:
             for order in offsettingorders:
-                self.place_order_loop(order)
+                self.place_order(order)
 
     def process_closing_orders(self, minutestoclose):
+        '''Closing Orders Trading Logic'''
         logger.debug("process_closing_orders")
         # If 15min from close
         if minutestoclose < 15:
@@ -157,6 +161,7 @@ class CspByDeltaStrategy(Strategy, Component):
                     self.mediator.place_order(order)
 
     def build_offsetting_orders(self) -> list[baseRR.PlaceOrderRequestMessage]:
+        '''Offsetting orders for expiring positions Trading Logic'''
         logger.debug("build_offsetting_orders")
         # # Read positions
         # request = baseRR.GetAccountRequestMessage(False, True)
@@ -172,7 +177,6 @@ class CspByDeltaStrategy(Strategy, Component):
         # for position in account.positions:
         #     # Check if position is expiring today
         #     if position.expirationdate.date() == dt.datetime.now().date():
-        #         # TODO: Check DB if it is our positions
         #         if True:
         #             # Get today's option chain
         #             optionchainrequest = baseRR.GetOptionChainRequestMessage(symbol=self.underlying, contracttype='PUT', includequotes=True, optionrange='OTM', fromdate=dt.date.today(), todate=(dt.date.today()))
@@ -188,6 +192,7 @@ class CspByDeltaStrategy(Strategy, Component):
 
     # Order Builders
     def build_new_order(self) -> baseRR.PlaceOrderRequestMessage:
+        '''Trading Logic for building new Order Request Messages'''
         logger.debug("build_new_order")
 
         # Get account balance
@@ -196,7 +201,7 @@ class CspByDeltaStrategy(Strategy, Component):
 
         if account is None:
             logger.error("Failed to get Account")
-            return
+            return None
 
         # Calculate trade date
         startdate = (dt.date.today() + dt.timedelta(days=self.minimumdte))
@@ -211,8 +216,8 @@ class CspByDeltaStrategy(Strategy, Component):
         estbp = .9 * (chain.underlyinglastprice * .2 * 100)
         availbp = account.currentbalances.buyingpower
 
-        if (estbp > availbp):
-            return
+        if estbp > availbp:
+            return None
 
         # Find strike to trade
         expiration = self.get_next_expiration(chain.putexpdatemap)
@@ -246,6 +251,7 @@ class CspByDeltaStrategy(Strategy, Component):
         return orderrequest
 
     def build_cancel_closing_orders(self) -> list[baseRR.CancelOrderRequestMessage]:
+        '''Trading Logic for cancelling closing order positions'''
         logger.debug("build_cancel_closing_orders")
 
         orderrequests = []
@@ -256,7 +262,6 @@ class CspByDeltaStrategy(Strategy, Component):
 
         # Look for open positions
         for order in account.orders:
-            # TODO: If positions belongs to this strat...
             if order.status == 'QUEUED' and order.legs[0].positioneffect == 'CLOSING':
                 orderrequest = baseRR.CancelOrderRequestMessage(order.orderid)
                 orderrequests.append(orderrequest)
@@ -264,6 +269,7 @@ class CspByDeltaStrategy(Strategy, Component):
         return orderrequests
 
     def build_closing_orders(self) -> list[baseRR.PlaceOrderRequestMessage]:
+        '''Trading Logic for building new Closing Order Request Messages'''
         logger.debug("build_closing_orders")
 
         orderrequests = []
@@ -274,7 +280,6 @@ class CspByDeltaStrategy(Strategy, Component):
 
         # Look for open positions
         for position in account.positions:
-            # TODO: If positions belongs to this strat...
             if position.underlyingsymbol == self.underlying and position.putcall == 'PUT':
                 # Look for closing Orders
                 closingorderexists = self.check_for_closing_orders(position.symbol, account.orders)
@@ -299,7 +304,8 @@ class CspByDeltaStrategy(Strategy, Component):
         return orderrequests
 
     # Order Placers
-    def place_new_orders_loop(self, offset: float) -> None:
+    def place_new_orders_loop(self) -> None:
+        '''Looping Logic for placing new orders'''
         # Build Order
         neworder = self.build_new_order()
 
@@ -308,7 +314,7 @@ class CspByDeltaStrategy(Strategy, Component):
             return
 
         # Place the order and check the result
-        result = self.place_order_loop(neworder)
+        result = self.place_order(neworder)
 
         # If successful, return
         if result:
@@ -319,9 +325,14 @@ class CspByDeltaStrategy(Strategy, Component):
 
         return
 
-    def place_order_loop(self, orderrequest: baseRR.PlaceOrderRequestMessage) -> bool:
+    def place_order(self, orderrequest: baseRR.PlaceOrderRequestMessage) -> bool:
+        '''Method for placing new Orders and handling fills'''
         # Try to place the Order
         neworderresult = self.mediator.place_order(orderrequest)
+
+        # If the order placement fails, exit the method.
+        if neworderresult.orderid is None or neworderresult.orderid == 0:
+            return False
 
         # If closing order, let the order ride, otherwise continue logic
         if orderrequest.positioneffect == "CLOSING":
@@ -348,16 +359,18 @@ class CspByDeltaStrategy(Strategy, Component):
 
     # Helpers
     def get_market_session_loop(self, date: dt.datetime) -> baseRR.GetMarketHoursResponseMessage:
+        '''Looping Logic for getting the next open session start and end times'''
         logger.debug("get_market_session_loop")
         request = baseRR.GetMarketHoursRequestMessage(market='OPTION', product='IND', datetime=date)
         hours = self.mediator.get_market_hours(request)
 
         if hours is None or hours.end < dt.datetime.now().astimezone(dt.timezone.utc):
             return self.get_market_session_loop(date + dt.timedelta(days=1))
-
         return hours
 
-    def check_for_closing_orders(self, symbol: str, orders: list[baseRR.AccountOrder]) -> bool:
+    @staticmethod
+    def check_for_closing_orders(symbol: str, orders: list[baseRR.AccountOrder]) -> bool:
+        '''Checks a list of Order for closing orders.'''
         logger.debug("check_for_closing_orders")
 
         return any(
@@ -367,7 +380,9 @@ class CspByDeltaStrategy(Strategy, Component):
             for order in orders
         )
 
-    def get_next_expiration(self, expirations: list[baseRR.GetOptionChainResponseMessage.ExpirationDate]) -> baseRR.GetOptionChainResponseMessage.ExpirationDate:
+    @staticmethod
+    def get_next_expiration(expirations: list[baseRR.GetOptionChainResponseMessage.ExpirationDate]) -> baseRR.GetOptionChainResponseMessage.ExpirationDate:
+        '''Checks an option chain response for the next expiration date.'''
         logger.debug("get_next_expiration")
 
         if expirations is None or expirations == []:
@@ -388,6 +403,7 @@ class CspByDeltaStrategy(Strategy, Component):
         return minexpiration
 
     def get_best_strike(self, strikes: dict[float, baseRR.GetOptionChainResponseMessage.ExpirationDate.Strike], buyingpower: float, liquidationvalue: float) -> baseRR.GetOptionChainResponseMessage.ExpirationDate.Strike:
+        '''Searches an option chain for the optimal strike.'''
         logger.debug("get_best_strike")
         # Set Variables
         bestpremium = float(0)
@@ -410,6 +426,7 @@ class CspByDeltaStrategy(Strategy, Component):
         return beststrike
 
     def calculate_order_quantity(self, strike: float, buyingpower: float, liquidationvalue: float) -> int:
+        '''Calculates the number of positions to open for a given account and strike.'''
         logger.debug("calculate_order_quantity")
 
         # Calculate max loss per contract
@@ -430,12 +447,15 @@ class CspByDeltaStrategy(Strategy, Component):
         return int(trade_size)
 
     def format_order_price(self, price: float) -> float:
+        '''Formats a price according to brokerage rules.'''
         logger.debug("format_order_price")
 
         base = .1 if price > 3 else .05
         return self.truncate(base * round(price / base), 2)
 
-    def truncate(self, number: float, digits: int) -> float:
+    @staticmethod
+    def truncate(number: float, digits: int) -> float:
+        '''Truncates a float to a specified number of digits.'''
         logger.debug("truncate")
         stepper = 10.0 ** digits
         return math.trunc(stepper * number) / stepper
