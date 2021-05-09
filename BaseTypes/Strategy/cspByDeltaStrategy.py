@@ -32,6 +32,7 @@ class CspByDeltaStrategy(Strategy, Component):
 
     # Core Strategy Process
     def process_strategy(self) -> bool:
+        '''Main entry point to the strategy.'''
         logger.debug("processstrategy")
 
         # Get current datetime
