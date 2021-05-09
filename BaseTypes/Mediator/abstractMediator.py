@@ -6,7 +6,7 @@ import BaseTypes.Mediator.reqRespTypes as baseRR
 
 @attr.s(auto_attribs=True)
 class Mediator(abc.ABC):
-    killswitch: bool = attr.ib(default=False, validator=attr.validators.instance_of(bool))
+    killswitch: bool = attr.ib(validator=attr.validators.instance_of(bool))
 
     @abc.abstractmethod
     def process_strategies(self) -> bool:

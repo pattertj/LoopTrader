@@ -4,7 +4,7 @@ import logging.config
 from BaseTypes.Broker.tdaBroker import TdaBroker
 from BaseTypes.Database.sqliteDatabase import SqliteDatabase
 from BaseTypes.Mediator.botMediator import Bot
-from BaseTypes.Notifier.telegramNotifier import TelegramNotifier
+from BaseTypes.Notifier.telegramnotifier import TelegramNotifier
 from BaseTypes.Strategy.cspByDeltaStrategy import CspByDeltaStrategy
 
 # Create Logging

@@ -1,3 +1,14 @@
+'''
+The concrete implementation of the generic LoopTrader Notifier class for communication with Telegram.
+
+Classes:
+
+    TelegramNotifier
+
+Functions:
+
+    send_notification(request: baseRR.SendNotificationRequestMessage) -> None
+'''
 import logging
 import re
 from os import getenv
@@ -6,7 +17,7 @@ import attr
 import BaseTypes.Mediator.reqRespTypes as baseRR
 from BaseTypes.Component.abstractComponent import Component
 from BaseTypes.Mediator.reqRespTypes import GetAccountRequestMessage
-from BaseTypes.Notifier.abstractNotifier import Notifier
+from BaseTypes.Notifier.abstractnotifier import Notifier
 from telegram import ParseMode, Update
 from telegram.callbackquery import CallbackQuery
 from telegram.ext import (CallbackQueryHandler, CommandHandler, Filters,
@@ -21,6 +32,8 @@ logger = logging.getLogger('autotrader')
 
 @attr.s(auto_attribs=True)
 class TelegramNotifier(Notifier, Component):
+    '''The concrete implementation of the generic LoopTrader Notifier class for communication with Telegram.'''
+
     updater: Updater = attr.ib(validator=attr.validators.instance_of(Updater), init=False)
     chatid: int = attr.ib(validator=attr.validators.instance_of(int), init=False)
 
@@ -54,8 +67,8 @@ class TelegramNotifier(Notifier, Component):
     def send_notification(self, request: baseRR.SendNotificationRequestMessage) -> None:
         self.send_message(message=re.escape(request.message), parsemode=ParseMode.MARKDOWN_V2)
 
-    # function to handle the /start command
     def start(self, update: Update, context: CallbackContext):
+        '''Method to handle the /start command'''
         keyboard = [
             [
                 InlineKeyboardButton("Balances", callback_data='1'),
@@ -72,33 +85,33 @@ class TelegramNotifier(Notifier, Component):
         except Exception:
             logger.exception("Failed to reply to /start command.")
 
-    # function to handle the /killswitch command
     def killswitch(self, update: Update, context: CallbackContext):
+        '''Method to handle the /killswitch command'''
         self.mediator.set_kill_switch(True)
         self.reply_text(r"Kill switch, flipped. Awaiting confirmation...", update.message, None, ParseMode.MARKDOWN_V2)
 
-    # function to handle the /help command
     def help(self, update: Update, context: CallbackContext):
+        '''Method to handle the /help command'''
         self.reply_text(r"Welcome to LoopTrader, I'm a Telegram bot here to help you manage your LoopTrader\! There are a few things I can do: \r\n\n \- *Push Notifications* will alert you to alerts you setup in your LoopTrader\. \r\n \- */killswitch* will shutdown your LoopTrader\\. \r\n \- */account* will display your latest account details\. \r\n \- */orders* will display your open Orders. \r\n \- */positions* will show your open Positions\\.", update.message, None, ParseMode.MARKDOWN_V2)
 
-    # function to handle /orders command
     def orders(self, update: Update, context: CallbackContext):
+        '''Method to handle the /orders command'''
         # Build Message
         msg = self.build_orders_message()
 
         # Send Message
         self.reply_text(msg, update.message, None, ParseMode.HTML)
 
-    # function to handle /positions command
     def positions(self, update: Update, context: CallbackContext):
+        '''Method to handle the /positions command'''
         # Build Message
         msg = self.build_positions_message()
 
         # Send Message
         self.reply_text(msg, update.message, None, ParseMode.HTML)
 
-    # function to handle /tail command
     def tail(self, update: Update, context: CallbackContext):
+        '''Method to handle the /tail command'''
         # Make sure only one arg was sent
         if len(context.args) != 1:
             self.reply_text("There was an error with your input. Please enter a single integer.", update.message, None, ParseMode.HTML)
@@ -128,64 +141,24 @@ class TelegramNotifier(Notifier, Component):
         # Send Message
         self.reply_text(reply, update.message, None, ParseMode.HTML)
 
-    # function to handle /account command
     def balances(self, update: Update, context: CallbackContext):
+        '''Method to handle the /balances command'''
         # Build Message
         msg = self.build_balances_message()
 
         # Send Message
         self.reply_text(msg, update.message, None, ParseMode.HTML)
 
-    # function to handle errors occured in the dispatcher
     def error(self, update: Update, context: CallbackContext):
+        '''Method to handle errors occurring in the dispatcher'''
         self.reply_text(r"An error occured, check the logs.", update.message, None, ParseMode.HTML)
 
-    # function to handle normal text
     def text(self, update: Update, context: CallbackContext):
+        '''Method to handle normal text'''
         self.reply_text(r"Sorry, I don't recognize your command.", update.message, None, ParseMode.HTML)
 
-    def build_balances_message(self) -> str:
-        # Get Account
-        request = GetAccountRequestMessage(False, False)
-        account = self.mediator.get_account(request)
-
-        # Build Reply
-        reply = r"Account Balances:"
-        reply += "\r\n - <b>Liquidation Value:</b> <code>${}</code>".format("{:,.2f}".format(account.currentbalances.liquidationvalue))
-        reply += "\r\n - <b>Buying Power:</b> <code>${}</code>".format("{:,.2f}".format(account.currentbalances.buyingpower))
-
-        return reply
-
-    def build_positions_message(self) -> str:
-        # Get Account
-        request = GetAccountRequestMessage(False, True)
-        account = self.mediator.get_account(request)
-
-        # Build Reply
-        reply = r"Account Positions:"
-
-        for position in account.positions:
-            qty = position.shortquantity + position.longquantity
-            reply += " \r\n <code>- {}x {} @ ${}</code>".format(str(qty), str(position.symbol), "{:,.2f}".format(position.averageprice))
-
-        return reply
-
-    def build_orders_message(self) -> str:
-        # Get Account
-        request = GetAccountRequestMessage(True, False)
-        account = self.mediator.get_account(request)
-
-        # Build Reply
-        reply = r"Open Orders:"
-
-        for order in account.orders:
-            if order.status in ['OPEN', 'QUEUED']:
-                price = 0 if order.price is None else order.price
-                reply += " \r\n <code>- {}x {} {} @ ${}</code>".format(str(order.quantity), str(order.legs[0].instruction), str(order.legs[0].symbol), "{:,.2f}".format(price))
-
-        return reply
-
     def button(self, update: Update, _: CallbackContext) -> None:
+        '''Method to handle /start command inline keyboard clicks '''
         query = update.callback_query
 
         query.answer()
@@ -202,21 +175,70 @@ class TelegramNotifier(Notifier, Component):
         except Exception:
             logger.exception("Telegram failed to callback.")
 
-    # Send Message/Reply Helpers
+    # Helper Methods
+    def build_balances_message(self) -> str:
+        '''Method to build the message string for the /balances command'''
+        # Get Account
+        request = GetAccountRequestMessage(False, False)
+        account = self.mediator.get_account(request)
+
+        # Build Reply
+        reply = r"Account Balances:"
+        reply += "\r\n - <b>Liquidation Value:</b> <code>${}</code>".format("{:,.2f}".format(account.currentbalances.liquidationvalue))
+        reply += "\r\n - <b>Buying Power:</b> <code>${}</code>".format("{:,.2f}".format(account.currentbalances.buyingpower))
+
+        return reply
+
+    def build_positions_message(self) -> str:
+        '''Method to build the message string for the /positions command'''
+        # Get Account
+        request = GetAccountRequestMessage(False, True)
+        account = self.mediator.get_account(request)
+
+        # Build Reply
+        reply = r"Account Positions:"
+
+        for position in account.positions:
+            qty = position.shortquantity + position.longquantity
+            reply += " \r\n <code>- {}x {} @ ${}</code>".format(str(qty), str(position.symbol), "{:,.2f}".format(position.averageprice))
+
+        return reply
+
+    def build_orders_message(self) -> str:
+        '''Method to build the message string for the /orders command'''
+        # Get Account
+        request = GetAccountRequestMessage(True, False)
+        account = self.mediator.get_account(request)
+
+        # Build Reply
+        reply = r"Open Orders:"
+
+        for order in account.orders:
+            if order.status in ['OPEN', 'QUEUED']:
+                price = 0 if order.price is None else order.price
+                reply += " \r\n <code>- {}x {} {} @ ${}</code>".format(str(order.quantity), str(order.legs[0].instruction), str(order.legs[0].symbol), "{:,.2f}".format(price))
+
+        return reply
+
     def send_message(self, message: str, parsemode: ParseMode):
+        '''Wrapper method to send messages to a user'''
         try:
             bot = self.updater.bot
             bot.send_message(chat_id=self.chatid, text=message, parse_mode=parsemode)
         except Exception:
             logger.exception("Telegram failed to send message.")
 
-    def reply_text(self, text: str, message: Message, reply_markup: InlineKeyboardMarkup, parsemode: ParseMode):
+    @staticmethod
+    def reply_text(text: str, message: Message, reply_markup: InlineKeyboardMarkup, parsemode: ParseMode):
+        '''Wrapper method to send reply texts'''
         try:
             message.reply_text(text, reply_markup=reply_markup, quote=False, parse_mode=parsemode)
         except Exception:
             logger.exception("Telegram failed to reply.")
 
-    def edit_message_text(self, query: CallbackQuery, msg: str, parsemode: ParseMode):
+    @staticmethod
+    def edit_message_text(query: CallbackQuery, msg: str, parsemode: ParseMode):
+        '''Wrapper method to edit message texts'''
         try:
             query.edit_message_text(text=msg, parse_mode=parsemode)
         except Exception:
