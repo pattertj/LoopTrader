@@ -68,7 +68,7 @@ class CspByDeltaStrategy(Strategy, Component):
         elif hours.end < now:
             self.process_after_hours(hours.end, now)
 
-    # Process Market Hours
+    # Process Market
     def process_pre_market(self):
         '''Pre-Market Trading Logic'''
         logger.debug("Processing Pre-Market.")
@@ -124,7 +124,6 @@ class CspByDeltaStrategy(Strategy, Component):
 
         logger.info("Placed {} Closing Orders".format(len(closingorders)))
 
-    # Open Market Helpers
     def process_expiring_positions(self, minutestoclose):
         '''Expiring Open Positions Trading Logic'''
         logger.debug("process_expiring_positions")
@@ -161,6 +160,7 @@ class CspByDeltaStrategy(Strategy, Component):
                 for order in closingorders:
                     self.mediator.place_order(order)
 
+    # Order Builders
     def build_offsetting_orders(self) -> list[baseRR.PlaceOrderRequestMessage]:
         '''Offsetting orders for expiring positions Trading Logic'''
         logger.debug("build_offsetting_orders")
@@ -191,7 +191,6 @@ class CspByDeltaStrategy(Strategy, Component):
         # # Once we have reviewed all postiions, exit.
         # return response
 
-    # Order Builders
     def build_new_order(self) -> baseRR.PlaceOrderRequestMessage:
         '''Trading Logic for building new Order Request Messages'''
         logger.debug("build_new_order")
