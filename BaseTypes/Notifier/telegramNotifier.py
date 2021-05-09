@@ -14,6 +14,7 @@ import re
 from os import getenv
 
 import attr
+from telegram.ext.dispatcher import Dispatcher
 import BaseTypes.Mediator.reqRespTypes as baseRR
 from BaseTypes.Component.abstractComponent import Component
 from BaseTypes.Mediator.reqRespTypes import GetAccountRequestMessage
@@ -41,27 +42,14 @@ class TelegramNotifier(Notifier, Component):
         token = getenv('TELEGRAM_TOKEN')
         self.chatid = int(getenv('TELEGRAM_CHATID'))
 
-        # create the updater, that will automatically create also a dispatcher and a queue to make them dialoge
+        # Create the updater, that will automatically create also a dispatcher and a queue to make them dialoge
         self.updater = Updater(token, use_context=True)
         dispatcher = self.updater.dispatcher
 
-        # add handlers for start and help commands
-        dispatcher.add_handler(CommandHandler("start", self.start))
-        dispatcher.add_handler(CommandHandler("help", self.help))
-        dispatcher.add_handler(CommandHandler("balances", self.balances))
-        dispatcher.add_handler(CommandHandler("orders", self.orders))
-        dispatcher.add_handler(CommandHandler("tail", self.tail, pass_args=True))
-        dispatcher.add_handler(CommandHandler("positions", self.positions))
-        dispatcher.add_handler(CommandHandler("killswitch", self.killswitch))
-        dispatcher.add_handler(CallbackQueryHandler(self.button))
+        # Add handlers for start and help commands
+        self.add_handlers(dispatcher)
 
-        # add an handler for normal text (not commands)
-        dispatcher.add_handler(MessageHandler(Filters.text, self.text))
-
-        # add an handler for errors
-        dispatcher.add_error_handler(self.error, False)
-
-        # start your shiny new bot
+        # Start your shiny new bot
         self.updater.start_polling()
 
     def send_notification(self, request: baseRR.SendNotificationRequestMessage) -> None:
@@ -112,21 +100,15 @@ class TelegramNotifier(Notifier, Component):
 
     def tail(self, update: Update, context: CallbackContext):
         '''Method to handle the /tail command'''
-        # Make sure only one arg was sent
-        if len(context.args) != 1:
-            self.reply_text("There was an error with your input. Please enter a single integer.", update.message, None, ParseMode.HTML)
-            return
-
-        # Try to read the arg
+        # Error Handling
         try:
             rows = int(context.args[0])
-        except Exception:
-            self.reply_text("There was an error with your input. Please enter an integer.", update.message, None, ParseMode.HTML)
-            return
 
-        # Validate the provided integer
-        if rows <= 0:
-            self.reply_text("There was an error with your input. Please enter a positive integer.", update.message, None, ParseMode.HTML)
+            if len(context.args) != 1 or rows <= 0:
+                self.reply_text("There was an error with your input. Please enter a single positive integer.", update.message, None, ParseMode.HTML)
+                return
+        except Exception:
+            self.reply_text("There was an error with your input. Please enter a single positive integer.", update.message, None, ParseMode.HTML)
             return
 
         # Build reply
@@ -176,6 +158,22 @@ class TelegramNotifier(Notifier, Component):
             logger.exception("Telegram failed to callback.")
 
     # Helper Methods
+    def add_handlers(self, dispatcher: Dispatcher):
+        dispatcher.add_handler(CommandHandler("start", self.start))
+        dispatcher.add_handler(CommandHandler("help", self.help))
+        dispatcher.add_handler(CommandHandler("balances", self.balances))
+        dispatcher.add_handler(CommandHandler("orders", self.orders))
+        dispatcher.add_handler(CommandHandler("tail", self.tail, pass_args=True))
+        dispatcher.add_handler(CommandHandler("positions", self.positions))
+        dispatcher.add_handler(CommandHandler("killswitch", self.killswitch))
+        dispatcher.add_handler(CallbackQueryHandler(self.button))
+
+        # add an handler for normal text (not commands)
+        dispatcher.add_handler(MessageHandler(Filters.text, self.text))
+
+        # add an handler for errors
+        dispatcher.add_error_handler(self.error, False)
+        
     def build_balances_message(self) -> str:
         '''Method to build the message string for the /balances command'''
         # Get Account
@@ -216,7 +214,11 @@ class TelegramNotifier(Notifier, Component):
         for order in account.orders:
             if order.status in ['OPEN', 'QUEUED']:
                 price = 0 if order.price is None else order.price
-                reply += " \r\n <code>- {}x {} {} @ ${}</code>".format(str(order.quantity), str(order.legs[0].instruction), str(order.legs[0].symbol), "{:,.2f}".format(price))
+                formattedprice = "{:,.2f}".format(price)
+
+                leg = order.legs[0]
+
+                reply += " \r\n <code>- {}x {} {} @ ${}</code>".format(str(order.quantity), leg.instruction, leg.symbol, formattedprice)
 
         return reply
 
