@@ -240,7 +240,8 @@ class StaggeredStrangleStrategy(Strategy, Component):
         # Return Order
         return self.build_new_order_request(strike, qty, price)
 
-    def build_new_order_request(self, strike: baseRR.GetOptionChainResponseMessage.ExpirationDate.Strike, qty: int, formattedprice: float) -> baseRR.PlaceOrderRequestMessage:
+    @staticmethod
+    def build_new_order_request(strike: baseRR.GetOptionChainResponseMessage.ExpirationDate.Strike, qty: int, formattedprice: float) -> baseRR.PlaceOrderRequestMessage:
         """Builds the PlaceOrderRequestMessage for a new position
 
         Args:
