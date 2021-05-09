@@ -294,21 +294,25 @@ class TdaBroker(Broker, Component):
                 if type == request.product:
                     sessionhours = dict(details.get('sessionHours'))
 
-                    session: str
-                    markethours: list
-                    for session, markethours in sessionhours.items():
-                        if session == 'regularMarket':
-                            response = baseRR.GetMarketHoursResponseMessage
-
-                            startdt = dtime.datetime.strptime(str(dict(markethours[0]).get('start')), "%Y-%m-%dT%H:%M:%S%z")
-                            enddt = dtime.datetime.strptime(str(dict(markethours[0]).get('end')), "%Y-%m-%dT%H:%M:%S%z")
-                            response.start = startdt.astimezone(dtime.timezone.utc)
-                            response.end = enddt.astimezone(dtime.timezone.utc)
-                            response.isopen = details.get('isOpen')
-
-                            return response
+                    return self.process_session_hours(sessionhours, details)
 
         return None
+
+    def process_session_hours(self, sessionhours: dict, details: dict) -> baseRR.GetMarketHoursResponseMessage:
+        for session, markethours in sessionhours.items():
+            if session == 'regularMarket':
+                response = self.build_market_hours_response(markethours, details)
+        return response
+
+    def build_market_hours_response(self, markethours: list, details: dict) -> baseRR.GetMarketHoursResponseMessage:
+        response = baseRR.GetMarketHoursResponseMessage
+
+        startdt = dtime.datetime.strptime(str(dict(markethours[0]).get('start')), "%Y-%m-%dT%H:%M:%S%z")
+        enddt = dtime.datetime.strptime(str(dict(markethours[0]).get('end')), "%Y-%m-%dT%H:%M:%S%z")
+        response.start = startdt.astimezone(dtime.timezone.utc)
+        response.end = enddt.astimezone(dtime.timezone.utc)
+        response.isopen = details.get('isOpen')
+        return response
 
     def getsession(self) -> TDClient:
         '''Generates a TD Client session'''
