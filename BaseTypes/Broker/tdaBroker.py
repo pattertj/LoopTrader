@@ -79,19 +79,7 @@ class TdaBroker(Broker, Component):
 
             # Build Orders
             if orders is not None:
-                order: dict
-                for order in orders:
-                    accountorder = self.build_account_order(order)
-
-                    for leg in order.get('orderLegCollection'):
-                        # Build Leg
-                        accountorderleg = self.build_account_order_leg(leg)
-
-                        # Append Leg
-                        accountorder.legs.append(accountorderleg)
-
-                    # Append Order
-                    response.orders.append(accountorder)
+                response. orders = self.build_account_orders(orders)
 
         # If we requested positions, build them
         if request.positions:
@@ -99,12 +87,7 @@ class TdaBroker(Broker, Component):
 
             # Build Positions
             if positions is not None:
-                for position in positions:
-                    # Build Position
-                    accountposition = self.build_account_position(position)
-
-                    # Append Position
-                    response.positions.append(accountposition)
+                response.positions = self.build_account_positions(positions)
 
         # Grab Balances
         currentbalances = account.get('securitiesAccount').get('currentBalances')
@@ -112,6 +95,89 @@ class TdaBroker(Broker, Component):
         response.currentbalances.liquidationvalue = currentbalances.get('liquidationValue')
 
         # Return Results
+        return response
+
+    def build_account_positions(self, positions) -> list[baseRR.AccountPosition]:
+        '''Builds a list of Account Positions from a raw list of positions.'''
+        response = []
+
+        for position in positions:
+            # Build Position
+            accountposition = self.build_account_position(position)
+            # Append Position
+            response.append(accountposition)
+
+    @staticmethod
+    def build_account_order_leg(leg: dict):
+        '''Transforms a TDA order leg dictionary into a LoopTrader order leg'''
+        accountorderleg = baseRR.AccountOrderLeg()
+        accountorderleg.legid = leg.get('legId')
+        accountorderleg.instruction = leg.get('instruction')
+        accountorderleg.positioneffect = leg.get('positionEffect')
+        accountorderleg.quantity = leg.get('quantity')
+
+        instrument = dict(leg.get('instrument'))
+
+        if instrument is not None:
+            accountorderleg.cusip = instrument.get('cusip')
+            accountorderleg.symbol = instrument.get('symbol')
+            accountorderleg.description = instrument.get('description')
+            accountorderleg.putcall = instrument.get('putCall')
+        return accountorderleg
+
+    @staticmethod
+    def build_account_order(order: dict):
+        '''Transforms a TDA order dictionary into a LoopTrader order'''
+
+        accountorder = baseRR.AccountOrder()
+        accountorder.duration = order.get('duration')
+        accountorder.quantity = order.get('quantity')
+        accountorder.filledquantity = order.get('filledQuantity')
+        accountorder.price = order.get('price')
+        accountorder.orderid = order.get('orderId')
+        accountorder.status = order.get('status')
+        accountorder.enteredtime = order.get('enteredTime')
+        accountorder.closetime = order.get('closeTime')
+        accountorder.accountid = order.get('accountId')
+        accountorder.cancelable = order.get('cancelable')
+        accountorder.editable = order.get('editable')
+        accountorder.legs = []
+        return accountorder
+
+    @staticmethod
+    def build_account_position(position: dict):
+        '''Transforms a TDA position dictionary into a LoopTrader position'''
+
+        accountposition = baseRR.AccountPosition()
+        accountposition.shortquantity = int(position.get('shortQuantity'))
+        accountposition.averageprice = float(position.get('averagePrice'))
+        accountposition.longquantity = int(position.get('longQuantity'))
+
+        instrument = dict(position.get('instrument'))
+
+        if instrument is not None:
+            accountposition.assettype = instrument.get('assetType')
+            accountposition.description = instrument.get('description')
+            accountposition.putcall = instrument.get('putCall')
+            accountposition.symbol = instrument.get('symbol')
+            accountposition.underlyingsymbol = instrument.get('underlyingSymbol')
+        return accountposition
+
+    def build_account_orders(self, orders) -> list[baseRR.AccountOrder]:
+        '''Builds a list of Account Orders from a raw list of orders.'''
+        response = []
+
+        order: dict
+        for order in orders:
+            accountorder = self.build_account_order(order)
+            for leg in order.get('orderLegCollection'):
+                # Build Leg
+                accountorderleg = self.build_account_order_leg(leg)
+                # Append Leg
+                accountorder.legs.append(accountorderleg)
+            # Append Order
+            response.append(accountorder)
+
         return response
 
     def place_order(self, request: baseRR.PlaceOrderRequestMessage) -> baseRR.PlaceOrderResponseMessage:
@@ -376,59 +442,3 @@ class TdaBroker(Broker, Component):
             response.append(expiry)
 
         return response
-
-    @staticmethod
-    def build_account_position(position: dict):
-        '''Transforms a TDA position dictionary into a LoopTrader position'''
-
-        accountposition = baseRR.AccountPosition()
-        accountposition.shortquantity = int(position.get('shortQuantity'))
-        accountposition.averageprice = float(position.get('averagePrice'))
-        accountposition.longquantity = int(position.get('longQuantity'))
-
-        instrument = dict(position.get('instrument'))
-
-        if instrument is not None:
-            accountposition.assettype = instrument.get('assetType')
-            accountposition.description = instrument.get('description')
-            accountposition.putcall = instrument.get('putCall')
-            accountposition.symbol = instrument.get('symbol')
-            accountposition.underlyingsymbol = instrument.get('underlyingSymbol')
-        return accountposition
-
-    @staticmethod
-    def build_account_order_leg(leg: dict):
-        '''Transforms a TDA order leg dictionary into a LoopTrader order leg'''
-        accountorderleg = baseRR.AccountOrderLeg()
-        accountorderleg.legid = leg.get('legId')
-        accountorderleg.instruction = leg.get('instruction')
-        accountorderleg.positioneffect = leg.get('positionEffect')
-        accountorderleg.quantity = leg.get('quantity')
-
-        instrument = dict(leg.get('instrument'))
-
-        if instrument is not None:
-            accountorderleg.cusip = instrument.get('cusip')
-            accountorderleg.symbol = instrument.get('symbol')
-            accountorderleg.description = instrument.get('description')
-            accountorderleg.putcall = instrument.get('putCall')
-        return accountorderleg
-
-    @staticmethod
-    def build_account_order(order: dict):
-        '''Transforms a TDA order dictionary into a LoopTrader order'''
-
-        accountorder = baseRR.AccountOrder()
-        accountorder.duration = order.get('duration')
-        accountorder.quantity = order.get('quantity')
-        accountorder.filledquantity = order.get('filledQuantity')
-        accountorder.price = order.get('price')
-        accountorder.orderid = order.get('orderId')
-        accountorder.status = order.get('status')
-        accountorder.enteredtime = order.get('enteredTime')
-        accountorder.closetime = order.get('closeTime')
-        accountorder.accountid = order.get('accountId')
-        accountorder.cancelable = order.get('cancelable')
-        accountorder.editable = order.get('editable')
-        accountorder.legs = []
-        return accountorder
