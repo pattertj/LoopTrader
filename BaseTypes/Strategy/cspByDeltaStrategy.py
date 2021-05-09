@@ -92,7 +92,7 @@ class CspByDeltaStrategy(Strategy, Component):
         self.process_expiring_positions(minutestoclose)
 
         # Place New Orders
-        self.place_new_orders_loop(0)
+        self.place_new_orders_loop()
 
         # Process Closing Orders
         self.process_closing_orders(minutestoclose)
@@ -358,6 +358,8 @@ class CspByDeltaStrategy(Strategy, Component):
 
             # Return failure to fill order
             return False
+
+        self.mediator.send_notification("New Order Filled: {}x {} @ ${}".format(orderrequest.quantity, orderrequest.symbol, orderrequest.price))
 
         # If we got here, return success
         return True
