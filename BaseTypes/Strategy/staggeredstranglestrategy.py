@@ -1,3 +1,5 @@
+'''The concrete implementation of the generic LoopTrader Strategy class for trading single-leg Strangles by Delta.'''
+
 import datetime as dt
 import logging
 import logging.config
@@ -96,7 +98,8 @@ class StaggeredStrangleStrategy(Strategy, Component):
         self.process_expiring_positions(minutestoclose)
 
         # Place New Orders
-        self.place_new_orders_loop(0)
+        self.place_new_orders_loop('PUT')
+        self.place_new_orders_loop('CALL')
 
         # Process Closing Orders
         self.process_closing_orders(minutestoclose)
@@ -195,7 +198,7 @@ class StaggeredStrangleStrategy(Strategy, Component):
         # # Once we have reviewed all postiions, exit.
         # return response
 
-    def build_new_order(self) -> baseRR.PlaceOrderRequestMessage:
+    def build_new_order(self, putorcall: str) -> baseRR.PlaceOrderRequestMessage:
         '''Trading Logic for building new Order Request Messages'''
         logger.debug("build_new_order")
 
@@ -213,32 +216,42 @@ class StaggeredStrangleStrategy(Strategy, Component):
 
         # Get option chain
         chainrequest = baseRR.GetOptionChainRequestMessage(contracttype='PUT', fromdate=startdate, todate=enddate, symbol=self.underlying, includequotes=False, optionrange='OTM')
-
         chain = self.mediator.get_option_chain(chainrequest)
 
-        # Should we even try?
-        estbp = .9 * (chain.underlyinglastprice * .2 * 100)
-        availbp = account.currentbalances.buyingpower
-
-        if estbp > availbp:
-            return None
+        # Find strike to trade
+        if putorcall == 'PUT':
+            expdatemap = chain.putexpdatemap
+        else:
+            expdatemap = chain.callexpdatemap
 
         # Find strike to trade
-        expiration = self.get_next_expiration(chain.putexpdatemap)
-        strike = self.get_best_strike(expiration.strikes, account.currentbalances.buyingpower, account.currentbalances.liquidationvalue)
+        expiration = self.get_next_expiration(expdatemap)
+        strike = self.get_best_strike(expiration.strikes, account.currentbalances.buyingpower, account.currentbalances.liquidationvalue, putorcall)
 
-        # If no valid strikes, exit.
         if strike is None:
             return None
 
         # Calculate Quantity
-        qty = self.calculate_order_quantity(strike.strike, account.currentbalances.buyingpower, account.currentbalances.liquidationvalue)
+        qty = self.calculate_order_quantity(strike.strike, account.currentbalances.buyingpower, account.currentbalances.liquidationvalue, putorcall)
 
         # Calculate price
-        price = (strike.bid + strike.ask) / 2
-        formattedprice = self.format_order_price(price)
+        price = self.format_order_price((strike.bid + strike.ask) / 2)
 
-        # Build Order
+        # Return Order
+        return self.build_new_order_request(strike, qty, price)
+
+    def build_new_order_request(self, strike: baseRR.GetOptionChainResponseMessage.ExpirationDate.Strike, qty: int, formattedprice: float) -> baseRR.PlaceOrderRequestMessage:
+        """Builds the PlaceOrderRequestMessage for a new position
+
+        Args:
+            strike (baseRR.GetOptionChainResponseMessage.ExpirationDate.Strike): Strike to Order
+            qty (int): Quantity to order
+            formattedprice (float): Price to order at
+
+        Returns:
+            baseRR.PlaceOrderRequestMessage: Order Request Message
+        """
+
         orderrequest = baseRR.PlaceOrderRequestMessage()
         orderrequest.orderstrategytype = 'SINGLE'
         orderrequest.assettype = 'OPTION'
@@ -250,8 +263,6 @@ class StaggeredStrangleStrategy(Strategy, Component):
         orderrequest.price = formattedprice
         orderrequest.quantity = qty
         orderrequest.symbol = strike.symbol
-
-        # Return Order
         return orderrequest
 
     def build_cancel_closing_orders(self) -> list[baseRR.CancelOrderRequestMessage]:
@@ -313,10 +324,10 @@ class StaggeredStrangleStrategy(Strategy, Component):
         return orderrequest
 
     # Order Placers
-    def place_new_orders_loop(self) -> None:
+    def place_new_orders_loop(self, putorcall: str) -> None:
         '''Looping Logic for placing new orders'''
         # Build Order
-        neworder = self.build_new_order()
+        neworder = self.build_new_order(putorcall)
 
         # If neworder is None, exit.
         if neworder is None:
@@ -409,17 +420,36 @@ class StaggeredStrangleStrategy(Strategy, Component):
         # Return the min expiration
         return minexpiration
 
-    def get_best_strike(self, strikes: dict[float, baseRR.GetOptionChainResponseMessage.ExpirationDate.Strike], buyingpower: float, liquidationvalue: float) -> baseRR.GetOptionChainResponseMessage.ExpirationDate.Strike:
-        '''Searches an option chain for the optimal strike.'''
+    def get_best_strike(self, strikes: dict[float, baseRR.GetOptionChainResponseMessage.ExpirationDate.Strike], buyingpower: float, liquidationvalue: float, putorcall: str) -> baseRR.GetOptionChainResponseMessage.ExpirationDate.Strike:
+        """Searches an option chain for the optimal strike.
+
+        Args:
+            strikes (dict[float, baseRR.GetOptionChainResponseMessage.ExpirationDate.Strike]): List of strikes to search
+            buyingpower (float): Account buying power
+            liquidationvalue (float): Account liquidation value
+            putorcall (str): 'PUT' or 'CALL'
+
+        Returns:
+            baseRR.GetOptionChainResponseMessage.ExpirationDate.Strike: Selected strike
+        """
+
         logger.debug("get_best_strike")
+
         # Set Variables
         bestpremium = float(0)
         beststrike = None
 
+        if putorcall == 'PUT':
+            targetdelta = self.puttargetdelta
+            mindelta = self.putmindelta
+        else:
+            targetdelta = self.calltargetdelta
+            mindelta = self.callmindelta
+
         # Iterate through strikes
         for strike, details in strikes.items():
             # Make sure strike delta is less then our target delta
-            if (abs(details.delta) <= abs(self.targetdelta)) and (abs(details.delta) >= abs(self.mindelta)):
+            if (abs(details.delta) <= abs(targetdelta)) and (abs(details.delta) >= abs(mindelta)):
                 # Calculate the total premium for the strike based on our buying power
                 qty = self.calculate_order_quantity(strike, buyingpower, liquidationvalue)
                 totalpremium = ((details.bid + details.ask) / 2) * qty
@@ -432,17 +462,33 @@ class StaggeredStrangleStrategy(Strategy, Component):
         # Return the strike with the highest premium
         return beststrike
 
-    def calculate_order_quantity(self, strike: float, buyingpower: float, liquidationvalue: float) -> int:
-        '''Calculates the number of positions to open for a given account and strike.'''
-        logger.debug("calculate_order_quantity")
+    def calculate_order_quantity(self, strike: float, buyingpower: float, liquidationvalue: float, putorcall: str) -> int:
+        """Calculates the number of positions to open for a given account and strike.
 
-        # Calculate max loss per contract
-        max_loss = strike * 100 * float(self.maxlosscalcpercent)
+        Args:
+            strike (float): Strike to calculate for
+            buyingpower (float): Account Buying Power
+            liquidationvalue (float): Account Liquidation Value
+            putorcall (str): 'PUT' or 'CALL'
+
+        Returns:
+            int: Order Quantity
+        """
+
+        logger.debug("calculate_order_quantity")
 
         # Calculate max buying power to use
         balance_to_risk = liquidationvalue * float(self.portfolioallocationpercent)
 
-        remainingbalance = buyingpower - (liquidationvalue - balance_to_risk)
+        if putorcall == 'PUT':
+            maxlosscalcpercent = self.putmaxlosscalcpercent
+            remainingbalance = buyingpower - (liquidationvalue - balance_to_risk)
+        else:
+            maxlosscalcpercent = self.callmaxlosscalcpercent
+            remainingbalance = (liquidationvalue - balance_to_risk)
+
+        # Calculate max loss per contract
+        max_loss = strike * 100 * float(maxlosscalcpercent)
 
         # Calculate trade size
         trade_size = remainingbalance // max_loss
@@ -462,7 +508,16 @@ class StaggeredStrangleStrategy(Strategy, Component):
 
     @staticmethod
     def truncate(number: float, digits: int) -> float:
-        '''Truncates a float to a specified number of digits.'''
+        """Truncates a float to a specified number of digits.
+
+        Args:
+            number (float): Value to truncate
+            digits (int): Number of digits after 0 to keep
+
+        Returns:
+            float: Resulting value
+        """
+
         logger.debug("truncate")
         stepper = 10.0 ** digits
         return math.trunc(stepper * number) / stepper
