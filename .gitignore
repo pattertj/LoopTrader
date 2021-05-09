@@ -127,16 +127,7 @@ dmypy.json
 
 # Pyre type checker
 .pyre/
+
 pyvenv.cfg
-Scripts/activate
-Scripts/activate.bat
-Scripts/Activate.ps1
-Scripts/chardetect.exe
-Scripts/deactivate.bat
-Scripts/flask.exe
-Scripts/pip.exe
-Scripts/pip3.9.exe
-Scripts/pip3.exe
-Scripts/python.exe
-Scripts/pythonw.exe
-.vscode/settings.json
+/.vscode
+/Scripts
