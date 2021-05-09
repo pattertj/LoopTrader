@@ -1,15 +1,13 @@
 import logging
 import logging.config
 import time
-# import re
 
 import attr
-
 import BaseTypes.Mediator.reqRespTypes as baseRR
 from BaseTypes.Broker.abstractBroker import Broker
 from BaseTypes.Database.abstractDatabase import Database
 from BaseTypes.Mediator.abstractMediator import Mediator
-from BaseTypes.Notifier.abstractNotifier import Notifier
+from BaseTypes.Notifier.abstractnotifier import Notifier
 from BaseTypes.Strategy.abstractStrategy import Strategy
 
 logger = logging.getLogger('autotrader')
@@ -21,7 +19,7 @@ class Bot(Mediator):
     notifier: Notifier = attr.ib(validator=attr.validators.instance_of(Notifier))
     database: Database = attr.ib(validator=attr.validators.instance_of(Database))
     botloopfrequency: int = attr.ib(validator=attr.validators.instance_of(int), init=False)
-    killswitch: bool = attr.ib(validator=attr.validators.instance_of(bool), init=False)
+    killswitch: bool = attr.ib(default=False, validator=attr.validators.instance_of(bool), init=False)
     strategies: list[Strategy] = attr.ib(validator=attr.validators.deep_iterable(member_validator=attr.validators.instance_of(Strategy), iterable_validator=attr.validators.instance_of(list)))
 
     def __attrs_post_init__(self):
