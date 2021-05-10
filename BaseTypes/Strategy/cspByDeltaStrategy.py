@@ -196,7 +196,7 @@ class CspByDeltaStrategy(Strategy, Component):
         logger.debug("build_new_order")
 
         # Get account balance
-        accountrequest = baseRR.GetAccountRequestMessage(False, False)
+        accountrequest = baseRR.GetAccountRequestMessage(False, True)
         account = self.mediator.get_account(accountrequest)
 
         if account is None:
@@ -213,22 +213,27 @@ class CspByDeltaStrategy(Strategy, Component):
         chain = self.mediator.get_option_chain(chainrequest)
 
         # Should we even try?
+        usedbp = 0.0
+        for position in account.positions:
+            if position.underlyingsymbol == self.underlying and position.putcall == 'PUT':
+                usedbp += int(position.symbol[-4:]) * 100 * position.shortquantity * self.maxlosscalcpercent
+
         estbp = .9 * (chain.underlyinglastprice * .2 * 100)
-        availbp = account.currentbalances.buyingpower
+        availbp = account.currentbalances.liquidationvalue - usedbp
 
         if estbp > availbp:
             return None
 
         # Find strike to trade
         expiration = self.get_next_expiration(chain.putexpdatemap)
-        strike = self.get_best_strike(expiration.strikes, account.currentbalances.buyingpower, account.currentbalances.liquidationvalue)
+        strike = self.get_best_strike(expiration.strikes, availbp, account.currentbalances.liquidationvalue)
 
         # If no valid strikes, exit.
         if strike is None:
             return None
 
         # Calculate Quantity
-        qty = self.calculate_order_quantity(strike.strike, account.currentbalances.buyingpower, account.currentbalances.liquidationvalue)
+        qty = self.calculate_order_quantity(strike.strike, availbp, account.currentbalances.liquidationvalue)
 
         # Calculate price
         price = (strike.bid + strike.ask) / 2
@@ -353,13 +358,14 @@ class CspByDeltaStrategy(Strategy, Component):
         # If the order isn't filled
         if processedorder.status != 'FILLED':
             # Cancel it
-            cancelorderrequest = baseRR.CancelOrderRequestMessage(neworderresult.orderid)
+            cancelorderrequest = baseRR.CancelOrderRequestMessage(int(neworderresult.orderid))
             self.mediator.cancel_order(cancelorderrequest)
 
             # Return failure to fill order
             return False
 
-        self.mediator.send_notification("New Order Filled: {}x {} @ ${}".format(orderrequest.quantity, orderrequest.symbol, orderrequest.price))
+        notification = baseRR.SendNotificationRequestMessage("Sold <code>- {}x {} @ ${}</code>".format(str(orderrequest.quantity), str(orderrequest.symbol), "{:,.2f}".format(orderrequest.price)))
+        self.mediator.send_notification(notification)
 
         # If we got here, return success
         return True
