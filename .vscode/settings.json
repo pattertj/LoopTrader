@@ -20,5 +20,6 @@
     ],
     "python.linting.flake8Args": [
         "--ignore=E501"
-    ]
+    ],
+    "python.pythonPath": "Scripts\\python.exe"
 }
