@@ -190,6 +190,7 @@ class GetMarketHoursResponseMessage():
 class SendNotificationRequestMessage():
     '''Generic request object for sending a notification.'''
     message: str = attr.ib(validator=attr.validators.instance_of(str))
+    parsemode: str = attr.ib(default='HTML', validator=attr.validators.in_(['Markdown', 'MarkdownV2', 'HTML']))
 
 
 @attr.s(auto_attribs=True)

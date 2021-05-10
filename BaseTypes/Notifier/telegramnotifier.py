@@ -12,6 +12,7 @@ Functions:
 import logging
 import re
 from os import getenv
+from typing import Union
 
 import attr
 import BaseTypes.Mediator.reqRespTypes as baseRR
@@ -54,7 +55,7 @@ class TelegramNotifier(Notifier, Component):
 
     def send_notification(self, request: baseRR.SendNotificationRequestMessage) -> None:
         '''Method to handle bot requests to push notifications'''
-        self.send_message(message=re.escape(request.message), parsemode=ParseMode.MARKDOWN_V2)
+        self.send_message(message=request.message, parsemode=request.parsemode)
 
     def start(self, update: Update, context: CallbackContext):
         '''Method to handle the /start command'''
@@ -227,7 +228,7 @@ class TelegramNotifier(Notifier, Component):
 
         return reply
 
-    def send_message(self, message: str, parsemode: ParseMode):
+    def send_message(self, message: str, parsemode: Union[ParseMode, str]):
         '''Wrapper method to send messages to a user'''
         try:
             bot = self.updater.bot
