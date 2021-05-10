@@ -198,6 +198,9 @@ class TelegramNotifier(Notifier, Component):
         # Build Reply
         reply = r"Account Positions:"
 
+        if account.positions is None:
+            reply += " \r\n No Positions Found"
+
         for position in account.positions:
             qty = position.shortquantity + position.longquantity
             reply += " \r\n <code>- {}x {} @ ${}</code>".format(str(qty), str(position.symbol), "{:,.2f}".format(position.averageprice))

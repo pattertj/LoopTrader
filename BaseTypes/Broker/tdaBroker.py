@@ -106,6 +106,8 @@ class TdaBroker(Broker, Component):
             accountposition = self.build_account_position(position)
             # Append Position
             response.append(accountposition)
+        
+        return response
 
     @staticmethod
     def build_account_order_leg(leg: dict):
