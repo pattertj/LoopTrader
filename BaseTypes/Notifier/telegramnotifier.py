@@ -10,7 +10,6 @@ Functions:
     send_notification(request: baseRR.SendNotificationRequestMessage) -> None
 '''
 import logging
-import re
 from os import getenv
 from typing import Union
 
@@ -100,6 +99,14 @@ class TelegramNotifier(Notifier, Component):
         # Send Message
         self.reply_text(msg, update.message, None, ParseMode.HTML)
 
+    def performance(self, update: Update, context: CallbackContext):
+        '''Method to handle the /positions command'''
+        # Build Message
+        msg = self.build_performance_message()
+
+        # Send Message
+        self.reply_text(msg, update.message, None, ParseMode.HTML)
+
     def tail(self, update: Update, context: CallbackContext):
         '''Method to handle the /tail command'''
         # Error Handling
@@ -168,6 +175,7 @@ class TelegramNotifier(Notifier, Component):
         dispatcher.add_handler(CommandHandler("orders", self.orders))
         dispatcher.add_handler(CommandHandler("tail", self.tail, pass_args=True))
         dispatcher.add_handler(CommandHandler("positions", self.positions))
+        dispatcher.add_handler(CommandHandler("performance", self.performance))
         dispatcher.add_handler(CommandHandler("killswitch", self.killswitch))
         dispatcher.add_handler(CallbackQueryHandler(self.button))
 
@@ -187,6 +195,28 @@ class TelegramNotifier(Notifier, Component):
         reply = r"Account Balances:"
         reply += "\r\n - <b>Liquidation Value:</b> <code>${}</code>".format("{:,.2f}".format(account.currentbalances.liquidationvalue))
         reply += "\r\n - <b>Buying Power:</b> <code>${}</code>".format("{:,.2f}".format(account.currentbalances.buyingpower))
+
+        return reply
+
+    def build_performance_message(self) -> str:
+        '''Method to build the message string for the /performance command'''
+        # Get Account
+        request = GetAccountRequestMessage(False, True)
+        account = self.mediator.get_account(request)
+
+        # Build Reply
+        reply = r"Account Performance:"
+
+        if account.positions is None:
+            reply += " \r\n No Positions Found"
+
+        total = 0.0
+
+        for position in account.positions:
+            total += position.currentdayprofitloss
+            reply += " \r\n - <code>{}</code> > <code>${}</code>".format(str(position.symbol), "{:,.2f}".format(position.currentdayprofitloss))
+
+        reply += "\r\n\r\n<b>Total P&L:</b> <code>{}</code>".format("{:,.2f}".format(total))
 
         return reply
 

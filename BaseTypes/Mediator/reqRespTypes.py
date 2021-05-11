@@ -83,6 +83,9 @@ class AccountPosition():
     '''Generic object for retrieving position details on an account.'''
     shortquantity: int = attr.ib(validator=attr.validators.instance_of(int))
     averageprice: float = attr.ib(validator=attr.validators.instance_of(float))
+    currentdayprofitloss: float = attr.ib(validator=attr.validators.instance_of(float))
+    currentdayprofitlosspercentage: float = attr.ib(validator=attr.validators.instance_of(float))
+    marketvalue: float = attr.ib(validator=attr.validators.instance_of(float))
     longquantity: int = attr.ib(validator=attr.validators.instance_of(int))
     assettype: str = attr.ib(validator=attr.validators.in_(['EQUITY', 'OPTION', 'INDEX', 'MUTUAL_FUND', 'CASH_EQUIVALENT', 'FIXED_INCOME', 'CURRENCY']))
     symbol: str = attr.ib(validator=attr.validators.instance_of(str))
