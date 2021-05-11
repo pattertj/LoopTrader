@@ -106,7 +106,7 @@ class TdaBroker(Broker, Component):
             accountposition = self.build_account_position(position)
             # Append Position
             response.append(accountposition)
-        
+
         return response
 
     @staticmethod
@@ -153,6 +153,9 @@ class TdaBroker(Broker, Component):
         accountposition = baseRR.AccountPosition()
         accountposition.shortquantity = int(position.get('shortQuantity'))
         accountposition.averageprice = float(position.get('averagePrice'))
+        accountposition.currentdayprofitloss = float(position.get('currentDayProfitLoss'))
+        accountposition.currentdayprofitlosspercentage = float(position.get('currentDayProfitLossPercentage'))
+        accountposition.marketvalue = float(position.get('marketValue'))
         accountposition.longquantity = int(position.get('longQuantity'))
 
         instrument = dict(position.get('instrument'))
