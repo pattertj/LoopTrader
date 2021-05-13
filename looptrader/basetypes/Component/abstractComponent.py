@@ -1,4 +1,4 @@
-from BaseTypes.Mediator.abstractMediator import Mediator
+from looptrader.basetypes.Mediator.abstractMediator import Mediator
 
 
 class Component:
