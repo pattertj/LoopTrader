@@ -1,6 +1,6 @@
 [run]
-source = virtual
-omit = virtual/__main__.py
+source = looptrader
+omit = looptrader/__main__.py
 
 [report]
 exclude_lines =
