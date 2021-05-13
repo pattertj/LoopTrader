@@ -8,7 +8,7 @@
 
 <p align="center">
 <a href="https://github.com/pattertj/LoopTrader/commits/main"><img src="https://img.shields.io/github/last-commit/pattertj/LoopTrader"></a> 
-  <a href="https://github.com/pattertj/LoopTrader/actions/workflows/python-app.yml"><img src="https://img.shields.io/github/workflow/status/pattertj/looptrader/PythonBuild?style=flat"></a> 
+  <a href="https://github.com/pattertj/LoopTrader/actions/workflows/core.yml"><img src="https://img.shields.io/github/workflow/status/pattertj/looptrader/Core?style=flat"></a> 
   <a href="https://www.codefactor.io/repository/github/pattertj/looptrader"><img src="https://img.shields.io/codefactor/grade/github/pattertj/looptrader?style=flat&label=Codefactor"></a> 
   <a href="https://github.com/pattertj/LoopTrader/network/members"><img src="https://img.shields.io/github/forks/pattertj/LoopTrader?style=flat"></a> 
   <a href="https://github.com/pattertj/LoopTrader/stargazers"><img src="https://img.shields.io/github/stars/pattertj/LoopTrader?style=flat"></a> 
@@ -36,10 +36,20 @@ The goal for LoopTrader is to provide a flexible engine for running one or more 
 <b>LoopTrader is very much a work in progress and is currently not feature complete. See the [Issues](https://github.com/pattertj/LoopTrader/issues) for what remains open, or to make a suggestion.</b>
 
 ## Installation
-Eventually I plan to publish a first release which can be installed via pip install. For now, clone the repo and run it locally from your Python command line or IDE.
+Getting up and running with LoopTrader is just a few commands:
 
+    # Clone LoopTrader
+    git clone https://github.com/pattertj/LoopTrader.git
+
+    # Install dependencies
+    pipenv install --dev
+
+    # Setup pre-commit and pre-push hooks
+    pipenv run pre-commit install -t pre-commit
+    pipenv run pre-commit install -t pre-push
+    
 ## Usage
-Currently all configuration of LoopTrader is done in the code when creating the bot in [main.py](https://github.com/pattertj/LoopTrader/blob/main/main.py) and in the [.env](https://github.com/pattertj/LoopTrader/blob/main/sample.env) file. A sample .env file is provided, but it should be renamed to ".env" and the configuration variables populated.
+Currently all configuration of LoopTrader is done in the code when creating the bot in [main.py](https://github.com/pattertj/LoopTrader/blob/looptrader/__main__.py) and in the [.env](https://github.com/pattertj/LoopTrader/blob/looptrader/sample.env) file. A sample .env file is provided, but it should be renamed to ".env" and the configuration variables populated.
 
 ## Contributing
 ### Start contributing right now:
