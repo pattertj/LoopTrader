@@ -1,19 +1,19 @@
 import os
 import unittest
 
-from looptrader.basetypes.Database.sqliteDatabase import SqliteDatabase
+from BaseTypes.Database.sqliteDatabase import SqliteDatabase
 
 # from unittest import mock
 
 
 class TestSqliteDatabase(unittest.TestCase):
     def setUp(self):
-        self.func = SqliteDatabase("testdb.db")
+        self.func = SqliteDatabase('testdb.db')
 
     def tearDown(self):
         self.func.cursor.close()
         self.func.connection.close()
-        os.remove("testdb.db")
+        os.remove('testdb.db')
 
     def test_create_order(self):
         result = self.func.create_order()
@@ -49,5 +49,5 @@ class TestSqliteDatabase(unittest.TestCase):
         pass
 
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     unittest.main()
