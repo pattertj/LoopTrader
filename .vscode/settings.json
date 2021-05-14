@@ -1,29 +1,25 @@
 {
-    "python.testing.pytestEnabled": true,
+    "python.testing.unittestArgs": [
+        "-v",
+        "-s",
+        "./BaseTypes",
+        "-p",
+        "test_*.py"
+    ],
+    "python.testing.pytestEnabled": false,
     "python.testing.nosetestsEnabled": false,
+    "python.testing.unittestEnabled": true,
     "python.linting.flake8Enabled": true,
+    "python.linting.pylintEnabled": true,
     "[python]": {
 
         "editor.wordBasedSuggestions": false
     },
     "python.formatting.autopep8Args": [
-        "--ignore=E203, E266, E501, W503"
+        "--ignore=E501"
     ],
     "python.linting.flake8Args": [
-        "--ignore=E203, E266, E501, W503",
-        "--max-line-length=88",
-        "--max-complexity=18"
+        "--ignore=E501"
     ],
-    "python.pythonPath": "C:\\Users\\Tyler\\.virtualenvs\\looptrader-R76VRwwT\\Scripts\\python.exe",
-    "python.linting.mypyEnabled": true,
-    "python.linting.mypyArgs": [
-        "--ignore-missing-imports"
-    ],
-    "python.testing.pytestArgs": [
-        "test"
-    ],
-    "python.testing.unittestEnabled": false,
-    "python.analysis.extraPaths": [
-    "./looptrader"
-    ],
+    "python.pythonPath": "Scripts\\python.exe"
 }
