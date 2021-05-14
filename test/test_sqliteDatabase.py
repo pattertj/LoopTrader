@@ -1,9 +1,7 @@
 import os
 import unittest
 
-from looptrader.basetypes.Database.sqliteDatabase import SqliteDatabase
-
-# from unittest import mock
+from basetypes.Database.sqliteDatabase import SqliteDatabase
 
 
 class TestSqliteDatabase(unittest.TestCase):

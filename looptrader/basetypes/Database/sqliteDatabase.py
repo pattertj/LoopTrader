@@ -4,8 +4,7 @@ import sqlite3
 from sqlite3.dbapi2 import Connection, Cursor
 
 import attr
-
-from looptrader.basetypes.Database.abstractDatabase import Database
+from basetypes.Database.abstractDatabase import Database
 
 logger = logging.getLogger("autotrader")
 

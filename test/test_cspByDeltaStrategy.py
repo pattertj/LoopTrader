@@ -1,5 +1,5 @@
-import looptrader.basetypes.Mediator.reqRespTypes as baseRR
-from looptrader.basetypes.Strategy.cspByDeltaStrategy import CspByDeltaStrategy
+import basetypes.Mediator.reqRespTypes as baseRR
+from basetypes.Strategy.cspByDeltaStrategy import CspByDeltaStrategy
 
 
 def test_calculate_order_quantity():

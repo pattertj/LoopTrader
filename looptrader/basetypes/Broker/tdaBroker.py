@@ -21,12 +21,11 @@ from collections import OrderedDict
 from os import getenv
 
 import attr
+import basetypes.Mediator.reqRespTypes as baseRR
+from basetypes.Broker.abstractBroker import Broker
+from basetypes.Component.abstractComponent import Component
 from td.client import TDClient
 from td.option_chain import OptionChain
-
-import looptrader.basetypes.Mediator.reqRespTypes as baseRR
-from looptrader.basetypes.Broker.abstractBroker import Broker
-from looptrader.basetypes.Component.abstractComponent import Component
 
 logger = logging.getLogger("autotrader")
 

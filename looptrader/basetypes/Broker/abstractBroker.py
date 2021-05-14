@@ -1,9 +1,8 @@
 import abc
 
 import attr
-
-import looptrader.basetypes.Mediator.reqRespTypes as baseRR
-from looptrader.basetypes.Component.abstractComponent import Component
+import basetypes.Mediator.reqRespTypes as baseRR
+from basetypes.Component.abstractComponent import Component
 
 
 @attr.s(auto_attribs=True)

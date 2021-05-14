@@ -5,10 +5,9 @@ import math
 import time
 
 import attr
-
-import looptrader.basetypes.Mediator.reqRespTypes as baseRR
-from looptrader.basetypes.Component.abstractComponent import Component
-from looptrader.basetypes.Strategy.abstractStrategy import Strategy
+import basetypes.Mediator.reqRespTypes as baseRR
+from basetypes.Component.abstractComponent import Component
+from basetypes.Strategy.abstractStrategy import Strategy
 
 logger = logging.getLogger("autotrader")
 
@@ -65,7 +64,12 @@ class CspByDeltaStrategy(Strategy, Component):
 
         # Check if should be sleeping
         if now < self.sleepuntil:
-            logger.debug("Markets Closed. Sleeping until {}".format(self.sleepuntil))
+            tz = dt.datetime.now().astimezone().tzinfo
+            logger.debug(
+                "Markets Closed. Sleeping until {}".format(
+                    self.sleepuntil.astimezone(tz)
+                )
+            )
             return
 
         # Check market hours
@@ -82,9 +86,12 @@ class CspByDeltaStrategy(Strategy, Component):
                 + dt.timedelta(minutes=self.minutesafteropendelay)
                 - dt.timedelta(minutes=5)
             )
+
+            tz = dt.datetime.now().astimezone().tzinfo
+
             logger.info(
                 "Markets are closed until {}. Sleeping until {}".format(
-                    hours.start, self.sleepuntil
+                    hours.start.astimezone(tz), self.sleepuntil.astimezone(tz)
                 )
             )
             return
