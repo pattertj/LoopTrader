@@ -5,10 +5,9 @@ import math
 import time
 
 import attr
-
-import looptrader.basetypes.Mediator.reqRespTypes as baseRR
-from looptrader.basetypes.Component.abstractComponent import Component
-from looptrader.basetypes.Strategy.abstractStrategy import Strategy
+import basetypes.Mediator.reqRespTypes as baseRR
+from basetypes.Component.abstractComponent import Component
+from basetypes.Strategy.abstractStrategy import Strategy
 
 logger = logging.getLogger("autotrader")
 

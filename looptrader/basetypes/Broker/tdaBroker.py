@@ -21,12 +21,11 @@ from collections import OrderedDict
 from os import getenv
 
 import attr
+import basetypes.Mediator.reqRespTypes as baseRR
+from basetypes.Broker.abstractBroker import Broker
+from basetypes.Component.abstractComponent import Component
 from td.client import TDClient
 from td.option_chain import OptionChain
-
-import looptrader.basetypes.Mediator.reqRespTypes as baseRR
-from looptrader.basetypes.Broker.abstractBroker import Broker
-from looptrader.basetypes.Component.abstractComponent import Component
 
 logger = logging.getLogger("autotrader")
 
@@ -72,6 +71,7 @@ class TdaBroker(Broker, Component):
                 account = self.getsession().get_accounts(
                     getenv("TDAMERITRADE_ACCOUNT_NUMBER"), fields=optionalfields
                 )
+                break
             except Exception:
                 # Work backwards on severity level of logging based on the maxretry value
                 if attempt >= self.maxretries:
@@ -282,6 +282,7 @@ class TdaBroker(Broker, Component):
                 order = self.getsession().get_orders(
                     account=self.account_number, order_id=str(request.orderid)
                 )
+                break
             except Exception:
                 # Work backwards on severity level of logging based on the maxretry value
                 if attempt >= self.maxretries:
@@ -346,6 +347,7 @@ class TdaBroker(Broker, Component):
                     optionschain = self.getsession().get_options_chain(
                         optionchainrequest
                     )
+                    break
                 except Exception:
                     # Work backwards on severity level of logging based on the maxretry value
                     if attempt >= self.maxretries:
@@ -443,7 +445,7 @@ class TdaBroker(Broker, Component):
 
                     return self.process_session_hours(sessionhours, details)
 
-        return None
+        return baseRR.GetMarketHoursResponseMessage()
 
     def process_session_hours(
         self, sessionhours: dict, details: dict

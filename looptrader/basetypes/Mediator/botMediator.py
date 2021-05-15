@@ -4,12 +4,11 @@ import time
 
 import attr
 import basetypes.Mediator.reqRespTypes as baseRR
-
-from looptrader.basetypes.Broker.abstractBroker import Broker
-from looptrader.basetypes.Database.abstractDatabase import Database
-from looptrader.basetypes.Mediator.abstractMediator import Mediator
-from looptrader.basetypes.Notifier.abstractnotifier import Notifier
-from looptrader.basetypes.Strategy.abstractStrategy import Strategy
+from basetypes.Broker.abstractBroker import Broker
+from basetypes.Database.abstractDatabase import Database
+from basetypes.Mediator.abstractMediator import Mediator
+from basetypes.Notifier.abstractnotifier import Notifier
+from basetypes.Strategy.abstractStrategy import Strategy
 
 logger = logging.getLogger("autotrader")
 

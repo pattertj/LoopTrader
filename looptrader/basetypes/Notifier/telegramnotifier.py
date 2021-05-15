@@ -14,6 +14,10 @@ from os import getenv
 from typing import Optional, Union
 
 import attr
+import basetypes.Mediator.reqRespTypes as baseRR
+from basetypes.Component.abstractComponent import Component
+from basetypes.Mediator.reqRespTypes import GetAccountRequestMessage
+from basetypes.Notifier.abstractnotifier import Notifier
 from telegram import ParseMode, Update
 from telegram.callbackquery import CallbackQuery
 from telegram.ext import (
@@ -29,11 +33,6 @@ from telegram.inline.inlinekeyboardbutton import InlineKeyboardButton
 from telegram.inline.inlinekeyboardmarkup import InlineKeyboardMarkup
 from telegram.message import Message
 from telegram.utils.helpers import DefaultValue
-
-import looptrader.basetypes.Mediator.reqRespTypes as baseRR
-from looptrader.basetypes.Component.abstractComponent import Component
-from looptrader.basetypes.Mediator.reqRespTypes import GetAccountRequestMessage
-from looptrader.basetypes.Notifier.abstractnotifier import Notifier
 
 logger = logging.getLogger("autotrader")
 
