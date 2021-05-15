@@ -4,9 +4,9 @@ import sqlite3
 from sqlite3.dbapi2 import Connection, Cursor
 
 import attr
-from BaseTypes.Database.abstractDatabase import Database
+from basetypes.Database.abstractDatabase import Database
 
-logger = logging.getLogger('autotrader')
+logger = logging.getLogger("autotrader")
 
 
 @attr.s(auto_attribs=True)

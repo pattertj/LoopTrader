@@ -1,7 +1,7 @@
 import abc
 
 import attr
-from BaseTypes.Component.abstractComponent import Component
+from basetypes.Component.abstractComponent import Component
 
 
 @attr.s(auto_attribs=True)

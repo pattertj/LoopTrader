@@ -3,14 +3,14 @@ import logging.config
 import time
 
 import attr
-import BaseTypes.Mediator.reqRespTypes as baseRR
-from BaseTypes.Broker.abstractBroker import Broker
-from BaseTypes.Database.abstractDatabase import Database
-from BaseTypes.Mediator.abstractMediator import Mediator
-from BaseTypes.Notifier.abstractnotifier import Notifier
-from BaseTypes.Strategy.abstractStrategy import Strategy
+import basetypes.Mediator.reqRespTypes as baseRR
+from basetypes.Broker.abstractBroker import Broker
+from basetypes.Database.abstractDatabase import Database
+from basetypes.Mediator.abstractMediator import Mediator
+from basetypes.Notifier.abstractnotifier import Notifier
+from basetypes.Strategy.abstractStrategy import Strategy
 
-logger = logging.getLogger('autotrader')
+logger = logging.getLogger("autotrader")
 
 
 @attr.s(auto_attribs=True)

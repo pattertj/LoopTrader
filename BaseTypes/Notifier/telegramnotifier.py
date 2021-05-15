@@ -14,10 +14,10 @@ from os import getenv
 from typing import Union
 
 import attr
-import BaseTypes.Mediator.reqRespTypes as baseRR
-from BaseTypes.Component.abstractComponent import Component
-from BaseTypes.Mediator.reqRespTypes import GetAccountRequestMessage
-from BaseTypes.Notifier.abstractnotifier import Notifier
+import basetypes.Mediator.reqRespTypes as baseRR
+from basetypes.Component.abstractComponent import Component
+from basetypes.Mediator.reqRespTypes import GetAccountRequestMessage
+from basetypes.Notifier.abstractnotifier import Notifier
 from telegram import ParseMode, Update
 from telegram.callbackquery import CallbackQuery
 from telegram.ext import (CallbackQueryHandler, CommandHandler, Filters,
@@ -28,7 +28,7 @@ from telegram.inline.inlinekeyboardbutton import InlineKeyboardButton
 from telegram.inline.inlinekeyboardmarkup import InlineKeyboardMarkup
 from telegram.message import Message
 
-logger = logging.getLogger('autotrader')
+logger = logging.getLogger("autotrader")
 
 
 @attr.s(auto_attribs=True)

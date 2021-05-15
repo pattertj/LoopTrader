@@ -5,11 +5,11 @@ import math
 import time
 
 import attr
-import BaseTypes.Mediator.reqRespTypes as baseRR
-from BaseTypes.Component.abstractComponent import Component
-from BaseTypes.Strategy.abstractStrategy import Strategy
+import basetypes.Mediator.reqRespTypes as baseRR
+from basetypes.Component.abstractComponent import Component
+from basetypes.Strategy.abstractStrategy import Strategy
 
-logger = logging.getLogger('autotrader')
+logger = logging.getLogger("autotrader")
 
 
 @attr.s(auto_attribs=True)

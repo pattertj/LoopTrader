@@ -1,7 +1,7 @@
 import abc
 
 import attr
-import BaseTypes.Mediator.reqRespTypes as baseRR
+import basetypes.Mediator.reqRespTypes as baseRR
 
 
 @attr.s(auto_attribs=True)
