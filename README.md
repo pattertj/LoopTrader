@@ -8,7 +8,7 @@
 
 <p align="center">
 <a href="https://github.com/pattertj/LoopTrader/commits/main"><img src="https://img.shields.io/github/last-commit/pattertj/LoopTrader"></a> 
-  <a href="https://github.com/pattertj/LoopTrader/actions/workflows/core.yml"><img src="https://img.shields.io/github/workflow/status/pattertj/looptrader/Core?style=flat"></a> 
+  <a href="https://github.com/pattertj/LoopTrader/actions/workflows/python-app.yml"><img src="https://img.shields.io/github/workflow/status/pattertj/looptrader/Build?style=flat"></a> 
   <a href="https://www.codefactor.io/repository/github/pattertj/looptrader"><img src="https://img.shields.io/codefactor/grade/github/pattertj/looptrader?style=flat&label=Codefactor"></a> 
   <a href="https://github.com/pattertj/LoopTrader/network/members"><img src="https://img.shields.io/github/forks/pattertj/LoopTrader?style=flat"></a> 
   <a href="https://github.com/pattertj/LoopTrader/stargazers"><img src="https://img.shields.io/github/stars/pattertj/LoopTrader?style=flat"></a> 
