@@ -7,7 +7,7 @@ class Component:
     instance inside component objects.
     """
 
-    def __init__(self, mediator: Mediator = None) -> None:
+    def __init__(self, mediator: Mediator) -> None:
         self._mediator = mediator
 
     @property

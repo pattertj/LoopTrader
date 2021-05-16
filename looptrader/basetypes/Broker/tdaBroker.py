@@ -19,6 +19,7 @@ import datetime as dtime
 import logging
 from collections import OrderedDict
 from os import getenv
+from typing import Union
 
 import attr
 import basetypes.Mediator.reqRespTypes as baseRR
@@ -71,7 +72,6 @@ class TdaBroker(Broker, Component):
                 account = self.getsession().get_accounts(
                     getenv("TDAMERITRADE_ACCOUNT_NUMBER"), fields=optionalfields
                 )
-                break
             except Exception:
                 # Work backwards on severity level of logging based on the maxretry value
                 if attempt >= self.maxretries:
@@ -149,10 +149,10 @@ class TdaBroker(Broker, Component):
     def build_account_order_leg(leg: dict):
         """Transforms a TDA order leg dictionary into a LoopTrader order leg"""
         accountorderleg = baseRR.AccountOrderLeg()
-        accountorderleg.legid = leg.get("legId")
-        accountorderleg.instruction = leg.get("instruction")
-        accountorderleg.positioneffect = leg.get("positionEffect")
-        accountorderleg.quantity = leg.get("quantity")
+        accountorderleg.legid = leg.get("legId", int)
+        accountorderleg.instruction = leg.get("instruction", str)
+        accountorderleg.positioneffect = leg.get("positionEffect", str)
+        accountorderleg.quantity = leg.get("quantity", int)
 
         instrument = leg.get("instrument", dict)
 
@@ -168,17 +168,17 @@ class TdaBroker(Broker, Component):
         """Transforms a TDA order dictionary into a LoopTrader order"""
 
         accountorder = baseRR.AccountOrder()
-        accountorder.duration = order.get("duration")
-        accountorder.quantity = order.get("quantity")
-        accountorder.filledquantity = order.get("filledQuantity")
-        accountorder.price = order.get("price")
-        accountorder.orderid = order.get("orderId")
-        accountorder.status = order.get("status")
-        accountorder.enteredtime = order.get("enteredTime")
-        accountorder.closetime = order.get("closeTime")
-        accountorder.accountid = order.get("accountId")
-        accountorder.cancelable = order.get("cancelable")
-        accountorder.editable = order.get("editable")
+        accountorder.duration = order.get("duration", str)
+        accountorder.quantity = order.get("quantity", int)
+        accountorder.filledquantity = order.get("filledQuantity", int)
+        accountorder.price = order.get("price", float)
+        accountorder.orderid = order.get("orderId", str)
+        accountorder.status = order.get("status", str)
+        accountorder.enteredtime = order.get("enteredTime", dtime.datetime)
+        accountorder.closetime = order.get("closeTime", dtime.datetime)
+        accountorder.accountid = order.get("accountId", int)
+        accountorder.cancelable = order.get("cancelable", bool)
+        accountorder.editable = order.get("editable", bool)
         accountorder.legs = []
         return accountorder
 
@@ -242,17 +242,19 @@ class TdaBroker(Broker, Component):
         orderrequest["orderType"] = request.ordertype
         orderrequest["session"] = request.ordersession
         orderrequest["duration"] = request.duration
-        orderrequest["price"] = request.price
-        orderrequest["orderLegCollection"] = [
-            {
-                "instruction": request.instruction,
-                "quantity": request.quantity,
-                "instrument": {
-                    "assetType": request.assettype,
-                    "symbol": request.symbol,
-                },
-            }
-        ]
+        orderrequest["price"] = str(request.price)
+        orderrequest["orderLegCollection"] = str(
+            [
+                {
+                    "instruction": request.instruction,
+                    "quantity": request.quantity,
+                    "instrument": {
+                        "assetType": request.assettype,
+                        "symbol": request.symbol,
+                    },
+                }
+            ]
+        )
 
         # Log the Order
         logger.info("Your order being placed is: {} ".format(orderrequest))
@@ -282,7 +284,6 @@ class TdaBroker(Broker, Component):
                 order = self.getsession().get_orders(
                     account=self.account_number, order_id=str(request.orderid)
                 )
-                break
             except Exception:
                 # Work backwards on severity level of logging based on the maxretry value
                 if attempt >= self.maxretries:
@@ -347,7 +348,6 @@ class TdaBroker(Broker, Component):
                     optionschain = self.getsession().get_options_chain(
                         optionchainrequest
                     )
-                    break
                 except Exception:
                     # Work backwards on severity level of logging based on the maxretry value
                     if attempt >= self.maxretries:
@@ -409,7 +409,7 @@ class TdaBroker(Broker, Component):
 
     def get_market_hours(
         self, request: baseRR.GetMarketHoursRequestMessage
-    ) -> baseRR.GetMarketHoursResponseMessage:
+    ) -> Union[baseRR.GetMarketHoursResponseMessage, None]:
         """Gets the opening and closing market hours for a given day."""
 
         markets = [request.market]
@@ -428,6 +428,7 @@ class TdaBroker(Broker, Component):
                     logger.exception(
                         err.format(markets, request.datetime, attempt),
                     )
+                    return None
                 elif attempt == self.maxretries - 1:
                     logger.error(err.format(markets, request.datetime, attempt))
                 elif attempt == self.maxretries - 2:
@@ -445,7 +446,7 @@ class TdaBroker(Broker, Component):
 
                     return self.process_session_hours(sessionhours, details)
 
-        return baseRR.GetMarketHoursResponseMessage()
+        return None
 
     def process_session_hours(
         self, sessionhours: dict, details: dict
@@ -461,7 +462,7 @@ class TdaBroker(Broker, Component):
         markethours: list, details: dict
     ) -> baseRR.GetMarketHoursResponseMessage:
         """Builds a Market Hours reponse Message for given details"""
-        response = baseRR.GetMarketHoursResponseMessage
+        response = baseRR.GetMarketHoursResponseMessage()
 
         startdt = dtime.datetime.strptime(
             str(dict(markethours[0]).get("start")), "%Y-%m-%dT%H:%M:%S%z"
@@ -471,7 +472,8 @@ class TdaBroker(Broker, Component):
         )
         response.start = startdt.astimezone(dtime.timezone.utc)
         response.end = enddt.astimezone(dtime.timezone.utc)
-        response.isopen = details.get("isOpen")
+        response.isopen = details.get("isOpen", bool)
+
         return response
 
     def getsession(self) -> TDClient:
@@ -507,7 +509,7 @@ class TdaBroker(Broker, Component):
             exp = expiration.split(":", 1)
 
             expiry = baseRR.GetOptionChainResponseMessage.ExpirationDate()
-            expiry.expirationdate = exp[0]
+            expiry.expirationdate = dtime.datetime.strptime(exp[0], "%Y-%m-%d")
             expiry.daystoexpiration = int(exp[1])
             expiry.strikes = {}
 
@@ -518,19 +520,19 @@ class TdaBroker(Broker, Component):
                     strikeresponse = (
                         baseRR.GetOptionChainResponseMessage.ExpirationDate.Strike()
                     )
-                    strikeresponse.strike = detail.get("strikePrice")
-                    strikeresponse.bid = detail.get("bid")
-                    strikeresponse.ask = detail.get("ask")
-                    strikeresponse.delta = detail.get("delta")
-                    strikeresponse.gamma = detail.get("gamma")
-                    strikeresponse.theta = detail.get("theta")
-                    strikeresponse.vega = detail.get("vega")
-                    strikeresponse.rho = detail.get("rho")
-                    strikeresponse.symbol = detail.get("symbol")
-                    strikeresponse.description = detail.get("description")
-                    strikeresponse.putcall = detail.get("putCall")
-                    strikeresponse.settlementtype = detail.get("settlementType")
-                    strikeresponse.expirationtype = detail.get("expirationType")
+                    strikeresponse.strike = detail.get("strikePrice", float)
+                    strikeresponse.bid = detail.get("bid", float)
+                    strikeresponse.ask = detail.get("ask", float)
+                    strikeresponse.delta = detail.get("delta", float)
+                    strikeresponse.gamma = detail.get("gamma", float)
+                    strikeresponse.theta = detail.get("theta", float)
+                    strikeresponse.vega = detail.get("vega", float)
+                    strikeresponse.rho = detail.get("rho", float)
+                    strikeresponse.symbol = detail.get("symbol", str)
+                    strikeresponse.description = detail.get("description", str)
+                    strikeresponse.putcall = detail.get("putCall", str)
+                    strikeresponse.settlementtype = detail.get("settlementType", str)
+                    strikeresponse.expirationtype = detail.get("expirationType", str)
 
                     expiry.strikes[detail.get("strikePrice", float)] = strikeresponse
 

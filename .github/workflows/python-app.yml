@@ -1,18 +1,24 @@
 # This workflow will install Python dependencies, run tests and lint with a single version of Python
 # For more information see: https://help.github.com/actions/language-and-framework-guides/using-python-with-github-actions
 
-name: PythonBuild
+name: Project Standards
 
-on:
+on: 
+  pull_request: {}
   push:
-    branches: [ main ]
-  pull_request:
-    branches: [ main ]
+    branches: master
+    tags: "*"
 
 jobs:
-  build:
-
+  core:
     runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Setup Python
+        uses: actions/setup-python@v1
+        with:
+          python-version: 3.9
 
       - name: Install dependencies with pipenv
         run: |
@@ -22,4 +28,4 @@ jobs:
       - run: pipenv run black --check .
       - run: pipenv run flake8
       - run: pipenv run mypy
-      - run: pipenv run pytest --cov --cov-fail-under=25
+      - run: pipenv run pytest --cov --cov-fail-under=20

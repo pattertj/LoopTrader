@@ -1,6 +1,6 @@
 import os
 
-from BaseTypes.Database.sqliteDatabase import SqliteDatabase
+from basetypes.Database.sqliteDatabase import SqliteDatabase
 
 
 def test_create_order():
