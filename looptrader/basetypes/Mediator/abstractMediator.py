@@ -1,4 +1,5 @@
 import abc
+from typing import Union
 
 import attr
 import basetypes.Mediator.reqRespTypes as baseRR
@@ -49,7 +50,7 @@ class Mediator(abc.ABC):
     @abc.abstractmethod
     def get_market_hours(
         self, request: baseRR.GetMarketHoursRequestMessage
-    ) -> baseRR.GetMarketHoursResponseMessage:
+    ) -> Union[baseRR.GetMarketHoursResponseMessage, None]:
         raise NotImplementedError(
             "Each strategy must implement the 'Get_Market_Hours' method."
         )

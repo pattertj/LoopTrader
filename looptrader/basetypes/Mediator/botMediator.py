@@ -1,6 +1,7 @@
 import logging
 import logging.config
 import time
+from typing import Union
 
 import attr
 import basetypes.Mediator.reqRespTypes as baseRR
@@ -104,7 +105,7 @@ class Bot(Mediator):
 
     def get_market_hours(
         self, request: baseRR.GetMarketHoursRequestMessage
-    ) -> baseRR.GetMarketHoursResponseMessage:
+    ) -> Union[baseRR.GetMarketHoursResponseMessage, None]:
         return self.broker.get_market_hours(request)
 
     def get_option_chain(
