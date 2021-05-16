@@ -314,9 +314,9 @@ class TdaBroker(Broker, Component):
 
         optionchainobj = OptionChain()
         optionchainobj.query_parameters = optionchainrequest
-        
+
         response = baseRR.GetOptionChainResponseMessage()
-        
+
         if optionchainobj.validate_chain():
             for attempt in range(self.maxretries):
                 try:
@@ -386,7 +386,9 @@ class TdaBroker(Broker, Component):
                 break
             except Exception:
                 logger.exception(
-                    "Failed to get market hours for {} on {}. Attempt #{}".format(markets, request.datetime, attempt),
+                    "Failed to get market hours for {} on {}. Attempt #{}".format(
+                        markets, request.datetime, attempt
+                    ),
                 )
                 if attempt == self.maxretries - 1:
                     return None
