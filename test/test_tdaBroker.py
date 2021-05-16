@@ -1,7 +1,7 @@
 # import datetime as dt
 
-# import basetypes.Mediator.reqRespTypes as baseRR
-# from basetypes.Broker.tdaBroker import TdaBroker
+# import looptrader.basetypes.Mediator.reqRespTypes as baseRR
+# from looptrader.basetypes.Broker.tdaBroker import TdaBroker
 
 
 # def test_get_account():
@@ -41,12 +41,13 @@
 #     assert response is not None
 #     assert response.responsecode == 200
 
-# # RUN AT YOUR OWN RISK, THIS COULD OPEN NEW POSITIONS ON YOUR ACCOUNT. YOU MAY NEED TO REVISE THE SYMBOL
-# # def test_place_order(self):
-# #     request = baseRR.PlaceOrderRequestMessage(price=.01, quantity=1, symbol='AAPL_040521P60')
-# #     response = self.func.place_order(request)
 
-# #     self.assertIsNotNone(response)
+# RUN AT YOUR OWN RISK, THIS COULD OPEN NEW POSITIONS ON YOUR ACCOUNT. YOU MAY NEED TO REVISE THE SYMBOL
+# def test_place_order(self):
+#     request = baseRR.PlaceOrderRequestMessage(price=.01, quantity=1, symbol='AAPL_040521P60')
+#     response = self.func.place_order(request)
+
+#     self.assertIsNotNone(response)
 
 
 # def test_get_option_chain():
