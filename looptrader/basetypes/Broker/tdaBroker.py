@@ -66,6 +66,12 @@ class TdaBroker(Broker, Component):
         if request.positions:
             optionalfields.append("positions")
 
+        # Stub response message
+        response = baseRR.GetAccountResponseMessage()
+        response.positions = []
+        response.orders = []
+        response.currentbalances = baseRR.AccountBalance()
+
         # Get Account Details
         for attempt in range(self.maxretries):
             try:
@@ -73,37 +79,13 @@ class TdaBroker(Broker, Component):
                     getenv("TDAMERITRADE_ACCOUNT_NUMBER"), fields=optionalfields
                 )
             except Exception:
-                # Work backwards on severity level of logging based on the maxretry value
-                if attempt >= self.maxretries:
-                    logger.exception(
-                        "Failed to get Account {}. Attempt #{}".format(
-                            getenv("TDAMERITRADE_ACCOUNT_NUMBER"), attempt
-                        )
+                logger.exception(
+                    "Failed to get Account {}. Attempt #{}".format(
+                        getenv("TDAMERITRADE_ACCOUNT_NUMBER"), attempt
                     )
-                elif attempt == self.maxretries - 1:
-                    logger.error(
-                        "Failed to get Account {}. Attempt #{}".format(
-                            getenv("TDAMERITRADE_ACCOUNT_NUMBER"), attempt
-                        )
-                    )
-                elif attempt == self.maxretries - 2:
-                    logger.warning(
-                        "Failed to get Account {}. Attempt #{}".format(
-                            getenv("TDAMERITRADE_ACCOUNT_NUMBER"), attempt
-                        )
-                    )
-                elif attempt <= self.maxretries - 3:
-                    logger.info(
-                        "Failed to get Account {}. Attempt #{}".format(
-                            getenv("TDAMERITRADE_ACCOUNT_NUMBER"), attempt
-                        )
-                    )
-
-        # Stub response message
-        response = baseRR.GetAccountResponseMessage()
-        response.positions = []
-        response.orders = []
-        response.currentbalances = baseRR.AccountBalance()
+                )
+                if attempt == self.maxretries - 1:
+                    return response
 
         # If we requested Orders, build them
         if request.orders:
@@ -279,29 +261,20 @@ class TdaBroker(Broker, Component):
     ) -> baseRR.GetOrderResponseMessage:
         """Reads a single order from TDA and returns it's details"""
 
+        response = baseRR.GetOrderResponseMessage()
+
         for attempt in range(self.maxretries):
             try:
                 order = self.getsession().get_orders(
                     account=self.account_number, order_id=str(request.orderid)
                 )
             except Exception:
-                # Work backwards on severity level of logging based on the maxretry value
-                if attempt >= self.maxretries:
-                    logger.exception(
-                        "Failed to read order {}.".format(str(request.orderid))
-                    )
-                elif attempt == self.maxretries - 1:
-                    logger.error(
-                        "Failed to read order {}.".format(str(request.orderid))
-                    )
-                elif attempt == self.maxretries - 2:
-                    logger.warning(
-                        "Failed to read order {}.".format(str(request.orderid))
-                    )
-                elif attempt <= self.maxretries - 3:
-                    logger.info("Failed to read order {}.".format(str(request.orderid)))
+                logger.exception(
+                    "Failed to read order {}.".format(str(request.orderid))
+                )
+                if attempt == self.maxretries - 1:
+                    return response
 
-        response = baseRR.GetOrderResponseMessage()
         response.accountid = order.get("accountId")
         response.closetime = order.get("closeTime")
         response.enteredtime = order.get("enteredTime")
@@ -341,7 +314,9 @@ class TdaBroker(Broker, Component):
 
         optionchainobj = OptionChain()
         optionchainobj.query_parameters = optionchainrequest
-
+        
+        response = baseRR.GetOptionChainResponseMessage()
+        
         if optionchainobj.validate_chain():
             for attempt in range(self.maxretries):
                 try:
@@ -350,28 +325,16 @@ class TdaBroker(Broker, Component):
                     )
                 except Exception:
                     # Work backwards on severity level of logging based on the maxretry value
-                    if attempt >= self.maxretries:
-                        logger.exception(
-                            "Failed to get Options Chain. Attempt #{}".format(attempt)
-                        )
-                    elif attempt == self.maxretries - 1:
-                        logger.error(
-                            "Failed to get Options Chain. Attempt #{}".format(attempt)
-                        )
-                    elif attempt == self.maxretries - 2:
-                        logger.warning(
-                            "Failed to get Options Chain. Attempt #{}".format(attempt)
-                        )
-                    elif attempt <= self.maxretries - 3:
-                        logger.info(
-                            "Failed to get Options Chain. Attempt #{}".format(attempt)
-                        )
+                    logger.exception(
+                        "Failed to get Options Chain. Attempt #{}".format(attempt)
+                    )
+                if attempt == self.maxretries - 1:
+                    return response
 
         else:
             logger.error("Invalid OptionChainRequest.")
             raise KeyError("Invalid OptionChainRequest.")
 
-        response = baseRR.GetOptionChainResponseMessage()
         response.symbol = optionschain.get("symbol")
         response.status = optionschain.get("status")
         response.underlyinglastprice = optionschain.get("underlyingPrice")
@@ -422,19 +385,11 @@ class TdaBroker(Broker, Component):
                 )
                 break
             except Exception:
-                err = "Failed to get market hours for {} on {}. Attempt #{}"
-                # Work backwards on severity level of logging based on the maxretry value
-                if attempt >= self.maxretries:
-                    logger.exception(
-                        err.format(markets, request.datetime, attempt),
-                    )
+                logger.exception(
+                    "Failed to get market hours for {} on {}. Attempt #{}".format(markets, request.datetime, attempt),
+                )
+                if attempt == self.maxretries - 1:
                     return None
-                elif attempt == self.maxretries - 1:
-                    logger.error(err.format(markets, request.datetime, attempt))
-                elif attempt == self.maxretries - 2:
-                    logger.warning(err.format(markets, request.datetime, attempt))
-                elif attempt <= self.maxretries - 3:
-                    logger.info(err.format(markets, request.datetime, attempt))
 
         markettype: dict
         for markettype in hours.values():
