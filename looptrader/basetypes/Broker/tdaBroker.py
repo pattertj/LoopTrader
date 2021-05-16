@@ -68,9 +68,6 @@ class TdaBroker(Broker, Component):
 
         # Stub response message
         response = baseRR.GetAccountResponseMessage()
-        response.positions = []
-        response.orders = []
-        response.currentbalances = baseRR.AccountBalance()
 
         # Get Account Details
         for attempt in range(self.maxretries):
@@ -91,29 +88,41 @@ class TdaBroker(Broker, Component):
 
         # If we requested Orders, build them
         if request.orders:
-            orders = securitiesaccount.get("orderStrategies")
-            response.orders = self.build_account_orders(orders)
+            response.orders = self.build_account_orders(securitiesaccount)
 
         # If we requested positions, build them
         if request.positions:
-            positions = securitiesaccount.get("positions")
-            response.positions = self.build_account_positions(positions)
+            response.positions = self.build_account_positions(securitiesaccount)
 
         # Grab Balances
-        currentbalances = securitiesaccount.get("currentBalances", dict)
-        response.currentbalances.buyingpower = currentbalances.get(
-            "buyingPowerNonMarginableTrade", float
-        )
-        response.currentbalances.liquidationvalue = currentbalances.get(
-            "liquidationValue", float
-        )
+        response.currentbalances = self.build_balances(securitiesaccount)
 
         # Return Results
         return response
 
-    def build_account_positions(self, positions) -> list[baseRR.AccountPosition]:
+    def build_balances(self, securitiesaccount: dict) -> baseRR.AccountBalance:
+        """Builds account balances for getAccount."""
+        response = baseRR.AccountBalance()
+
+        currentbalances = securitiesaccount.get("currentBalances", dict)
+
+        response.buyingpower = currentbalances.get(
+            "buyingPowerNonMarginableTrade", float
+        )
+        response.liquidationvalue = currentbalances.get("liquidationValue", float)
+
+        return response
+
+    def build_account_positions(
+        self, securitiesaccount: dict
+    ) -> list[baseRR.AccountPosition]:
         """Builds a list of Account Positions from a raw list of positions."""
-        response = []
+        response = list[baseRR.AccountPosition]()
+
+        positions = securitiesaccount.get("positions")
+
+        if positions is None:
+            return response
 
         for position in positions:
             # Build Position
@@ -187,9 +196,13 @@ class TdaBroker(Broker, Component):
             accountposition.underlyingsymbol = instrument.get("underlyingSymbol", str)
         return accountposition
 
-    def build_account_orders(self, orders) -> list[baseRR.AccountOrder]:
+    def build_account_orders(
+        self, securitiesaccount: dict
+    ) -> list[baseRR.AccountOrder]:
         """Builds a list of Account Orders from a raw list of orders."""
         response = []
+
+        orders = securitiesaccount.get("orderStrategies", dict)
 
         order: dict
         for order in orders:
