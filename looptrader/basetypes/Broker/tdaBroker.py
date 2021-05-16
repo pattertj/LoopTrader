@@ -19,7 +19,7 @@ import datetime as dtime
 import logging
 from collections import OrderedDict
 from os import getenv
-from typing import Union
+from typing import Any, Union
 
 import attr
 import basetypes.Mediator.reqRespTypes as baseRR
@@ -338,7 +338,10 @@ class TdaBroker(Broker, Component):
 
         return response
 
-    def build_option_chain_request(self, request):
+    def build_option_chain_request(
+        self, request: baseRR.GetOptionChainRequestMessage
+    ) -> dict[str, Any]:
+        """Builds the Option Chain Request Message"""
         return {
             "symbol": request.symbol,
             "contractType": request.contracttype,
