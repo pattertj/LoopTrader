@@ -303,14 +303,7 @@ class TdaBroker(Broker, Component):
         if request is None:
             logger.error("OptionChainRequest is None.")
 
-        optionchainrequest = {
-            "symbol": request.symbol,
-            "contractType": request.contracttype,
-            "includeQuotes": "TRUE" if request.includequotes is True else "FALSE",
-            "range": request.optionrange,
-            "fromDate": request.fromdate,
-            "toDate": request.todate,
-        }
+        optionchainrequest = self.build_option_chain_request(request)
 
         optionchainobj = OptionChain()
         optionchainobj.query_parameters = optionchainrequest
@@ -344,6 +337,16 @@ class TdaBroker(Broker, Component):
         )
 
         return response
+
+    def build_option_chain_request(self, request):
+        return {
+            "symbol": request.symbol,
+            "contractType": request.contracttype,
+            "includeQuotes": "TRUE" if request.includequotes is True else "FALSE",
+            "range": request.optionrange,
+            "fromDate": request.fromdate,
+            "toDate": request.todate,
+        }
 
     def cancel_order(
         self, request: baseRR.CancelOrderRequestMessage
