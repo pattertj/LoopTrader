@@ -317,36 +317,31 @@ class TdaBroker(Broker, Component):
 
         response = baseRR.GetOptionChainResponseMessage()
 
-        if optionchainobj.validate_chain():
-            for attempt in range(self.maxretries):
-                try:
-                    optionschain = self.getsession().get_options_chain(
-                        optionchainrequest
-                    )
-                except Exception:
-                    # Work backwards on severity level of logging based on the maxretry value
-                    logger.exception(
-                        "Failed to get Options Chain. Attempt #{}".format(attempt)
-                    )
+        if not optionchainobj.validate_chain():
+            logger.exception("Chain Validation Failed. {}".format(optionchainobj))
+            return response
+
+        for attempt in range(self.maxretries):
+            try:
+                optionschain = self.getsession().get_options_chain(optionchainrequest)
+            except Exception:
+                logger.exception(
+                    "Failed to get Options Chain. Attempt #{}".format(attempt)
+                )
                 if attempt == self.maxretries - 1:
                     return response
 
-        else:
-            logger.error("Invalid OptionChainRequest.")
-            raise KeyError("Invalid OptionChainRequest.")
+        response.symbol = optionschain.get("symbol", str)
+        response.status = optionschain.get("status", str)
+        response.underlyinglastprice = optionschain.get("underlyingPrice", float)
+        response.volatility = optionschain.get("volatility", float)
 
-        response.symbol = optionschain.get("symbol")
-        response.status = optionschain.get("status")
-        response.underlyinglastprice = optionschain.get("underlyingPrice")
-        response.volatility = optionschain.get("volatility")
-        response.putexpdatemap = []
-        response.callexpdatemap = []
-
-        puts = dict(optionschain.get("putExpDateMap"))
-        calls = dict(optionschain.get("callExpDateMap"))
-
-        response.putexpdatemap = self.build_option_chain(puts)
-        response.callexpdatemap = self.build_option_chain(calls)
+        response.putexpdatemap = self.build_option_chain(
+            dict(optionschain.get("putExpDateMap"))
+        )
+        response.callexpdatemap = self.build_option_chain(
+            dict(optionschain.get("callExpDateMap"))
+        )
 
         return response
 
