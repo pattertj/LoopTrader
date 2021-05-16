@@ -75,41 +75,37 @@ class TdaBroker(Broker, Component):
         # Get Account Details
         for attempt in range(self.maxretries):
             try:
-                account = self.getsession().get_accounts(
-                    getenv("TDAMERITRADE_ACCOUNT_NUMBER"), fields=optionalfields
-                )
+                acctnum = getenv("TDAMERITRADE_ACCOUNT_NUMBER")
+                account = self.getsession().get_accounts(acctnum, fields=optionalfields)
             except Exception:
                 logger.exception(
-                    "Failed to get Account {}. Attempt #{}".format(
-                        getenv("TDAMERITRADE_ACCOUNT_NUMBER"), attempt
-                    )
+                    "Failed to get Account {}. Attempt #{}".format(acctnum, attempt)
                 )
                 if attempt == self.maxretries - 1:
                     return response
 
+        securitiesaccount = account.get("securitiesAccount", dict)
+
+        if securitiesaccount is None:
+            return response
+
         # If we requested Orders, build them
         if request.orders:
-            orders = account.get("securitiesAccount", dict).get("orderStrategies")
-
-            # Build Orders
-            if orders is not None:
-                response.orders = self.build_account_orders(orders)
+            orders = securitiesaccount.get("orderStrategies")
+            response.orders = self.build_account_orders(orders)
 
         # If we requested positions, build them
         if request.positions:
-            positions = account.get("securitiesAccount").get("positions")
-
-            # Build Positions
-            if positions is not None:
-                response.positions = self.build_account_positions(positions)
+            positions = securitiesaccount.get("positions")
+            response.positions = self.build_account_positions(positions)
 
         # Grab Balances
-        currentbalances = account.get("securitiesAccount").get("currentBalances")
+        currentbalances = securitiesaccount.get("currentBalances", dict)
         response.currentbalances.buyingpower = currentbalances.get(
-            "buyingPowerNonMarginableTrade"
+            "buyingPowerNonMarginableTrade", float
         )
         response.currentbalances.liquidationvalue = currentbalances.get(
-            "liquidationValue"
+            "liquidationValue", float
         )
 
         # Return Results
