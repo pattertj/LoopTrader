@@ -1,4 +1,4 @@
-from looptrader.basetypes.Mediator.abstractMediator import Mediator
+from basetypes.Mediator.abstractMediator import Mediator
 
 
 class Component:
@@ -7,7 +7,7 @@ class Component:
     instance inside component objects.
     """
 
-    def __init__(self, mediator: Mediator = None) -> None:
+    def __init__(self, mediator: Mediator) -> None:
         self._mediator = mediator
 
     @property

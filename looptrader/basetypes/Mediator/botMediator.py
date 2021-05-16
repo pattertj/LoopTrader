@@ -4,21 +4,20 @@ import time
 
 import attr
 import basetypes.Mediator.reqRespTypes as baseRR
-
-from looptrader.basetypes.Broker.abstractBroker import Broker
-from looptrader.basetypes.Database.abstractDatabase import Database
-from looptrader.basetypes.Mediator.abstractMediator import Mediator
-from looptrader.basetypes.Notifier.abstractnotifier import Notifier
-from looptrader.basetypes.Strategy.abstractStrategy import Strategy
+from basetypes.Broker.abstractBroker import Broker
+from basetypes.Database.abstractDatabase import Database
+from basetypes.Mediator.abstractMediator import Mediator
+from basetypes.Notifier.abstractnotifier import Notifier
+from basetypes.Strategy.abstractStrategy import Strategy
 
 logger = logging.getLogger("autotrader")
 
 
 @attr.s(auto_attribs=True)
 class Bot(Mediator):
-    broker: Broker = attr.ib(validator=attr.validators.instance_of(Broker))
-    notifier: Notifier = attr.ib(validator=attr.validators.instance_of(Notifier))
-    database: Database = attr.ib(validator=attr.validators.instance_of(Database))
+    broker: Broker = attr.ib(validator=attr.validators.instance_of(Broker))  # type: ignore[misc]
+    notifier: Notifier = attr.ib(validator=attr.validators.instance_of(Notifier))  # type: ignore[misc]
+    database: Database = attr.ib(validator=attr.validators.instance_of(Database))  # type: ignore[misc]
     botloopfrequency: int = attr.ib(
         validator=attr.validators.instance_of(int), init=False
     )
@@ -27,7 +26,7 @@ class Bot(Mediator):
     )
     strategies: list[Strategy] = attr.ib(
         validator=attr.validators.deep_iterable(
-            member_validator=attr.validators.instance_of(Strategy),
+            member_validator=attr.validators.instance_of(Strategy),  # type: ignore[misc]
             iterable_validator=attr.validators.instance_of(list),
         )
     )

@@ -3,12 +3,12 @@ import logging
 import logging.config
 import math
 import time
+from typing import Union
 
 import attr
-
-import looptrader.basetypes.Mediator.reqRespTypes as baseRR
-from looptrader.basetypes.Component.abstractComponent import Component
-from looptrader.basetypes.Strategy.abstractStrategy import Strategy
+import basetypes.Mediator.reqRespTypes as baseRR
+from basetypes.Component.abstractComponent import Component
+from basetypes.Strategy.abstractStrategy import Strategy
 
 logger = logging.getLogger("autotrader")
 
@@ -245,7 +245,7 @@ class CspByDeltaStrategy(Strategy, Component):
         # # Once we have reviewed all postiions, exit.
         # return response
 
-    def build_new_order(self) -> baseRR.PlaceOrderRequestMessage:
+    def build_new_order(self) -> Union[baseRR.PlaceOrderRequestMessage, None]:
         """Trading Logic for building new Order Request Messages"""
         logger.debug("build_new_order")
 
@@ -295,6 +295,10 @@ class CspByDeltaStrategy(Strategy, Component):
 
         # Find strike to trade
         expiration = self.get_next_expiration(chain.putexpdatemap)
+
+        if expiration is None:
+            return None
+
         strike = self.get_best_strike(
             expiration.strikes, availbp, account.currentbalances.liquidationvalue
         )
@@ -341,7 +345,7 @@ class CspByDeltaStrategy(Strategy, Component):
         # Look for open positions
         for order in account.orders:
             if order.status == "QUEUED" and order.legs[0].positioneffect == "CLOSING":
-                orderrequest = baseRR.CancelOrderRequestMessage(order.orderid)
+                orderrequest = baseRR.CancelOrderRequestMessage(int(order.orderid))
                 orderrequests.append(orderrequest)
 
         return orderrequests
@@ -493,7 +497,7 @@ class CspByDeltaStrategy(Strategy, Component):
     @staticmethod
     def get_next_expiration(
         expirations: list[baseRR.GetOptionChainResponseMessage.ExpirationDate],
-    ) -> baseRR.GetOptionChainResponseMessage.ExpirationDate:
+    ) -> Union[baseRR.GetOptionChainResponseMessage.ExpirationDate, None]:
         """Checks an option chain response for the next expiration date."""
         logger.debug("get_next_expiration")
 
@@ -521,7 +525,7 @@ class CspByDeltaStrategy(Strategy, Component):
         ],
         buyingpower: float,
         liquidationvalue: float,
-    ) -> baseRR.GetOptionChainResponseMessage.ExpirationDate.Strike:
+    ) -> Union[baseRR.GetOptionChainResponseMessage.ExpirationDate.Strike, None]:
         """Searches an option chain for the optimal strike."""
         logger.debug("get_best_strike")
         # Set Variables

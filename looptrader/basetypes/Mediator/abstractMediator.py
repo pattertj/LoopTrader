@@ -1,8 +1,7 @@
 import abc
 
 import attr
-
-import looptrader.basetypes.Mediator.reqRespTypes as baseRR
+import basetypes.Mediator.reqRespTypes as baseRR
 
 
 @attr.s(auto_attribs=True)
@@ -64,13 +63,13 @@ class Mediator(abc.ABC):
         )
 
     @abc.abstractmethod
-    def send_notification(self, msg: str) -> None:
+    def send_notification(self, msg: baseRR.SendNotificationRequestMessage) -> None:
         raise NotImplementedError(
             "Each strategy must implement the 'send_notification' method."
         )
 
     @abc.abstractmethod
-    def set_kill_switch(self, kill_switch: bool) -> None:
+    def set_kill_switch(self, kill_switch: baseRR.SetKillSwitchRequestMessage) -> None:
         raise NotImplementedError(
             "Each strategy must implement the 'set_kill_switch' method."
         )

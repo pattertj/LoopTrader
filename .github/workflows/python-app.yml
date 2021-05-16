@@ -1,7 +1,7 @@
 # This workflow will install Python dependencies, run tests and lint with a single version of Python
 # For more information see: https://help.github.com/actions/language-and-framework-guides/using-python-with-github-actions
 
-name: Core
+name: Project Standards
 
 on: 
   pull_request: {}
@@ -28,4 +28,4 @@ jobs:
       - run: pipenv run black --check .
       - run: pipenv run flake8
       - run: pipenv run mypy
-      - run: pipenv run pytest --cov --cov-fail-under=10
+      - run: pipenv run pytest --cov --cov-fail-under=20

@@ -1,9 +1,9 @@
 import abc
+from typing import Union
 
 import attr
-
-import looptrader.basetypes.Mediator.reqRespTypes as baseRR
-from looptrader.basetypes.Component.abstractComponent import Component
+import basetypes.Mediator.reqRespTypes as baseRR
+from basetypes.Component.abstractComponent import Component
 
 
 @attr.s(auto_attribs=True)
@@ -48,7 +48,7 @@ class Broker(abc.ABC, Component):
     @abc.abstractmethod
     def get_market_hours(
         self, request: baseRR.GetMarketHoursRequestMessage
-    ) -> baseRR.GetMarketHoursResponseMessage:
+    ) -> Union[baseRR.GetMarketHoursResponseMessage, None]:
         """request.markets: The markets for which you're requesting market hours,
         comma-separated. Valid markets are: EQUITY, OPTION, FUTURE, BOND, or FOREX.
         """

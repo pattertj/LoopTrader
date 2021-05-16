@@ -1,12 +1,10 @@
 # import datetime as dt
-# import unittest
 
-# import looptrader.basetypes.Mediator.reqRespTypes as baseRR
-# from looptrader.basetypes.Broker.tdaBroker import TdaBroker
+# import basetypes.Mediator.reqRespTypes as baseRR
+# from basetypes.Broker.tdaBroker import TdaBroker
 
 
-# class TestTdaBroker(unittest.TestCase):
-# def test_get_account(self):
+# def test_get_account():
 #     broker = TdaBroker()
 #     broker.maxretries = 3
 
@@ -19,7 +17,8 @@
 #     assert response.currentbalances.liquidationvalue is not None
 #     assert response.currentbalances.buyingpower is not None
 
-# def test_get_order(self):
+
+# def test_get_order():
 #     broker = TdaBroker()
 #     broker.maxretries = 3
 
@@ -30,7 +29,8 @@
 #     assert response is not None
 #     assert response.orderid == requestorderid
 
-# def test_cancel_order(self):
+
+# def test_cancel_order():
 #     broker = TdaBroker()
 #     broker.maxretries = 3
 
@@ -41,14 +41,15 @@
 #     assert response is not None
 #     assert response.responsecode == 200
 
-# RUN AT YOUR OWN RISK, THIS COULD OPEN NEW POSITIONS ON YOUR ACCOUNT. YOU MAY NEED TO REVISE THE SYMBOL
-# def test_place_order(self):
-#     request = baseRR.PlaceOrderRequestMessage(price=.01, quantity=1, symbol='AAPL_040521P60')
-#     response = self.func.place_order(request)
+# # RUN AT YOUR OWN RISK, THIS COULD OPEN NEW POSITIONS ON YOUR ACCOUNT. YOU MAY NEED TO REVISE THE SYMBOL
+# # def test_place_order(self):
+# #     request = baseRR.PlaceOrderRequestMessage(price=.01, quantity=1, symbol='AAPL_040521P60')
+# #     response = self.func.place_order(request)
 
-#     self.assertIsNotNone(response)
+# #     self.assertIsNotNone(response)
 
-# def test_get_option_chain(self):
+
+# def test_get_option_chain():
 #     broker = TdaBroker()
 #     broker.maxretries = 3
 
@@ -78,7 +79,8 @@
 #     assert response.callexpdatemap is not None
 #     assert len(response.callexpdatemap) == 0
 
-# def test_get_market_hours(self):
+
+# def test_get_market_hours():
 #     broker = TdaBroker()
 #     broker.maxretries = 3
 
