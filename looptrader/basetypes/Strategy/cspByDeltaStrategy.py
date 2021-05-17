@@ -428,7 +428,11 @@ class CspByDeltaStrategy(Strategy, Component):
         neworderresult = self.mediator.place_order(orderrequest)
 
         # If the order placement fails, exit the method.
-        if neworderresult.orderid is None or neworderresult.orderid == 0:
+        if (
+            neworderresult is None
+            or neworderresult.orderid is None
+            or neworderresult.orderid == 0
+        ):
             return False
 
         # If closing order, let the order ride, otherwise continue logic

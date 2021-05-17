@@ -219,7 +219,7 @@ class TdaBroker(Broker, Component):
 
     def place_order(
         self, request: baseRR.PlaceOrderRequestMessage
-    ) -> baseRR.PlaceOrderResponseMessage:
+    ) -> Union[baseRR.PlaceOrderResponseMessage, None]:
         """The function for placing an order with TD Ameritrade."""
 
         # Validate the request
@@ -234,18 +234,18 @@ class TdaBroker(Broker, Component):
         orderrequest["session"] = request.ordersession
         orderrequest["duration"] = request.duration
         orderrequest["price"] = str(request.price)
-        orderrequest["orderLegCollection"] = str(
-            [
-                {
-                    "instruction": request.instruction,
-                    "quantity": request.quantity,
-                    "instrument": {
-                        "assetType": request.assettype,
-                        "symbol": request.symbol,
-                    },
-                }
-            ]
-        )
+        orderrequest["orderLegCollection"] = [  # type: ignore
+            {
+                "instruction": request.instruction,
+                "quantity": request.quantity,
+                "instrument": {
+                    "assetType": request.assettype,
+                    "symbol": request.symbol,
+                },
+            }
+        ]
+
+        response = baseRR.PlaceOrderResponseMessage()
 
         # Log the Order
         logger.info("Your order being placed is: {} ".format(orderrequest))
@@ -258,8 +258,8 @@ class TdaBroker(Broker, Component):
             logger.info("Order {} Placed".format(orderresponse["order_id"]))
         except Exception:
             logger.exception("Failed to place order.")
+            return None
 
-        response = baseRR.PlaceOrderResponseMessage()
         response.orderid = orderresponse.get("order_id")
 
         # Return the Order ID
