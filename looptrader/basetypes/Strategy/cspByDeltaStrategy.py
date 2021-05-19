@@ -273,6 +273,9 @@ class CspByDeltaStrategy(Strategy, Component):
 
         chain = self.mediator.get_option_chain(chainrequest)
 
+        if account.positions is attr.NOTHING:
+            return None
+
         # Should we even try?
         usedbp = 0.0
         for position in account.positions:

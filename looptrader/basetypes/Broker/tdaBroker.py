@@ -200,9 +200,12 @@ class TdaBroker(Broker, Component):
         self, securitiesaccount: dict
     ) -> list[baseRR.AccountOrder]:
         """Builds a list of Account Orders from a raw list of orders."""
-        response = []
+        response = [baseRR.AccountOrder()]
 
-        orders = securitiesaccount.get("orderStrategies", dict)
+        orders = securitiesaccount.get("orderStrategies")
+
+        if orders is None:
+            return response
 
         order: dict
         for order in orders:
