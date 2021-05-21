@@ -273,7 +273,7 @@ class CspByDeltaStrategy(Strategy, Component):
 
         chain = self.mediator.get_option_chain(chainrequest)
 
-        if account.positions is attr.NOTHING:
+        if not hasattr(account, "positions"):
             return None
 
         # Should we even try?
