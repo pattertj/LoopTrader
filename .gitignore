@@ -134,3 +134,6 @@ dmypy.json
 pyvenv.cfg
 /Scripts
 .vscode/settings.json
+
+# Project Specific Ignore
+LoopTrader.db
