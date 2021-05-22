@@ -16,7 +16,7 @@ class Broker(abc.ABC, Component):
     @abc.abstractmethod
     def get_account(
         self, request: baseRR.GetAccountRequestMessage
-    ) -> baseRR.GetAccountResponseMessage:
+    ) -> Union[baseRR.GetAccountResponseMessage, None]:
         raise NotImplementedError(
             "Each strategy must implement the 'Get_Account' method."
         )
@@ -32,7 +32,7 @@ class Broker(abc.ABC, Component):
     @abc.abstractmethod
     def cancel_order(
         self, request: baseRR.CancelOrderRequestMessage
-    ) -> baseRR.CancelOrderResponseMessage:
+    ) -> Union[baseRR.CancelOrderResponseMessage, None]:
         raise NotImplementedError(
             "Each strategy must implement the 'Cancel_Order' method."
         )
@@ -40,7 +40,7 @@ class Broker(abc.ABC, Component):
     @abc.abstractmethod
     def get_option_chain(
         self, request: baseRR.GetOptionChainRequestMessage
-    ) -> baseRR.GetOptionChainResponseMessage:
+    ) -> Union[baseRR.GetOptionChainResponseMessage, None]:
         raise NotImplementedError(
             "Each strategy must implement the 'Get_Option_Chain' method."
         )
@@ -59,7 +59,7 @@ class Broker(abc.ABC, Component):
     @abc.abstractmethod
     def get_order(
         self, request: baseRR.GetOrderRequestMessage
-    ) -> baseRR.GetOrderResponseMessage:
+    ) -> Union[baseRR.GetOrderResponseMessage, None]:
         raise NotImplementedError(
             "Each strategy must implement the 'Get_Order' method."
         )

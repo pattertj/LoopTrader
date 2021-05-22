@@ -33,7 +33,7 @@ class Bot(Mediator):
     )
 
     def __attrs_post_init__(self):
-        self.botloopfrequency = 30
+        self.botloopfrequency = 60
         self.killswitch = False
 
         # Validate Strategies
@@ -85,22 +85,22 @@ class Bot(Mediator):
 
     def get_account(
         self, request: baseRR.GetAccountRequestMessage
-    ) -> baseRR.GetAccountResponseMessage:
+    ) -> Union[baseRR.GetAccountResponseMessage, None]:
         return self.broker.get_account(request)
 
     def place_order(
         self, request: baseRR.PlaceOrderRequestMessage
-    ) -> baseRR.PlaceOrderResponseMessage:
+    ) -> Union[baseRR.PlaceOrderResponseMessage, None]:
         return self.broker.place_order(request)
 
     def cancel_order(
         self, request: baseRR.CancelOrderRequestMessage
-    ) -> baseRR.CancelOrderResponseMessage:
+    ) -> Union[baseRR.CancelOrderResponseMessage, None]:
         return self.broker.cancel_order(request)
 
     def get_order(
         self, request: baseRR.GetOrderRequestMessage
-    ) -> baseRR.GetOrderResponseMessage:
+    ) -> Union[baseRR.GetOrderResponseMessage, None]:
         return self.broker.get_order(request)
 
     def get_market_hours(
@@ -110,7 +110,7 @@ class Bot(Mediator):
 
     def get_option_chain(
         self, request: baseRR.GetOptionChainRequestMessage
-    ) -> baseRR.GetOptionChainResponseMessage:
+    ) -> Union[baseRR.GetOptionChainResponseMessage, None]:
         return self.broker.get_option_chain(request)
 
     def send_notification(self, request: baseRR.SendNotificationRequestMessage) -> None:
