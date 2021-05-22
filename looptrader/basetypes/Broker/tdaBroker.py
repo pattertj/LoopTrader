@@ -55,7 +55,7 @@ class TdaBroker(Broker, Component):
 
     def get_account(
         self, request: baseRR.GetAccountRequestMessage
-    ) -> baseRR.GetAccountResponseMessage:
+    ) -> Union[baseRR.GetAccountResponseMessage, None]:
         """The function for reading account details from TD Ameritrade."""
 
         # Build Request
@@ -65,9 +65,6 @@ class TdaBroker(Broker, Component):
             optionalfields.append("orders")
         if request.positions:
             optionalfields.append("positions")
-
-        # Stub response message
-        response = baseRR.GetAccountResponseMessage()
 
         # Get Account Details
         for attempt in range(self.maxretries):
@@ -79,25 +76,28 @@ class TdaBroker(Broker, Component):
                     "Failed to get Account {}. Attempt #{}".format(acctnum, attempt)
                 )
                 if attempt == self.maxretries - 1:
-                    return response
+                    return None
 
         securitiesaccount = account.get("securitiesAccount", dict)
 
         if securitiesaccount is None:
-            return response
+            return None
 
-        # If we requested Orders, build them
-        if request.orders:
-            response.orders = self.build_account_orders(securitiesaccount)
+        return self.build_account_reponse(securitiesaccount)
 
-        # If we requested positions, build them
-        if request.positions:
-            response.positions = self.build_account_positions(securitiesaccount)
+    def build_account_reponse(
+        self, securitiesaccount
+    ) -> baseRR.GetAccountResponseMessage:
+        response = baseRR.GetAccountResponseMessage()
+
+        # If we requested Orders, build them if request.orders:
+        response.orders = self.build_account_orders(securitiesaccount)
+
+        # If we requested positions, build them if request.positions:
+        response.positions = self.build_account_positions(securitiesaccount)
 
         # Grab Balances
         response.currentbalances = self.build_balances(securitiesaccount)
-
-        # Return Results
         return response
 
     def build_balances(self, securitiesaccount: dict) -> baseRR.AccountBalance:
@@ -200,7 +200,7 @@ class TdaBroker(Broker, Component):
         self, securitiesaccount: dict
     ) -> list[baseRR.AccountOrder]:
         """Builds a list of Account Orders from a raw list of orders."""
-        response = [baseRR.AccountOrder()]
+        response: list[baseRR.AccountOrder] = []
 
         orders = securitiesaccount.get("orderStrategies")
 
@@ -270,10 +270,8 @@ class TdaBroker(Broker, Component):
 
     def get_order(
         self, request: baseRR.GetOrderRequestMessage
-    ) -> baseRR.GetOrderResponseMessage:
+    ) -> Union[baseRR.GetOrderResponseMessage, None]:
         """Reads a single order from TDA and returns it's details"""
-
-        response = baseRR.GetOrderResponseMessage()
 
         for attempt in range(self.maxretries):
             try:
@@ -285,7 +283,9 @@ class TdaBroker(Broker, Component):
                     "Failed to read order {}.".format(str(request.orderid))
                 )
                 if attempt == self.maxretries - 1:
-                    return response
+                    return None
+
+        response = baseRR.GetOrderResponseMessage()
 
         response.accountid = order.get("accountId")
         response.closetime = order.get("closeTime")
@@ -309,22 +309,21 @@ class TdaBroker(Broker, Component):
 
     def get_option_chain(
         self, request: baseRR.GetOptionChainRequestMessage
-    ) -> baseRR.GetOptionChainResponseMessage:
+    ) -> Union[baseRR.GetOptionChainResponseMessage, None]:
         """Reads the option chain for a given symbol, date range, and contract type."""
 
         if request is None:
             logger.error("OptionChainRequest is None.")
+            return None
 
         optionchainrequest = self.build_option_chain_request(request)
 
         optionchainobj = OptionChain()
         optionchainobj.query_parameters = optionchainrequest
 
-        response = baseRR.GetOptionChainResponseMessage()
-
         if not optionchainobj.validate_chain():
             logger.exception("Chain Validation Failed. {}".format(optionchainobj))
-            return response
+            return None
 
         for attempt in range(self.maxretries):
             try:
@@ -334,7 +333,9 @@ class TdaBroker(Broker, Component):
                     "Failed to get Options Chain. Attempt #{}".format(attempt)
                 )
                 if attempt == self.maxretries - 1:
-                    return response
+                    return None
+
+        response = baseRR.GetOptionChainResponseMessage()
 
         response.symbol = optionschain.get("symbol", str)
         response.status = optionschain.get("status", str)
@@ -365,18 +366,17 @@ class TdaBroker(Broker, Component):
 
     def cancel_order(
         self, request: baseRR.CancelOrderRequestMessage
-    ) -> baseRR.CancelOrderResponseMessage:
+    ) -> Union[baseRR.CancelOrderResponseMessage, None]:
         """Cancels a given order ID."""
 
         try:
-            accountnumber = getenv("TDAMERITRADE_ACCOUNT_NUMBER")
-            orderidstr = str(request.orderid)
-
             cancelresponse = self.getsession().cancel_order(
-                account=accountnumber, order_id=orderidstr
+                account=getenv("TDAMERITRADE_ACCOUNT_NUMBER"),
+                order_id=str(request.orderid),
             )
         except Exception:
             logger.exception("Failed to cancel order {}.".format(str(request.orderid)))
+            return None
 
         response = baseRR.CancelOrderResponseMessage()
         response.responsecode = cancelresponse.get("status_code")

@@ -491,8 +491,11 @@ class CspByDeltaStrategy(Strategy, Component):
     def check_for_closing_orders(
         symbol: str, orders: list[baseRR.AccountOrder]
     ) -> bool:
-        """Checks a list of Order for closing orders."""
+        """Checks a list of Orders for closing orders."""
         logger.debug("check_for_closing_orders")
+
+        if orders == []:
+            return False
 
         return any(
             order.status == "QUEUED"
