@@ -21,7 +21,7 @@ class SpreadsByDeltaStrategy(Strategy, Component):
         default="Sample Spread Strategy", validator=attr.validators.instance_of(str)
     )
     underlying: str = attr.ib(
-        default="$SPX.X", validator=attr.validators.instance_of(str)
+        default="$SPY", validator=attr.validators.instance_of(str)
     )
     portfolioallocationpercent: float = attr.ib(
         default=1.0, validator=attr.validators.instance_of(float)
@@ -30,7 +30,7 @@ class SpreadsByDeltaStrategy(Strategy, Component):
         default="SELL", validator=attr.validators.in_(["SELL", "BUY"])
     )
     targetdelta: float = attr.ib(
-        default=-0.1, validator=attr.validators.instance_of(float)
+        default=-0.09, validator=attr.validators.instance_of(float)
     )
     minimumdte: int = attr.ib(default=1, validator=attr.validators.instance_of(int))
     maximumdte: int = attr.ib(default=4, validator=attr.validators.instance_of(int))
@@ -55,30 +55,30 @@ class SpreadsByDeltaStrategy(Strategy, Component):
         now = dt.datetime.now().astimezone(dt.timezone.utc)
 
         # Check if should be sleeping
-        if now < self.sleepuntil:
-            logger.debug("Markets Closed. Sleeping until {}".format(self.sleepuntil))
-            return
+        # if now < self.sleepuntil:
+        #     logger.debug("Markets Closed. Sleeping until {}".format(self.sleepuntil))
+        #     return
 
         # Check market hours
         hours = self.get_market_session_loop(dt.datetime.now())
 
-        if hours is None:
-            logger.error("Failed to get market hours, exiting and retrying.")
-            return
+        # if hours is None:
+        #     logger.error("Failed to get market hours, exiting and retrying.")
+        #     return
 
-        # If the next market session is not today, wait until 30minutes before close
-        if hours.start.day != now.day:
-            self.sleepuntil = hours.end - dt.timedelta(minutes=30)
-            logger.info(
-                "Markets are closed until {}. Sleeping until {}".format(
-                    hours.start, self.sleepuntil
-                )
-            )
-            return
+        # # If the next market session is not today, wait until 30minutes before close
+        # if hours.start.day != now.day:
+        #     self.sleepuntil = hours.end - dt.timedelta(minutes=30)
+        #     logger.info(
+        #         "Markets are closed until {}. Sleeping until {}".format(
+        #             hours.start, self.sleepuntil
+        #         )
+        #     )
+        #     return
 
-        # If In-Market
-        elif (hours.end - dt.timedelta(minutes=30)) < now < hours.end:
-            self.process_open_market(hours.end, now)
+        # # If In-Market
+        # elif (hours.end - dt.timedelta(minutes=30)) < now < hours.end:
+        self.process_open_market(hours.end, now)
 
     def process_open_market(self, close: dt.datetime, now: dt.datetime):
         """Open Market Trading Logic"""
@@ -86,6 +86,28 @@ class SpreadsByDeltaStrategy(Strategy, Component):
 
         # Place New Orders
         self.place_new_orders_loop()
+
+    # Order Placers
+    def place_new_orders_loop(self) -> None:
+        """Looping Logic for placing new orders"""
+        # Build Order
+        neworder = self.build_new_order()
+
+        # If there isn't an order, exit.
+        if neworder is None:
+            return
+
+        # Place the order and check the result
+        result = self.place_order(neworder)
+
+        # If successful, return
+        if result:
+            return
+
+        # Otherwise, try again
+        self.place_new_orders_loop()
+
+        return
 
     def build_new_order(self) -> Union[baseRR.PlaceOrderRequestMessage, None]:
         """Trading Logic for building new Order Request Messages"""
@@ -115,26 +137,6 @@ class SpreadsByDeltaStrategy(Strategy, Component):
 
         chain = self.mediator.get_option_chain(chainrequest)
 
-        # Should we even try?
-        usedbp = 0.0
-        for position in account.positions:
-            if (
-                position.underlyingsymbol == self.underlying
-                and position.putcall == "PUT"
-            ):
-                usedbp += (
-                    int(position.symbol[-4:])
-                    * 100
-                    * position.shortquantity
-                    * self.maxlosscalcpercent
-                )
-
-        estbp = 0.9 * (chain.underlyinglastprice * 0.2 * 100)
-        availbp = account.currentbalances.liquidationvalue - usedbp
-
-        if estbp > availbp:
-            return None
-
         # Find expiration to trade
         expiration = self.get_next_expiration(chain.putexpdatemap)
 
@@ -143,17 +145,23 @@ class SpreadsByDeltaStrategy(Strategy, Component):
             return None
 
         # Get the best strike
-        strike = self.get_best_strike(
-            expiration.strikes, availbp, account.currentbalances.liquidationvalue
+        short_strike = self.get_short_strike(expiration.strikes)
+
+        # If no short strike, exit.
+        if short_strike is None:
+            return None
+
+        long_strike = self.get_long_strike(
+            expiration.strikes, short_strike, chain.volatility
         )
 
-        # If no valid strikes, exit.
-        if strike is None:
+        # If no valid long strike, exit.
+        if long_strike is None:
             return None
 
         # Calculate Quantity
         qty = self.calculate_order_quantity(
-            strike.strike, availbp, account.currentbalances.liquidationvalue
+            short_strike.strike, long_strike.strike, account.currentbalances
         )
 
         # If no valid qty, exit.
@@ -161,7 +169,9 @@ class SpreadsByDeltaStrategy(Strategy, Component):
             return None
 
         # Calculate price
-        price = (strike.bid + strike.ask) / 2
+        price = (
+            short_strike.bid + short_strike.ask + long_strike.bid + long_strike.ask
+        ) / 4
         formattedprice = self.format_order_price(price)
 
         # Build Order
@@ -175,32 +185,10 @@ class SpreadsByDeltaStrategy(Strategy, Component):
         orderrequest.positioneffect = "OPENING"
         orderrequest.price = formattedprice
         orderrequest.quantity = qty
-        orderrequest.symbol = strike.symbol
+        orderrequest.symbol = short_strike.symbol
 
         # Return Order
         return orderrequest
-
-    # Order Placers
-    def place_new_orders_loop(self) -> None:
-        """Looping Logic for placing new orders"""
-        # Build Order
-        neworder = self.build_new_order()
-
-        # If there isn't an order, exit.
-        if neworder is None:
-            return
-
-        # Place the order and check the result
-        result = self.place_order(neworder)
-
-        # If successful, return
-        if result:
-            return
-
-        # Otherwise, try again
-        self.place_new_orders_loop()
-
-        return
 
     def place_order(self, orderrequest: baseRR.PlaceOrderRequestMessage) -> bool:
         """Method for placing new Orders and handling fills"""
@@ -284,44 +272,66 @@ class SpreadsByDeltaStrategy(Strategy, Component):
         # Return the min expiration
         return minexpiration
 
-    def get_best_strike(
+    def get_short_strike(
         self,
         strikes: dict[
             float, baseRR.GetOptionChainResponseMessage.ExpirationDate.Strike
         ],
-        buyingpower: float,
-        liquidationvalue: float,
     ) -> Union[baseRR.GetOptionChainResponseMessage.ExpirationDate.Strike, None]:
         """Searches an option chain for the optimal strike."""
         logger.debug("get_best_strike")
+
         # Set Variables
-        bestpremium = float(0)
-        beststrike = None
+        best_price = float(0)
+        best_strike = None
 
         # Iterate through strikes
-        for strike, details in strikes.items():
+        for details in strikes.values():
             # Make sure strike delta is less then our target delta
             if abs(details.delta) <= abs(self.targetdelta):
                 # Calculate the total premium for the strike based on our buying power
-                qty = self.calculate_order_quantity(
-                    strike, buyingpower, liquidationvalue
-                )
-                totalpremium = ((details.bid + details.ask) / 2) * qty
+                mid_price = (details.bid + details.ask) / 2
+                if mid_price > best_price:
+                    best_strike = details
+                    best_price = mid_price
 
-                # If the strike's premium is larger than our best premium, update it
-                if totalpremium > bestpremium:
-                    bestpremium = totalpremium
-                    beststrike = details
+        # Return the strike with the highest premium, under our delta
+        return best_strike
 
-        # Return the strike with the highest premium
-        return beststrike
+    def get_long_strike(
+        self,
+        strikes: dict[
+            float, baseRR.GetOptionChainResponseMessage.ExpirationDate.Strike
+        ],
+        short_strike: baseRR.GetOptionChainResponseMessage.ExpirationDate.Strike,
+        volatility: float,
+    ) -> Union[baseRR.GetOptionChainResponseMessage.ExpirationDate.Strike, None]:
+        """Searches an option chain for the optimal strike."""
+        logger.debug("get_best_strike")
+
+        if volatility <= 13:
+            delta = 10
+        elif 13 < volatility <= 15:
+            delta = 11
+        elif 15 < volatility <= 18:
+            delta = 12
+        elif 18 < volatility <= 21:
+            delta = 13
+        elif 21 < volatility <= 26:
+            delta = 14
+        else:
+            delta = 15
+
+        new_strike = short_strike.strike - delta
+
+        # Return the strike with the highest premium, under our delta
+        return strikes[new_strike]
 
     def calculate_order_quantity(
         self,
         shortstrike: float,
         longstrike: float,
-        buyingpower: float,
-        liquidationvalue: float,
+        account_balance: baseRR.AccountBalance,
     ) -> int:
         """Calculates the number of positions to open for a given account and strike."""
         logger.debug("calculate_order_quantity")
@@ -330,9 +340,13 @@ class SpreadsByDeltaStrategy(Strategy, Component):
         max_loss = abs(shortstrike - longstrike) * 100
 
         # Calculate max buying power to use
-        balance_to_risk = liquidationvalue * float(self.portfolioallocationpercent)
+        balance_to_risk = account_balance.liquidationvalue * float(
+            self.portfolioallocationpercent
+        )
 
-        remainingbalance = buyingpower - (liquidationvalue - balance_to_risk)
+        remainingbalance = account_balance.buyingpower - (
+            account_balance.liquidationvalue - balance_to_risk
+        )
 
         # Calculate trade size
         trade_size = remainingbalance // max_loss
@@ -342,8 +356,8 @@ class SpreadsByDeltaStrategy(Strategy, Component):
             "Short Strike: {} Long Strike: {} BuyingPower: {} LiquidationValue: {} MaxLoss: {} BalanceToRisk: {} RemainingBalance: {} TradeSize: {} ".format(
                 shortstrike,
                 longstrike,
-                buyingpower,
-                liquidationvalue,
+                account_balance.buyingpower,
+                account_balance.liquidationvalue,
                 max_loss,
                 balance_to_risk,
                 remainingbalance,
