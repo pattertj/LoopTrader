@@ -18,6 +18,7 @@ import basetypes.Mediator.reqRespTypes as baseRR
 from basetypes.Component.abstractComponent import Component
 from basetypes.Mediator.reqRespTypes import GetAccountRequestMessage
 from basetypes.Notifier.abstractnotifier import Notifier
+from dotenv import load_dotenv
 from telegram import ParseMode, Update
 from telegram.callbackquery import CallbackQuery
 from telegram.ext import (
@@ -35,6 +36,7 @@ from telegram.message import Message
 from telegram.utils.helpers import DefaultValue
 
 logger = logging.getLogger("autotrader")
+load_dotenv()
 
 
 @attr.s(auto_attribs=True)
@@ -242,8 +244,13 @@ class TelegramNotifier(Notifier, Component):
         request = GetAccountRequestMessage(False, False)
         account = self.mediator.get_account(request)
 
-        # Build Reply
         reply = r"Account Balances:"
+
+        if account is None or account.currentbalances is None:
+            reply += " \r\n No Account Found"
+            return reply
+
+        # Build Reply
         reply += "\r\n - <b>Liquidation Value:</b> <code>${}</code>".format(
             "{:,.2f}".format(account.currentbalances.liquidationvalue)
         )
@@ -262,7 +269,7 @@ class TelegramNotifier(Notifier, Component):
         # Build Reply
         reply = r"Account Performance:"
 
-        if account.positions is None:
+        if account is None or account.positions is None:
             reply += " \r\n No Positions Found"
             return reply
 
@@ -289,7 +296,7 @@ class TelegramNotifier(Notifier, Component):
         # Build Reply
         reply = r"Account Positions:"
 
-        if account.positions is None:
+        if account is None or account.positions is None:
             reply += " \r\n No Positions Found"
             return reply
 
@@ -309,6 +316,10 @@ class TelegramNotifier(Notifier, Component):
 
         # Build Reply
         reply = r"Open Orders:"
+
+        if account is None or account.orders is None:
+            reply += " \r\n No Orders Found"
+            return reply
 
         for order in account.orders:
             if order.status in ["OPEN", "QUEUED"]:

@@ -25,10 +25,12 @@ import attr
 import basetypes.Mediator.reqRespTypes as baseRR
 from basetypes.Broker.abstractBroker import Broker
 from basetypes.Component.abstractComponent import Component
+from dotenv import load_dotenv
 from td.client import TDClient
 from td.option_chain import OptionChain
 
 logger = logging.getLogger("autotrader")
+load_dotenv()
 
 
 @attr.s(auto_attribs=True)
