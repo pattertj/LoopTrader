@@ -98,10 +98,10 @@ class TelegramNotifier(Notifier, Component):
     def help(self, update: Update, context: CallbackContext):
         """Method to handle the /help command"""
         self.reply_text(
-            r"Welcome to LoopTrader, I'm a Telegram bot here to help you manage your LoopTrader\! There are a few things I can do: \r\n\n \- *Push Notifications* will alert you to alerts you setup in your LoopTrader\. \r\n \- */killswitch* will shutdown your LoopTrader\\. \r\n \- */account* will display your latest account details\. \r\n \- */orders* will display your open Orders. \r\n \- */positions* will show your open Positions\\.",
+            "Welcome to LoopTrader, I'm a Telegram bot here to help you manage your LoopTrader! There are a few things I can do: \r\n\n - <b>Push Notifications</b> will alert you to alerts you setup in your LoopTrader. \r\n - <b>/killswitch</b> will shutdown your LoopTrader. \r\n - <b>/account</b> will display your latest account details. \r\n - <b>/orders</b> will display your open Orders. \r\n - <b>/positions</b> will show your open Positions.",
             update.message,
             None,
-            ParseMode.MARKDOWN_V2,
+            ParseMode.HTML,
         )
 
     def orders(self, update: Update, context: CallbackContext):
