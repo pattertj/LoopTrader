@@ -170,10 +170,13 @@ class CspByDeltaStrategy(Strategy, Component):
         # Build closing orders
         closingorders = self.build_closing_orders()
 
+        if closingorders is None:
+            logger.warning("No Closing Orders Built.")
+            return None
+
         # Place closing Orders
-        if closingorders is not None:
-            for order in closingorders:
-                self.mediator.place_order(order)
+        for order in closingorders:
+            self.mediator.place_order(order)
 
         logger.info("Placed {} Closing Orders".format(len(closingorders)))
 
@@ -257,6 +260,10 @@ class CspByDeltaStrategy(Strategy, Component):
             logger.error("Failed to get Account")
             return None
 
+        if not hasattr(account, "positions"):
+            logger.error("Failed to get Positions")
+            return None
+
         # Calculate trade date
         startdate = dt.date.today() + dt.timedelta(days=self.minimumdte)
         enddate = dt.date.today() + dt.timedelta(days=self.maximumdte)
@@ -272,6 +279,10 @@ class CspByDeltaStrategy(Strategy, Component):
         )
 
         chain = self.mediator.get_option_chain(chainrequest)
+
+        if chain is None:
+            logger.error("Failed to get Option Chain.")
+            return None
 
         # Should we even try?
         usedbp = 0.0
@@ -341,7 +352,9 @@ class CspByDeltaStrategy(Strategy, Component):
         # Return Order
         return orderrequest
 
-    def build_cancel_closing_orders(self) -> list[baseRR.CancelOrderRequestMessage]:
+    def build_cancel_closing_orders(
+        self,
+    ) -> Union[list[baseRR.CancelOrderRequestMessage], None]:
         """Trading Logic for cancelling closing order positions"""
         logger.debug("build_cancel_closing_orders")
 
@@ -351,6 +364,10 @@ class CspByDeltaStrategy(Strategy, Component):
         accountrequest = baseRR.GetAccountRequestMessage(True, False)
         account = self.mediator.get_account(accountrequest)
 
+        if account is None:
+            logger.error("Failed to get Account.")
+            return None
+
         # Look for open positions
         for order in account.orders:
             if order.status == "QUEUED" and order.legs[0].positioneffect == "CLOSING":
@@ -359,7 +376,9 @@ class CspByDeltaStrategy(Strategy, Component):
 
         return orderrequests
 
-    def build_closing_orders(self) -> list[baseRR.PlaceOrderRequestMessage]:
+    def build_closing_orders(
+        self,
+    ) -> Union[list[baseRR.PlaceOrderRequestMessage], None]:
         """Trading Logic for building new Closing Order Request Messages"""
         logger.debug("build_closing_orders")
 
@@ -368,6 +387,10 @@ class CspByDeltaStrategy(Strategy, Component):
         # Get account balance
         accountrequest = baseRR.GetAccountRequestMessage(True, True)
         account = self.mediator.get_account(accountrequest)
+
+        if account is None:
+            logger.error("Failed to get Account.")
+            return None
 
         # Look for open positions
         for position in account.positions:
@@ -464,6 +487,14 @@ class CspByDeltaStrategy(Strategy, Component):
         getorderrequest = baseRR.GetOrderRequestMessage(int(neworderresult.orderid))
         processedorder = self.mediator.get_order(getorderrequest)
 
+        if processedorder is None:
+            logger.error(
+                "Failed to get re-get placed order, ID: {}.".format(
+                    neworderresult.orderid
+                )
+            )
+            return False
+
         # If the order isn't filled
         if processedorder.status != "FILLED":
             # Cancel it
@@ -508,8 +539,11 @@ class CspByDeltaStrategy(Strategy, Component):
     def check_for_closing_orders(
         symbol: str, orders: list[baseRR.AccountOrder]
     ) -> bool:
-        """Checks a list of Order for closing orders."""
+        """Checks a list of Orders for closing orders."""
         logger.debug("check_for_closing_orders")
+
+        if orders == []:
+            return False
 
         return any(
             order.status == "QUEUED"

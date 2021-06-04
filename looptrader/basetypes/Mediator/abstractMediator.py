@@ -10,7 +10,7 @@ class Mediator(abc.ABC):
     killswitch: bool = attr.ib(validator=attr.validators.instance_of(bool))
 
     @abc.abstractmethod
-    def process_strategies(self) -> bool:
+    def process_strategies(self):
         raise NotImplementedError(
             "Each strategy must implement the 'Process_Strategies' method."
         )
@@ -18,7 +18,7 @@ class Mediator(abc.ABC):
     @abc.abstractmethod
     def get_account(
         self, request: baseRR.GetAccountRequestMessage
-    ) -> baseRR.GetAccountResponseMessage:
+    ) -> Union[baseRR.GetAccountResponseMessage, None]:
         raise NotImplementedError(
             "Each strategy must implement the 'Get_Account' method."
         )
@@ -34,7 +34,7 @@ class Mediator(abc.ABC):
     @abc.abstractmethod
     def cancel_order(
         self, request: baseRR.CancelOrderRequestMessage
-    ) -> baseRR.CancelOrderResponseMessage:
+    ) -> Union[baseRR.CancelOrderResponseMessage, None]:
         raise NotImplementedError(
             "Each strategy must implement the 'Cancel_Order' method."
         )
@@ -42,7 +42,7 @@ class Mediator(abc.ABC):
     @abc.abstractmethod
     def get_option_chain(
         self, request: baseRR.GetOptionChainRequestMessage
-    ) -> baseRR.GetOptionChainResponseMessage:
+    ) -> Union[baseRR.GetOptionChainResponseMessage, None]:
         raise NotImplementedError(
             "Each strategy must implement the 'Get_Option_Chain' method."
         )
@@ -58,7 +58,7 @@ class Mediator(abc.ABC):
     @abc.abstractmethod
     def get_order(
         self, request: baseRR.GetOrderRequestMessage
-    ) -> baseRR.GetOrderResponseMessage:
+    ) -> Union[baseRR.GetOrderResponseMessage, None]:
         raise NotImplementedError(
             "Each strategy must implement the 'Get_Order' method."
         )
