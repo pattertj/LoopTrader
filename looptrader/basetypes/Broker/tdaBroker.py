@@ -256,6 +256,8 @@ class TdaBroker(Broker, Component):
 
         orderrequest["orderLegCollection"] = legs
 
+        response = baseRR.PlaceOrderResponseMessage()
+
         # Log the Order
         logger.info("Your order being placed is: {} ".format(orderrequest))
 
