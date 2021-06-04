@@ -335,6 +335,7 @@ class CspByDeltaStrategy(Strategy, Component):
         orderrequest.ordersession = "NORMAL"
         orderrequest.positioneffect = "OPENING"
         orderrequest.price = formattedprice
+        orderrequest.legs = list[baseRR.PlaceOrderRequestMessage.Leg]()
         orderrequest.legs.append(leg)
 
         # Return Order
@@ -412,6 +413,7 @@ class CspByDeltaStrategy(Strategy, Component):
             ),
             2,
         )
+        orderrequest.legs = list[baseRR.PlaceOrderRequestMessage.Leg]()
         orderrequest.legs.append(leg)
 
         return orderrequest
