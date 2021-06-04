@@ -7,42 +7,47 @@ import attr
 class PlaceOrderRequestMessage:
     """Generic request object for placing an order."""
 
+    # Define Order Request Leg Object
+    @attr.s(auto_attribs=True, init=False)
+    class Leg:
+
+        quantity: int = attr.ib(validator=attr.validators.instance_of(int))
+        symbol: str = attr.ib(validator=attr.validators.instance_of(str))
+        assettype: str = attr.ib(
+            validator=attr.validators.in_(
+                [
+                    "EQUITY",
+                    "OPTION",
+                    "INDEX",
+                    "MUTUAL_FUND",
+                    "CASH_EQUIVALENT",
+                    "FIXED_INCOME",
+                    "CURRENCY",
+                ]
+            )
+        )
+        instruction: str = attr.ib(
+            validator=attr.validators.in_(
+                [
+                    "BUY",
+                    "SELL",
+                    "BUY_TO_COVER",
+                    "SELL_SHORT",
+                    "BUY_TO_OPEN",
+                    "BUY_TO_CLOSE",
+                    "SELL_TO_OPEN",
+                    "SELL_TO_CLOSE",
+                    "EXCHANGE",
+                ]
+            )
+        )
+
     price: float = attr.ib(validator=attr.validators.instance_of(float))
-    quantity: int = attr.ib(validator=attr.validators.instance_of(int))
-    symbol: str = attr.ib(validator=attr.validators.instance_of(str))
     orderstrategytype: str = attr.ib(
         validator=attr.validators.in_(["SINGLE", "OCO", "TRIGGER"])
     )
     duration: str = attr.ib(
         validator=attr.validators.in_(["DAY", "GOOD_TILL_CANCEL", "FILL_OR_KILL"])
-    )
-    assettype: str = attr.ib(
-        validator=attr.validators.in_(
-            [
-                "EQUITY",
-                "OPTION",
-                "INDEX",
-                "MUTUAL_FUND",
-                "CASH_EQUIVALENT",
-                "FIXED_INCOME",
-                "CURRENCY",
-            ]
-        )
-    )
-    instruction: str = attr.ib(
-        validator=attr.validators.in_(
-            [
-                "BUY",
-                "SELL",
-                "BUY_TO_COVER",
-                "SELL_SHORT",
-                "BUY_TO_OPEN",
-                "BUY_TO_CLOSE",
-                "SELL_TO_OPEN",
-                "SELL_TO_CLOSE",
-                "EXCHANGE",
-            ]
-        )
     )
     ordertype: str = attr.ib(
         validator=attr.validators.in_(
@@ -67,6 +72,7 @@ class PlaceOrderRequestMessage:
     positioneffect: str = attr.ib(
         validator=attr.validators.in_(["OPENING", "CLOSING", "AUTOMATIC"])
     )
+    legs: list[Leg] = attr.ib(validator=attr.validators.instance_of(list[Leg]))
 
 
 @attr.s(auto_attribs=True, init=False)
@@ -102,6 +108,7 @@ class GetOptionChainResponseMessage:
         @attr.s(auto_attribs=True, init=False)
         class Strike:
             strike: float = attr.ib(validator=attr.validators.instance_of(float))
+            multiplier: float = attr.ib(validator=attr.validators.instance_of(float))
             bid: float = attr.ib(validator=attr.validators.instance_of(float))
             ask: float = attr.ib(validator=attr.validators.instance_of(float))
             delta: float = attr.ib(validator=attr.validators.instance_of(float))

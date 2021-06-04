@@ -233,22 +233,28 @@ class TdaBroker(Broker, Component):
             raise KeyError("Order is None")
 
         # Build Request. This is the bare minimum, we could extend the available request parameters in the future
-        orderrequest = OrderedDict()
+        orderrequest = OrderedDict[str, Any]()
         orderrequest["orderStrategyType"] = request.orderstrategytype
         orderrequest["orderType"] = request.ordertype
         orderrequest["session"] = request.ordersession
         orderrequest["duration"] = request.duration
         orderrequest["price"] = str(request.price)
-        orderrequest["orderLegCollection"] = [  # type: ignore
-            {
-                "instruction": request.instruction,
-                "quantity": request.quantity,
+
+        legs = []
+
+        for rleg in request.legs:
+            leg = {
+                "instruction": rleg.instruction,
+                "quantity": rleg.quantity,
                 "instrument": {
-                    "assetType": request.assettype,
-                    "symbol": request.symbol,
+                    "assetType": rleg.assettype,
+                    "symbol": rleg.symbol,
                 },
             }
-        ]
+
+            legs.append(leg)
+
+        orderrequest["orderLegCollection"] = legs
 
         response = baseRR.PlaceOrderResponseMessage()
 
@@ -493,6 +499,7 @@ class TdaBroker(Broker, Component):
                         baseRR.GetOptionChainResponseMessage.ExpirationDate.Strike()
                     )
                     strikeresponse.strike = detail.get("strikePrice", float)
+                    strikeresponse.multiplier = detail.get("multiplier", float)
                     strikeresponse.bid = detail.get("bid", float)
                     strikeresponse.ask = detail.get("ask", float)
                     strikeresponse.delta = detail.get("delta", float)
