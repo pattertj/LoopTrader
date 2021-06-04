@@ -90,7 +90,7 @@ class Bot(Mediator):
 
     def place_order(
         self, request: baseRR.PlaceOrderRequestMessage
-    ) -> baseRR.PlaceOrderResponseMessage:
+    ) -> Union[baseRR.PlaceOrderResponseMessage, None]:
         return self.broker.place_order(request)
 
     def cancel_order(

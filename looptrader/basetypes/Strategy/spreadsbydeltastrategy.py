@@ -15,28 +15,27 @@ logger = logging.getLogger("autotrader")
 
 @attr.s(auto_attribs=True)
 class SpreadsByDeltaStrategy(Strategy, Component):
-    """The concrete implementation of the generic LoopTrader Strategy class for trading Cash-Secured Puts by Delta."""
+    """The concrete implementation of the generic LoopTrader Strategy class for trading Option Spreads by Delta."""
 
     strategy_name: str = attr.ib(
         default="Sample Spread Strategy", validator=attr.validators.instance_of(str)
     )
-    underlying: str = attr.ib(
-        default="$SPY", validator=attr.validators.instance_of(str)
-    )
+    underlying: str = attr.ib(default="SPY", validator=attr.validators.instance_of(str))
     portfolioallocationpercent: float = attr.ib(
         default=1.0, validator=attr.validators.instance_of(float)
+    )
+    put_or_call: str = attr.ib(
+        default="PUT", validator=attr.validators.in_(["PUT", "CALL"])
     )
     buy_or_sell: str = attr.ib(
         default="SELL", validator=attr.validators.in_(["SELL", "BUY"])
     )
     targetdelta: float = attr.ib(
-        default=-0.09, validator=attr.validators.instance_of(float)
+        default=-0.03, validator=attr.validators.instance_of(float)
     )
+    width: float = attr.ib(default=15.0, validator=attr.validators.instance_of(float))
     minimumdte: int = attr.ib(default=1, validator=attr.validators.instance_of(int))
     maximumdte: int = attr.ib(default=4, validator=attr.validators.instance_of(int))
-    maxlosscalcpercent: float = attr.ib(
-        default=0.1, validator=attr.validators.instance_of(float)
-    )
     openingorderloopseconds: int = attr.ib(
         default=20, validator=attr.validators.instance_of(int)
     )
@@ -127,7 +126,7 @@ class SpreadsByDeltaStrategy(Strategy, Component):
 
         # Get option chain
         chainrequest = baseRR.GetOptionChainRequestMessage(
-            contracttype="PUT",
+            contracttype=self.put_or_call,
             fromdate=startdate,
             todate=enddate,
             symbol=self.underlying,
@@ -138,22 +137,23 @@ class SpreadsByDeltaStrategy(Strategy, Component):
         chain = self.mediator.get_option_chain(chainrequest)
 
         # Find expiration to trade
-        expiration = self.get_next_expiration(chain.putexpdatemap)
+        if self.put_or_call == "PUT":
+            expiration = self.get_next_expiration(chain.putexpdatemap)
+        else:
+            expiration = self.get_next_expiration(chain.callexpdatemap)
 
         # If no valid expirations, exit.
         if expiration is None:
             return None
 
-        # Get the best strike
+        # Get the short strike
         short_strike = self.get_short_strike(expiration.strikes)
 
         # If no short strike, exit.
         if short_strike is None:
             return None
 
-        long_strike = self.get_long_strike(
-            expiration.strikes, short_strike, chain.volatility
-        )
+        long_strike = self.get_long_strike(expiration.strikes, short_strike.strike)
 
         # If no valid long strike, exit.
         if long_strike is None:
@@ -170,22 +170,46 @@ class SpreadsByDeltaStrategy(Strategy, Component):
 
         # Calculate price
         price = (
-            short_strike.bid + short_strike.ask + long_strike.bid + long_strike.ask
-        ) / 4
+            short_strike.bid + short_strike.ask - (long_strike.bid + long_strike.ask)
+        ) / 2
         formattedprice = self.format_order_price(price)
+
+        # Build Short Leg
+        shortleg = baseRR.PlaceOrderRequestMessage.Leg()
+        shortleg.symbol = short_strike.symbol
+        shortleg.assettype = "OPTION"
+        shortleg.quantity = qty
+
+        if self.buy_or_sell == "SELL":
+            shortleg.instruction = "SELL_TO_OPEN"
+        else:
+            shortleg.instruction = "BUY_TO_OPEN"
+
+        # Build Long Leg
+        longleg = baseRR.PlaceOrderRequestMessage.Leg()
+        longleg.symbol = long_strike.symbol
+        longleg.assettype = "OPTION"
+        longleg.quantity = qty
+
+        if self.buy_or_sell == "SELL":
+            longleg.instruction = "BUY_TO_OPEN"
+        else:
+            longleg.instruction = "SELL_TO_OPEN"
 
         # Build Order
         orderrequest = baseRR.PlaceOrderRequestMessage()
         orderrequest.orderstrategytype = "SINGLE"
-        orderrequest.assettype = "OPTION"
         orderrequest.duration = "GOOD_TILL_CANCEL"
-        orderrequest.instruction = "SELL_TO_OPEN"
-        orderrequest.ordertype = "LIMIT"
+        if self.buy_or_sell == "SELL":
+            orderrequest.ordertype = "NET_CREDIT"
+        else:
+            orderrequest.ordertype = "NET_DEBIT"
         orderrequest.ordersession = "NORMAL"
         orderrequest.positioneffect = "OPENING"
         orderrequest.price = formattedprice
-        orderrequest.quantity = qty
-        orderrequest.symbol = short_strike.symbol
+        orderrequest.legs = list[baseRR.PlaceOrderRequestMessage.Leg]()
+        orderrequest.legs.append(shortleg)
+        orderrequest.legs.append(longleg)
 
         # Return Order
         return orderrequest
@@ -196,7 +220,11 @@ class SpreadsByDeltaStrategy(Strategy, Component):
         neworderresult = self.mediator.place_order(orderrequest)
 
         # If the order placement fails, exit the method.
-        if neworderresult.orderid is None or neworderresult.orderid == 0:
+        if (
+            neworderresult is None
+            or neworderresult.orderid is None
+            or neworderresult.orderid == 0
+        ):
             return False
 
         # Wait to let the Order process
@@ -210,7 +238,7 @@ class SpreadsByDeltaStrategy(Strategy, Component):
         if processedorder.status != "FILLED":
             # Cancel it
             cancelorderrequest = baseRR.CancelOrderRequestMessage(
-                neworderresult.orderid
+                int(neworderresult.orderid)
             )
             self.mediator.cancel_order(cancelorderrequest)
 
@@ -218,14 +246,15 @@ class SpreadsByDeltaStrategy(Strategy, Component):
             return False
 
         # TODO: Fix
-        notification = baseRR.SendNotificationRequestMessage(
-            "Sold <code>- {}x {} @ ${}</code>".format(
-                str(orderrequest.quantity),
-                str(orderrequest.symbol),
-                "{:,.2f}".format(orderrequest.price),
-            )
-        )
-        self.mediator.send_notification(notification)
+        #         notification = baseRR.SendNotificationRequestMessage(
+        #             "Sold <code>- {}x {} @ ${}</code>".format(
+        #                str(orderrequest.quantity),
+        #                str(orderrequest.symbol),
+        #                 "{:,.2f}".format(orderrequest.price),
+        #             )
+        #         )
+
+        # self.mediator.send_notification(notification)
 
         # If we got here, return success
         return True
@@ -303,29 +332,24 @@ class SpreadsByDeltaStrategy(Strategy, Component):
         strikes: dict[
             float, baseRR.GetOptionChainResponseMessage.ExpirationDate.Strike
         ],
-        short_strike: baseRR.GetOptionChainResponseMessage.ExpirationDate.Strike,
-        volatility: float,
+        short_strike: float,
     ) -> Union[baseRR.GetOptionChainResponseMessage.ExpirationDate.Strike, None]:
         """Searches an option chain for the optimal strike."""
         logger.debug("get_best_strike")
 
-        if volatility <= 13:
-            delta = 10
-        elif 13 < volatility <= 15:
-            delta = 11
-        elif 15 < volatility <= 18:
-            delta = 12
-        elif 18 < volatility <= 21:
-            delta = 13
-        elif 21 < volatility <= 26:
-            delta = 14
-        else:
-            delta = 15
+        new_strike = short_strike - self.width
 
-        new_strike = short_strike.strike - delta
+        best_strike = 0.0
+        best_delta = 1000000.0
 
-        # Return the strike with the highest premium, under our delta
-        return strikes[new_strike]
+        for strike in strikes:
+            delta = strike - new_strike
+            if abs(delta) < best_delta:
+                best_strike = strike
+                best_delta = abs(delta)
+
+        # Return the strike
+        return strikes[best_strike]
 
     def calculate_order_quantity(
         self,
@@ -372,8 +396,7 @@ class SpreadsByDeltaStrategy(Strategy, Component):
         """Formats a price according to brokerage rules."""
         logger.debug("format_order_price")
 
-        base = 0.1 if price > 3 else 0.05
-        return self.truncate(base * round(price / base), 2)
+        return self.truncate(0.01 * round(price / 0.01), 2)
 
     @staticmethod
     def truncate(number: float, digits: int) -> float:

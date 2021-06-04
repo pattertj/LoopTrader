@@ -26,7 +26,7 @@ class Mediator(abc.ABC):
     @abc.abstractmethod
     def place_order(
         self, request: baseRR.PlaceOrderRequestMessage
-    ) -> baseRR.PlaceOrderResponseMessage:
+    ) -> Union[baseRR.PlaceOrderResponseMessage, None]:
         raise NotImplementedError(
             "Each strategy must implement the 'Place_Order' method."
         )

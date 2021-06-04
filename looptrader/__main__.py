@@ -16,7 +16,7 @@ if __name__ == "__main__":
     )
 
     # Create our strategies
-    cspstrat = SpreadsByDeltaStrategy(strategy_name="Spreads")
+    spreadstrat = SpreadsByDeltaStrategy(strategy_name="Spreads")
 
     # Create our broker
     tdabroker = TdaBroker()
@@ -30,7 +30,7 @@ if __name__ == "__main__":
     # Create our Bot
     bot = Bot(
         broker=tdabroker,
-        strategies=[cspstrat],
+        strategies=[spreadstrat],
         database=sqlitedb,
         notifier=telegram_bot,
     )

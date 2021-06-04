@@ -219,7 +219,7 @@ class TdaBroker(Broker, Component):
 
     def place_order(
         self, request: baseRR.PlaceOrderRequestMessage
-    ) -> baseRR.PlaceOrderResponseMessage:
+    ) -> Union[baseRR.PlaceOrderResponseMessage, None]:
         """The function for placing an order with TD Ameritrade."""
 
         # Validate the request
@@ -228,24 +228,28 @@ class TdaBroker(Broker, Component):
             raise KeyError("Order is None")
 
         # Build Request. This is the bare minimum, we could extend the available request parameters in the future
-        orderrequest = OrderedDict()
+        orderrequest = OrderedDict[str, Any]()
         orderrequest["orderStrategyType"] = request.orderstrategytype
         orderrequest["orderType"] = request.ordertype
         orderrequest["session"] = request.ordersession
         orderrequest["duration"] = request.duration
         orderrequest["price"] = str(request.price)
-        orderrequest["orderLegCollection"] = str(
-            [
-                {
-                    "instruction": request.instruction,
-                    "quantity": request.quantity,
-                    "instrument": {
-                        "assetType": request.assettype,
-                        "symbol": request.symbol,
-                    },
-                }
-            ]
-        )
+
+        legs = []
+
+        for rleg in request.legs:
+            leg = {
+                "instruction": rleg.instruction,
+                "quantity": rleg.quantity,
+                "instrument": {
+                    "assetType": rleg.assettype,
+                    "symbol": rleg.symbol,
+                },
+            }
+
+            legs.append(leg)
+
+        orderrequest["orderLegCollection"] = legs
 
         # Log the Order
         logger.info("Your order being placed is: {} ".format(orderrequest))
@@ -258,6 +262,7 @@ class TdaBroker(Broker, Component):
             logger.info("Order {} Placed".format(orderresponse["order_id"]))
         except Exception:
             logger.exception("Failed to place order.")
+            return None
 
         response = baseRR.PlaceOrderResponseMessage()
         response.orderid = orderresponse.get("order_id")
@@ -488,6 +493,7 @@ class TdaBroker(Broker, Component):
                         baseRR.GetOptionChainResponseMessage.ExpirationDate.Strike()
                     )
                     strikeresponse.strike = detail.get("strikePrice", float)
+                    strikeresponse.multiplier = detail.get("multiplier", float)
                     strikeresponse.bid = detail.get("bid", float)
                     strikeresponse.ask = detail.get("ask", float)
                     strikeresponse.delta = detail.get("delta", float)
