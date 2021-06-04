@@ -316,18 +316,26 @@ class CspByDeltaStrategy(Strategy, Component):
         price = (strike.bid + strike.ask) / 2
         formattedprice = self.format_order_price(price)
 
+        # Build Leg
+        leg = baseRR.PlaceOrderRequestMessage.Leg()
+        leg.symbol = strike.symbol
+        leg.assettype = "OPTION"
+        leg.quantity = qty
+
+        if self.buy_or_sell == "SELL":
+            leg.instruction = "SELL_TO_OPEN"
+        else:
+            leg.instruction = "BUY_TO_OPEN"
+
         # Build Order
         orderrequest = baseRR.PlaceOrderRequestMessage()
         orderrequest.orderstrategytype = "SINGLE"
-        orderrequest.assettype = "OPTION"
         orderrequest.duration = "GOOD_TILL_CANCEL"
-        orderrequest.instruction = "SELL_TO_OPEN"
         orderrequest.ordertype = "LIMIT"
         orderrequest.ordersession = "NORMAL"
         orderrequest.positioneffect = "OPENING"
         orderrequest.price = formattedprice
-        orderrequest.quantity = qty
-        orderrequest.symbol = strike.symbol
+        orderrequest.legs.append(leg)
 
         # Return Order
         return orderrequest
@@ -382,11 +390,19 @@ class CspByDeltaStrategy(Strategy, Component):
 
     def build_closing_order_request(self, position: baseRR.AccountPosition):
         """Builds a closing order request message for a given position."""
+        leg = baseRR.PlaceOrderRequestMessage.Leg()
+        leg.symbol = position.symbol
+        leg.assettype = "OPTION"
+        leg.quantity = position.shortquantity
+
+        if self.buy_or_sell == "SELL":
+            leg.instruction = "BUY_TO_CLOSE"
+        else:
+            leg.instruction = "SELL_TO_CLOSE"
+
         orderrequest = baseRR.PlaceOrderRequestMessage()
         orderrequest.orderstrategytype = "SINGLE"
-        orderrequest.assettype = "OPTION"
         orderrequest.duration = "GOOD_TILL_CANCEL"
-        orderrequest.instruction = "BUY_TO_CLOSE"
         orderrequest.ordertype = "LIMIT"
         orderrequest.ordersession = "NORMAL"
         orderrequest.positioneffect = "CLOSING"
@@ -396,8 +412,8 @@ class CspByDeltaStrategy(Strategy, Component):
             ),
             2,
         )
-        orderrequest.quantity = position.shortquantity
-        orderrequest.symbol = position.symbol
+        orderrequest.legs.append(leg)
+
         return orderrequest
 
     # Order Placers
@@ -428,7 +444,11 @@ class CspByDeltaStrategy(Strategy, Component):
         neworderresult = self.mediator.place_order(orderrequest)
 
         # If the order placement fails, exit the method.
-        if neworderresult.orderid is None or neworderresult.orderid == 0:
+        if (
+            neworderresult is None
+            or neworderresult.orderid is None
+            or neworderresult.orderid == 0
+        ):
             return False
 
         # If closing order, let the order ride, otherwise continue logic
@@ -453,13 +473,15 @@ class CspByDeltaStrategy(Strategy, Component):
             # Return failure to fill order
             return False
 
-        notification = baseRR.SendNotificationRequestMessage(
-            "Sold <code>- {}x {} @ ${}</code>".format(
-                str(orderrequest.quantity),
-                str(orderrequest.symbol),
-                "{:,.2f}".format(orderrequest.price),
+        message = "Sold:<code>"
+
+        for leg in orderrequest.legs:
+            message += "\r\n - {}x {} @ ${}</code>".format(
+                str(leg.quantity), str(leg.symbol), "{:,.2f}".format(orderrequest.price)
             )
-        )
+
+        notification = baseRR.SendNotificationRequestMessage(message)
+
         self.mediator.send_notification(notification)
 
         # If we got here, return success

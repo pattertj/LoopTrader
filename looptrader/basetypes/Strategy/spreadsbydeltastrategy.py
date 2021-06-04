@@ -31,13 +31,13 @@ class SpreadsByDeltaStrategy(Strategy, Component):
         default="SELL", validator=attr.validators.in_(["SELL", "BUY"])
     )
     targetdelta: float = attr.ib(
-        default=-0.03, validator=attr.validators.instance_of(float)
+        default=-0.04, validator=attr.validators.instance_of(float)
     )
-    width: float = attr.ib(default=15.0, validator=attr.validators.instance_of(float))
+    width: float = attr.ib(default=25.0, validator=attr.validators.instance_of(float))
     minimumdte: int = attr.ib(default=1, validator=attr.validators.instance_of(int))
     maximumdte: int = attr.ib(default=4, validator=attr.validators.instance_of(int))
     openingorderloopseconds: int = attr.ib(
-        default=20, validator=attr.validators.instance_of(int)
+        default=60, validator=attr.validators.instance_of(int)
     )
     sleepuntil: dt.datetime = attr.ib(
         init=False,
@@ -54,30 +54,29 @@ class SpreadsByDeltaStrategy(Strategy, Component):
         now = dt.datetime.now().astimezone(dt.timezone.utc)
 
         # Check if should be sleeping
-        # if now < self.sleepuntil:
-        #     logger.debug("Markets Closed. Sleeping until {}".format(self.sleepuntil))
-        #     return
+        if now < self.sleepuntil:
+            logger.debug("Markets Closed. Sleeping until {}".format(self.sleepuntil))
+            return
 
         # Check market hours
         hours = self.get_market_session_loop(dt.datetime.now())
 
-        # if hours is None:
-        #     logger.error("Failed to get market hours, exiting and retrying.")
-        #     return
+        if hours is None:
+            logger.error("Failed to get market hours, exiting and retrying.")
+            return
 
-        # # If the next market session is not today, wait until 30minutes before close
-        # if hours.start.day != now.day:
-        #     self.sleepuntil = hours.end - dt.timedelta(minutes=30)
-        #     logger.info(
-        #         "Markets are closed until {}. Sleeping until {}".format(
-        #             hours.start, self.sleepuntil
-        #         )
-        #     )
-        #     return
-
-        # # If In-Market
-        # elif (hours.end - dt.timedelta(minutes=30)) < now < hours.end:
-        self.process_open_market(hours.end, now)
+        # If the next market session is not today, wait until 30minutes before close
+        if hours.start.day != now.day:
+            self.sleepuntil = hours.end - dt.timedelta(minutes=30)
+            logger.info(
+                "Markets are closed until {}. Sleeping until {}".format(
+                    hours.start, self.sleepuntil
+                )
+            )
+            return
+        # If In-Market
+        elif (hours.end - dt.timedelta(minutes=30)) < now < hours.end:
+            self.process_open_market(hours.end, now)
 
     def process_open_market(self, close: dt.datetime, now: dt.datetime):
         """Open Market Trading Logic"""
@@ -245,16 +244,16 @@ class SpreadsByDeltaStrategy(Strategy, Component):
             # Return failure to fill order
             return False
 
-        # TODO: Fix
-        #         notification = baseRR.SendNotificationRequestMessage(
-        #             "Sold <code>- {}x {} @ ${}</code>".format(
-        #                str(orderrequest.quantity),
-        #                str(orderrequest.symbol),
-        #                 "{:,.2f}".format(orderrequest.price),
-        #             )
-        #         )
+        message = "Sold:<code>"
 
-        # self.mediator.send_notification(notification)
+        for leg in orderrequest.legs:
+            message += "\r\n - {}x {} @ ${}</code>".format(
+                str(leg.quantity), str(leg.symbol), "{:,.2f}".format(orderrequest.price)
+            )
+
+        notification = baseRR.SendNotificationRequestMessage(message)
+
+        self.mediator.send_notification(notification)
 
         # If we got here, return success
         return True
