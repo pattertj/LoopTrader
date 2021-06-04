@@ -156,6 +156,7 @@ class AccountPosition:
 
     shortquantity: int = attr.ib(validator=attr.validators.instance_of(int))
     averageprice: float = attr.ib(validator=attr.validators.instance_of(float))
+    strikeprice: float = attr.ib(validator=attr.validators.instance_of(float))
     currentdayprofitloss: float = attr.ib(validator=attr.validators.instance_of(float))
     currentdayprofitlosspercentage: float = attr.ib(
         validator=attr.validators.instance_of(float)

@@ -292,7 +292,7 @@ class CspByDeltaStrategy(Strategy, Component):
                 and position.putcall == "PUT"
             ):
                 usedbp += (
-                    int(position.symbol[-4:])
+                    position.strikeprice
                     * 100
                     * position.shortquantity
                     * self.maxlosscalcpercent
