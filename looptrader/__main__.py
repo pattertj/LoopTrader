@@ -5,7 +5,7 @@ from basetypes.Broker.tdaBroker import TdaBroker
 from basetypes.Database.sqliteDatabase import SqliteDatabase
 from basetypes.Mediator.botMediator import Bot
 from basetypes.Notifier.telegramnotifier import TelegramNotifier
-from basetypes.Strategy.spreadsbydeltastrategy import SpreadsByDeltaStrategy
+from basetypes.Strategy.cspByDeltaStrategy import CspByDeltaStrategy
 
 if __name__ == "__main__":
     # Create Logging
@@ -16,7 +16,7 @@ if __name__ == "__main__":
     )
 
     # Create our strategies
-    spreadstrat = SpreadsByDeltaStrategy(strategy_name="Spreads")
+    spreadstrat = CspByDeltaStrategy(strategy_name="CSP1")
 
     # Create our broker
     tdabroker = TdaBroker()
