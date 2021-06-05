@@ -47,7 +47,9 @@ Getting up and running with LoopTrader is just a few commands:
     # Setup pre-commit and pre-push hooks
     pipenv run pre-commit install -t pre-commit
     pipenv run pre-commit install -t pre-push
-    
+
+More detailed instructions on specific components can be found in the [wiki](https://github.com/pattertj/LoopTrader/wiki).
+
 ## Usage
 Currently all configuration of LoopTrader is done in the code when creating the bot in [main.py](https://github.com/pattertj/LoopTrader/blob/looptrader/__main__.py) and in the [.env](https://github.com/pattertj/LoopTrader/blob/looptrader/sample.env) file. A sample .env file is provided, but it should be renamed to ".env" and the configuration variables populated.
 
