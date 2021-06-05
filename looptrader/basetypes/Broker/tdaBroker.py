@@ -17,6 +17,7 @@ Functions:
 
 import datetime as dtime
 import logging
+import re
 from collections import OrderedDict
 from os import getenv
 from typing import Any, Union
@@ -187,10 +188,20 @@ class TdaBroker(Broker, Component):
 
         accountposition.marketvalue = position.get("marketValue", float)
         accountposition.longquantity = position.get("longQuantity", int)
+        accountposition.strikeprice = 1
 
         instrument = position.get("instrument", dict)
 
         if instrument is not None:
+            strikeprice = re.search(r"(?<=[P])\d\w+", instrument.get("symbol", str))
+
+            if strikeprice is None:
+                logger.error(
+                    "No strike price found for {}".format(instrument.get("symbol", str))
+                )
+            else:
+                accountposition.strikeprice = float(strikeprice.group())
+
             accountposition.assettype = instrument.get("assetType", str)
             accountposition.description = instrument.get("description", str)
             accountposition.putcall = instrument.get("putCall", str)
