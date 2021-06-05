@@ -135,6 +135,9 @@ class SpreadsByDeltaStrategy(Strategy, Component):
 
         chain = self.mediator.get_option_chain(chainrequest)
 
+        if chain is None:
+            return None
+
         # Find expiration to trade
         if self.put_or_call == "PUT":
             expiration = self.get_next_expiration(chain.putexpdatemap)
@@ -232,6 +235,9 @@ class SpreadsByDeltaStrategy(Strategy, Component):
         # Fetch the Order status
         getorderrequest = baseRR.GetOrderRequestMessage(int(neworderresult.orderid))
         processedorder = self.mediator.get_order(getorderrequest)
+
+        if processedorder is None:
+            return False
 
         # If the order isn't filled
         if processedorder.status != "FILLED":
