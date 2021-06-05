@@ -238,6 +238,10 @@ class TdaBroker(Broker, Component):
     ) -> Union[baseRR.PlaceOrderResponseMessage, None]:
         """The function for placing an order with TD Ameritrade."""
 
+        # Check killswitch
+        if self.mediator.killswitch is True:
+            return None
+
         # Validate the request
         if request is None:
             logger.error("Order is None")
@@ -387,6 +391,10 @@ class TdaBroker(Broker, Component):
         self, request: baseRR.CancelOrderRequestMessage
     ) -> Union[baseRR.CancelOrderResponseMessage, None]:
         """Cancels a given order ID."""
+
+        # Check killswitch
+        if self.mediator.killswitch is True:
+            return None
 
         try:
             cancelresponse = self.getsession().cancel_order(

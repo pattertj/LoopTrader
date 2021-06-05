@@ -12,7 +12,7 @@ class Mediator(abc.ABC):
     @abc.abstractmethod
     def process_strategies(self):
         raise NotImplementedError(
-            "Each strategy must implement the 'Process_Strategies' method."
+            "Each mediator must implement the 'Process_Strategies' method."
         )
 
     @abc.abstractmethod
@@ -20,7 +20,7 @@ class Mediator(abc.ABC):
         self, request: baseRR.GetAccountRequestMessage
     ) -> Union[baseRR.GetAccountResponseMessage, None]:
         raise NotImplementedError(
-            "Each strategy must implement the 'Get_Account' method."
+            "Each mediator must implement the 'Get_Account' method."
         )
 
     @abc.abstractmethod
@@ -28,7 +28,7 @@ class Mediator(abc.ABC):
         self, request: baseRR.PlaceOrderRequestMessage
     ) -> Union[baseRR.PlaceOrderResponseMessage, None]:
         raise NotImplementedError(
-            "Each strategy must implement the 'Place_Order' method."
+            "Each mediator must implement the 'Place_Order' method."
         )
 
     @abc.abstractmethod
@@ -36,7 +36,7 @@ class Mediator(abc.ABC):
         self, request: baseRR.CancelOrderRequestMessage
     ) -> Union[baseRR.CancelOrderResponseMessage, None]:
         raise NotImplementedError(
-            "Each strategy must implement the 'Cancel_Order' method."
+            "Each mediator must implement the 'Cancel_Order' method."
         )
 
     @abc.abstractmethod
@@ -44,7 +44,7 @@ class Mediator(abc.ABC):
         self, request: baseRR.GetOptionChainRequestMessage
     ) -> Union[baseRR.GetOptionChainResponseMessage, None]:
         raise NotImplementedError(
-            "Each strategy must implement the 'Get_Option_Chain' method."
+            "Each mediator must implement the 'Get_Option_Chain' method."
         )
 
     @abc.abstractmethod
@@ -52,7 +52,7 @@ class Mediator(abc.ABC):
         self, request: baseRR.GetMarketHoursRequestMessage
     ) -> Union[baseRR.GetMarketHoursResponseMessage, None]:
         raise NotImplementedError(
-            "Each strategy must implement the 'Get_Market_Hours' method."
+            "Each mediator must implement the 'Get_Market_Hours' method."
         )
 
     @abc.abstractmethod
@@ -60,17 +60,17 @@ class Mediator(abc.ABC):
         self, request: baseRR.GetOrderRequestMessage
     ) -> Union[baseRR.GetOrderResponseMessage, None]:
         raise NotImplementedError(
-            "Each strategy must implement the 'Get_Order' method."
+            "Each mediator must implement the 'Get_Order' method."
         )
 
     @abc.abstractmethod
     def send_notification(self, msg: baseRR.SendNotificationRequestMessage) -> None:
         raise NotImplementedError(
-            "Each strategy must implement the 'send_notification' method."
+            "Each mediator must implement the 'send_notification' method."
         )
 
     @abc.abstractmethod
     def set_kill_switch(self, kill_switch: baseRR.SetKillSwitchRequestMessage) -> None:
         raise NotImplementedError(
-            "Each strategy must implement the 'set_kill_switch' method."
+            "Each mediator must implement the 'set_kill_switch' method."
         )
