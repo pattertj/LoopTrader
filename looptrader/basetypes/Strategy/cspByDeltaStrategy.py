@@ -253,30 +253,16 @@ class CspByDeltaStrategy(Strategy, Component):
         logger.debug("build_new_order")
 
         # Get account balance
-        accountrequest = baseRR.GetAccountRequestMessage(False, True)
-        account = self.mediator.get_account(accountrequest)
+        account = self.mediator.get_account(
+            baseRR.GetAccountRequestMessage(False, True)
+        )
 
-        if account is None:
+        if account is None or not hasattr(account, "positions"):
             logger.error("Failed to get Account")
             return None
 
-        if not hasattr(account, "positions"):
-            logger.error("Failed to get Positions")
-            return None
-
-        # Calculate trade date
-        startdate = dt.date.today() + dt.timedelta(days=self.minimumdte)
-        enddate = dt.date.today() + dt.timedelta(days=self.maximumdte)
-
         # Get option chain
-        chainrequest = baseRR.GetOptionChainRequestMessage(
-            contracttype="PUT",
-            fromdate=startdate,
-            todate=enddate,
-            symbol=self.underlying,
-            includequotes=False,
-            optionrange="OTM",
-        )
+        chainrequest = self.build_option_chain_request()
 
         chain = self.mediator.get_option_chain(chainrequest)
 
@@ -285,31 +271,16 @@ class CspByDeltaStrategy(Strategy, Component):
             return None
 
         # Should we even try?
-        usedbp = 0.0
-        for position in account.positions:
-            if (
-                position.underlyingsymbol == self.underlying
-                and position.putcall == "PUT"
-            ):
-                usedbp += (
-                    position.strikeprice
-                    * 100
-                    * position.shortquantity
-                    * self.maxlosscalcpercent
-                )
+        availbp = self.calculate_actual_buying_power(account)
 
-        estbp = 0.9 * (chain.underlyinglastprice * 0.2 * 100)
-        availbp = account.currentbalances.liquidationvalue - usedbp
-
-        if estbp > availbp:
-            return None
-
-        # Find strike to trade
+        # Find next expiration
         expiration = self.get_next_expiration(chain.putexpdatemap)
 
+        # If no valid expirations, exit.
         if expiration is None:
             return None
 
+        # Find best strike to trade
         strike = self.get_best_strike(
             expiration.strikes, availbp, account.currentbalances.liquidationvalue
         )
@@ -324,9 +295,42 @@ class CspByDeltaStrategy(Strategy, Component):
         )
 
         # Calculate price
-        price = (strike.bid + strike.ask) / 2
-        formattedprice = self.format_order_price(price)
+        formattedprice = self.format_order_price((strike.bid + strike.ask) / 2)
 
+        # Return Order
+        return self.build_opening_order_request(strike, qty, formattedprice)
+
+    def build_option_chain_request(self) -> baseRR.GetOptionChainRequestMessage:
+        """Builds the option chain request message.
+
+        Returns:
+            baseRR.GetOptionChainRequestMessage: Option chain request message
+        """
+        return baseRR.GetOptionChainRequestMessage(
+            contracttype="PUT",
+            fromdate=dt.date.today() + dt.timedelta(days=self.minimumdte),
+            todate=dt.date.today() + dt.timedelta(days=self.maximumdte),
+            symbol=self.underlying,
+            includequotes=False,
+            optionrange="OTM",
+        )
+
+    def build_opening_order_request(
+        self,
+        strike: baseRR.GetOptionChainResponseMessage.ExpirationDate.Strike,
+        qty: int,
+        price: float,
+    ) -> baseRR.PlaceOrderRequestMessage:
+        """Builds an order request to open a new postion
+
+        Args:
+            strike (baseRR.GetOptionChainResponseMessage.ExpirationDate.Strike): The strike to trade
+            qty (int): The number of contracts
+            price (float): Contract Price
+
+        Returns:
+            baseRR.PlaceOrderRequestMessage: Order request message
+        """
         # Build Leg
         leg = baseRR.PlaceOrderRequestMessage.Leg()
         leg.symbol = strike.symbol
@@ -345,11 +349,10 @@ class CspByDeltaStrategy(Strategy, Component):
         orderrequest.ordertype = "LIMIT"
         orderrequest.ordersession = "NORMAL"
         orderrequest.positioneffect = "OPENING"
-        orderrequest.price = formattedprice
+        orderrequest.price = price
         orderrequest.legs = list[baseRR.PlaceOrderRequestMessage.Leg]()
         orderrequest.legs.append(leg)
 
-        # Return Order
         return orderrequest
 
     def build_cancel_closing_orders(
@@ -609,6 +612,46 @@ class CspByDeltaStrategy(Strategy, Component):
 
         # Return the strike with the highest premium
         return beststrike
+
+    def calculate_actual_buying_power(
+        self, account: baseRR.GetAccountResponseMessage
+    ) -> float:
+        """Calculates the actual buying power based on the MaxLossCalcPercentage and current account balances.
+
+        Args:
+            account (baseRR.GetAccountResponseMessage): Account to calculate for
+
+        Returns:
+            float: Actual remaining buying power
+        """
+        usedbp = 0.0
+
+        for position in account.positions:
+            if (
+                position.underlyingsymbol == self.underlying
+                and position.putcall == "PUT"
+            ):
+                usedbp += self.calculate_position_buying_power(position)
+
+        return account.currentbalances.liquidationvalue - usedbp
+
+    def calculate_position_buying_power(
+        self, position: baseRR.AccountPosition
+    ) -> float:
+        """Calculates the actual buying power for a given position
+
+        Args:
+            position (baseRR.AccountPosition): Account position to calculate
+
+        Returns:
+            float: Required buying power
+        """
+        return (
+            position.strikeprice
+            * 100
+            * position.shortquantity
+            * self.maxlosscalcpercent
+        )
 
     def calculate_order_quantity(
         self, strike: float, buyingpower: float, liquidationvalue: float
