@@ -1,0 +1,11 @@
+tdabroker:
+  individual:
+    clientid: ""
+    account: ""
+    url: ""
+    credentials: ""
+  ira:
+    clientid: ""
+    account: ""
+    url: ""
+    credentials: ""

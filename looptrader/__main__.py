@@ -6,6 +6,7 @@ from basetypes.Database.sqliteDatabase import SqliteDatabase
 from basetypes.Mediator.botMediator import Bot
 from basetypes.Notifier.telegramnotifier import TelegramNotifier
 from basetypes.Strategy.cspByDeltaStrategy import CspByDeltaStrategy
+from basetypes.Strategy.spreadsbydeltastrategy import SpreadsByDeltaStrategy
 
 if __name__ == "__main__":
     # Create Logging
@@ -16,10 +17,12 @@ if __name__ == "__main__":
     )
 
     # Create our strategies
-    spreadstrat = CspByDeltaStrategy(strategy_name="CSP1")
+    cspstrat = CspByDeltaStrategy(strategy_name="csps")
+    spreadstrat = SpreadsByDeltaStrategy(strategy_name="spreads")
 
-    # Create our broker
-    tdabroker = TdaBroker()
+    # Create our brokers
+    individualbroker = TdaBroker(id="individual")
+    irabroker = TdaBroker(id="ira")
 
     # Create our local DB
     sqlitedb = SqliteDatabase("LoopTrader.db")
@@ -29,8 +32,7 @@ if __name__ == "__main__":
 
     # Create our Bot
     bot = Bot(
-        broker=tdabroker,
-        strategies=[spreadstrat],
+        brokerstrategy={spreadstrat: irabroker, cspstrat: individualbroker},
         database=sqlitedb,
         notifier=telegram_bot,
     )

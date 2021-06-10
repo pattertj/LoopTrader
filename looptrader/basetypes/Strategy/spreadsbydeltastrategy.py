@@ -13,7 +13,7 @@ from basetypes.Strategy.abstractStrategy import Strategy
 logger = logging.getLogger("autotrader")
 
 
-@attr.s(auto_attribs=True)
+@attr.s(auto_attribs=True, eq=False)
 class SpreadsByDeltaStrategy(Strategy, Component):
     """The concrete implementation of the generic LoopTrader Strategy class for trading Option Spreads by Delta."""
 
@@ -74,9 +74,33 @@ class SpreadsByDeltaStrategy(Strategy, Component):
                 )
             )
             return
+
+        # If Pre-Market
+        if now < (hours.end - dt.timedelta(minutes=30)):
+            self.process_pre_market()
+
         # If In-Market
         elif (hours.end - dt.timedelta(minutes=30)) < now < hours.end:
             self.process_open_market(hours.end, now)
+
+    def process_pre_market(self):
+        """Pre-Market Trading Logic"""
+        logger.debug("Processing Pre-Market.")
+
+        # Get Next Open
+        nextmarketsession = self.get_market_session_loop(dt.datetime.now())
+
+        # Set sleepuntil
+        self.sleepuntil = (
+            nextmarketsession.end - dt.timedelta(minutes=30) - dt.timedelta(minutes=5)
+        )
+
+        logger.info(
+            "Markets are closed until {}. Sleeping until {}".format(
+                nextmarketsession.start,
+                self.sleepuntil,
+            )
+        )
 
     def process_open_market(self, close: dt.datetime, now: dt.datetime):
         """Open Market Trading Logic"""
@@ -112,7 +136,9 @@ class SpreadsByDeltaStrategy(Strategy, Component):
         logger.debug("build_new_order")
 
         # Get account balance
-        accountrequest = baseRR.GetAccountRequestMessage(False, True)
+        accountrequest = baseRR.GetAccountRequestMessage(
+            self.strategy_name, False, True
+        )
         account = self.mediator.get_account(accountrequest)
 
         if account is None:
@@ -125,6 +151,7 @@ class SpreadsByDeltaStrategy(Strategy, Component):
 
         # Get option chain
         chainrequest = baseRR.GetOptionChainRequestMessage(
+            self.strategy_name,
             contracttype=self.put_or_call,
             fromdate=startdate,
             todate=enddate,
@@ -200,6 +227,7 @@ class SpreadsByDeltaStrategy(Strategy, Component):
 
         # Build Order
         orderrequest = baseRR.PlaceOrderRequestMessage()
+        orderrequest.strategy_name = self.strategy_name
         orderrequest.orderstrategytype = "SINGLE"
         orderrequest.duration = "GOOD_TILL_CANCEL"
         if self.buy_or_sell == "SELL":
@@ -233,7 +261,9 @@ class SpreadsByDeltaStrategy(Strategy, Component):
         time.sleep(self.openingorderloopseconds)
 
         # Fetch the Order status
-        getorderrequest = baseRR.GetOrderRequestMessage(int(neworderresult.orderid))
+        getorderrequest = baseRR.GetOrderRequestMessage(
+            self.strategy_name, int(neworderresult.orderid)
+        )
         processedorder = self.mediator.get_order(getorderrequest)
 
         if processedorder is None:
@@ -243,7 +273,7 @@ class SpreadsByDeltaStrategy(Strategy, Component):
         if processedorder.status != "FILLED":
             # Cancel it
             cancelorderrequest = baseRR.CancelOrderRequestMessage(
-                int(neworderresult.orderid)
+                self.strategy_name, int(neworderresult.orderid)
             )
             self.mediator.cancel_order(cancelorderrequest)
 
@@ -272,7 +302,7 @@ class SpreadsByDeltaStrategy(Strategy, Component):
         logger.debug("get_market_session_loop")
 
         request = baseRR.GetMarketHoursRequestMessage(
-            market="OPTION", product="IND", datetime=date
+            self.strategy_name, market="OPTION", product="IND", datetime=date
         )
 
         hours = self.mediator.get_market_hours(request)

@@ -16,7 +16,10 @@ from typing import Optional, Union
 import attr
 import basetypes.Mediator.reqRespTypes as baseRR
 from basetypes.Component.abstractComponent import Component
-from basetypes.Mediator.reqRespTypes import GetAccountRequestMessage
+from basetypes.Mediator.reqRespTypes import (
+    GetAccountRequestMessage,
+    GetAccountResponseMessage,
+)
 from basetypes.Notifier.abstractnotifier import Notifier
 from dotenv import load_dotenv
 from telegram import ParseMode, Update
@@ -241,8 +244,16 @@ class TelegramNotifier(Notifier, Component):
     def build_balances_message(self) -> str:
         """Method to build the message string for the /balances command"""
         # Get Account
-        request = GetAccountRequestMessage(False, False)
-        account = self.mediator.get_account(request)
+        strategies = self.mediator.get_all_strategies()
+
+        accounts = list[GetAccountResponseMessage]()
+        for strategy in strategies:
+            request = GetAccountRequestMessage(strategy, False, False)
+            account = self.mediator.get_account(request)
+            if account is not None:
+                accounts.append(account)
+
+        print(accounts)
 
         reply = r"Account Balances:"
 

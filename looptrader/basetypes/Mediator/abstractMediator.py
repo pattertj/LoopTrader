@@ -74,3 +74,9 @@ class Mediator(abc.ABC):
         raise NotImplementedError(
             "Each mediator must implement the 'set_kill_switch' method."
         )
+
+    @abc.abstractmethod
+    def get_all_strategies(self) -> list[str]:
+        raise NotImplementedError(
+            "Each mediator must implement the 'get_all_strategies' method."
+        )

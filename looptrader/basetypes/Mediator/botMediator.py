@@ -16,7 +16,6 @@ logger = logging.getLogger("autotrader")
 
 @attr.s(auto_attribs=True)
 class Bot(Mediator):
-    broker: Broker = attr.ib(validator=attr.validators.instance_of(Broker))  # type: ignore[misc]
     notifier: Notifier = attr.ib(validator=attr.validators.instance_of(Notifier))  # type: ignore[misc]
     database: Database = attr.ib(validator=attr.validators.instance_of(Database))  # type: ignore[misc]
     botloopfrequency: int = attr.ib(
@@ -25,10 +24,11 @@ class Bot(Mediator):
     killswitch: bool = attr.ib(
         default=False, validator=attr.validators.instance_of(bool), init=False
     )
-    strategies: list[Strategy] = attr.ib(
-        validator=attr.validators.deep_iterable(
-            member_validator=attr.validators.instance_of(Strategy),  # type: ignore[misc]
-            iterable_validator=attr.validators.instance_of(list),
+    brokerstrategy: dict[Strategy, Broker] = attr.ib(
+        validator=attr.validators.deep_mapping(
+            key_validator=attr.validators.instance_of(Strategy),  # type: ignore[misc]
+            value_validator=attr.validators.instance_of(Broker),  # type: ignore[misc]
+            mapping_validator=attr.validators.instance_of(dict),
         )
     )
 
@@ -36,23 +36,20 @@ class Bot(Mediator):
         self.botloopfrequency = 60
         self.killswitch = False
 
-        # Validate Strategies
+        # Validate Broker Strategies and set Mediators
         names = []
-        for strategy in self.strategies:
+
+        for strategy, broker in self.brokerstrategy.items():
             if strategy.strategy_name in names:
                 raise Exception("Duplicate Strategy Name")
-            else:
-                names.append(strategy.strategy_name)
+
+            names.append(strategy.strategy_name)
+            broker.mediator = self
+            strategy.mediator = self
 
         # Set Mediators
         self.database.mediator = self
-        self.broker.mediator = self
         self.notifier.mediator = self
-        for strategy in self.strategies:
-            # strat = re.findall(r"(\w+(?=\'))", str(type(strategy)))
-            # name = strategy.strategy_name
-            # under = strategy.underlying
-            strategy.mediator = self
 
     def process_strategies(self):
         # Get the current timestamp
@@ -68,7 +65,7 @@ class Bot(Mediator):
 
             # Process each strategy sequentially
             strategy: Strategy
-            for strategy in self.strategies:
+            for strategy in self.brokerstrategy:
                 strategy.process_strategy()
 
             # Sleep for the specified time.
@@ -86,35 +83,88 @@ class Bot(Mediator):
     def get_account(
         self, request: baseRR.GetAccountRequestMessage
     ) -> Union[baseRR.GetAccountResponseMessage, None]:
-        return self.broker.get_account(request)
+        broker = self.get_broker(request.strategy_name)
+
+        if broker is None:
+            return None
+
+        return broker.get_account(request)
 
     def place_order(
         self, request: baseRR.PlaceOrderRequestMessage
     ) -> Union[baseRR.PlaceOrderResponseMessage, None]:
-        return self.broker.place_order(request)
+        broker = self.get_broker(request.strategy_name)
+
+        if broker is None:
+            return None
+
+        return broker.place_order(request)
 
     def cancel_order(
         self, request: baseRR.CancelOrderRequestMessage
     ) -> Union[baseRR.CancelOrderResponseMessage, None]:
-        return self.broker.cancel_order(request)
+        broker = self.get_broker(request.strategy_name)
+
+        if broker is None:
+            return None
+
+        return broker.cancel_order(request)
 
     def get_order(
         self, request: baseRR.GetOrderRequestMessage
     ) -> Union[baseRR.GetOrderResponseMessage, None]:
-        return self.broker.get_order(request)
+        broker = self.get_broker(request.strategy_name)
+
+        if broker is None:
+            return None
+
+        return broker.get_order(request)
 
     def get_market_hours(
         self, request: baseRR.GetMarketHoursRequestMessage
     ) -> Union[baseRR.GetMarketHoursResponseMessage, None]:
-        return self.broker.get_market_hours(request)
+        broker = self.get_broker(request.strategy_name)
+
+        if broker is None:
+            return None
+
+        return broker.get_market_hours(request)
 
     def get_option_chain(
         self, request: baseRR.GetOptionChainRequestMessage
     ) -> Union[baseRR.GetOptionChainResponseMessage, None]:
-        return self.broker.get_option_chain(request)
+        broker = self.get_broker(request.strategy_name)
+
+        if broker is None:
+            return None
+
+        return broker.get_option_chain(request)
 
     def send_notification(self, request: baseRR.SendNotificationRequestMessage) -> None:
         self.notifier.send_notification(request)
 
     def set_kill_switch(self, request: baseRR.SetKillSwitchRequestMessage) -> None:
         self.killswitch = request.kill_switch
+
+    def get_broker(self, strategy_name: str) -> Union[Broker, None]:
+        """Returns the broker object associated to a given strategy
+
+        Args:
+            strategy_name (str): Name of the Strategy to search
+
+        Returns:
+            Broker: Associated Broker object
+        """
+        for strategy, broker in self.brokerstrategy.items():
+            if strategy.strategy_name == strategy_name:
+                return broker
+
+        return None
+
+    def get_all_strategies(self) -> list[str]:
+        strategies = list[str]()
+
+        for strategy in self.brokerstrategy.keys():
+            strategies.append(strategy.strategy_name)
+
+        return strategies

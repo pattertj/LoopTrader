@@ -19,42 +19,60 @@ import datetime as dtime
 import logging
 import re
 from collections import OrderedDict
-from os import getenv
 from typing import Any, Union
 
 import attr
 import basetypes.Mediator.reqRespTypes as baseRR
+import yaml
 from basetypes.Broker.abstractBroker import Broker
 from basetypes.Component.abstractComponent import Component
-from dotenv import load_dotenv
 from td.client import TDClient
 from td.option_chain import OptionChain
 
 logger = logging.getLogger("autotrader")
-load_dotenv()
 
 
 @attr.s(auto_attribs=True)
 class TdaBroker(Broker, Component):
     """The concrete implementation of the generic LoopTrader Broker class for communication with TD Ameritrade."""
 
-    client_id: str = attr.ib(
-        default=getenv("TDAMERITRADE_CLIENT_ID"),
-        validator=attr.validators.instance_of(str),
-    )
-    redirect_uri: str = attr.ib(
-        default=getenv("REDIRECT_URL"), validator=attr.validators.instance_of(str)
-    )
+    id: str = attr.ib(validator=attr.validators.instance_of(str))
+    client_id: str = attr.ib(validator=attr.validators.instance_of(str), init=False)
+    redirect_uri: str = attr.ib(validator=attr.validators.instance_of(str), init=False)
     account_number: str = attr.ib(
-        default=getenv("TDAMERITRADE_ACCOUNT_NUMBER"),
-        validator=attr.validators.instance_of(str),
+        validator=attr.validators.instance_of(str), init=False
     )
     credentials_path: str = attr.ib(
-        default=getenv("CREDENTIALS_PATH"), validator=attr.validators.instance_of(str)
+        validator=attr.validators.instance_of(str), init=False
     )
     maxretries: int = attr.ib(
         default=3, validator=attr.validators.instance_of(int), init=False
     )
+
+    def __attrs_post_init__(self):
+        with open("config.yaml", "r") as file:
+            # Read Brokerage Config
+            brokerage_config: dict
+            brokerage_config = yaml.safe_load(file)
+
+            # Parse Config
+            broker: str
+            accounts: dict
+            for broker, accounts in brokerage_config.items():
+                if broker == "tdabroker":
+                    account: str
+                    details: dict
+                    for account, details in accounts.items():
+                        # If we find a match, read details
+                        if account == self.id:
+                            self.client_id = details.get("clientid")
+                            self.account_number = details.get("account")
+                            self.redirect_uri = details.get("url")
+                            self.credentials_path = details.get("credentials")
+                            return
+
+            # If no match, raise exception
+            raise Exception("No credentials found in config.yaml")
 
     def get_account(
         self, request: baseRR.GetAccountRequestMessage
@@ -72,11 +90,14 @@ class TdaBroker(Broker, Component):
         # Get Account Details
         for attempt in range(self.maxretries):
             try:
-                acctnum = getenv("TDAMERITRADE_ACCOUNT_NUMBER")
-                account = self.getsession().get_accounts(acctnum, fields=optionalfields)
+                account = self.getsession().get_accounts(
+                    self.account_number, fields=optionalfields
+                )
             except Exception:
                 logger.exception(
-                    "Failed to get Account {}. Attempt #{}".format(acctnum, attempt)
+                    "Failed to get Account {}. Attempt #{}".format(
+                        self.account_number, attempt
+                    )
                 )
                 if attempt == self.maxretries - 1:
                     return None
@@ -193,20 +214,21 @@ class TdaBroker(Broker, Component):
         instrument = position.get("instrument", dict)
 
         if instrument is not None:
-            strikeprice = re.search(r"(?<=[P])\d\w+", instrument.get("symbol", str))
-
-            if strikeprice is None:
-                logger.error(
-                    "No strike price found for {}".format(instrument.get("symbol", str))
-                )
-            else:
-                accountposition.strikeprice = float(strikeprice.group())
-
             accountposition.assettype = instrument.get("assetType", str)
             accountposition.description = instrument.get("description", str)
             accountposition.putcall = instrument.get("putCall", str)
             accountposition.symbol = instrument.get("symbol", str)
             accountposition.underlyingsymbol = instrument.get("underlyingSymbol", str)
+
+            strikeprice = re.search(r"(?<=[P])\d\w+", instrument.get("symbol", str))
+
+            if strikeprice is None and accountposition.assettype == "OPTION":
+                logger.error(
+                    "No strike price found for {}".format(instrument.get("symbol", str))
+                )
+            elif strikeprice is not None:
+                accountposition.strikeprice = float(strikeprice.group())
+
         return accountposition
 
     def build_account_orders(
@@ -398,7 +420,7 @@ class TdaBroker(Broker, Component):
 
         try:
             cancelresponse = self.getsession().cancel_order(
-                account=getenv("TDAMERITRADE_ACCOUNT_NUMBER"),
+                account=self.account_number,
                 order_id=str(request.orderid),
             )
         except Exception:

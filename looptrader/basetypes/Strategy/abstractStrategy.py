@@ -4,7 +4,7 @@ import attr
 from basetypes.Component.abstractComponent import Component
 
 
-@attr.s(auto_attribs=True)
+@attr.s(auto_attribs=True, eq=False)
 class Strategy(abc.ABC, Component):
     """
     The Strategy class provides the basic framework of a strategy that can be extended to many option trading strategies.

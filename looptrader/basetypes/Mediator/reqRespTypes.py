@@ -43,6 +43,7 @@ class PlaceOrderRequestMessage:
         )
 
     price: float = attr.ib(validator=attr.validators.instance_of(float))
+    strategy_name: str = attr.ib(validator=attr.validators.instance_of(str))
     orderstrategytype: str = attr.ib(
         validator=attr.validators.in_(["SINGLE", "OCO", "TRIGGER"])
     )
@@ -86,6 +87,7 @@ class PlaceOrderResponseMessage:
 class GetOptionChainRequestMessage:
     """Generic request object for retrieving the Option Chain."""
 
+    strategy_name: str = attr.ib(validator=attr.validators.instance_of(str))
     symbol: str = attr.ib(validator=attr.validators.instance_of(str))
     contracttype: str = attr.ib(validator=attr.validators.in_(["CALL", "PUT", "ALL"]))
     includequotes: bool = attr.ib(validator=attr.validators.instance_of(bool))
@@ -146,6 +148,7 @@ class GetOptionChainResponseMessage:
 class GetAccountRequestMessage:
     """Generic request object for retrieving account details."""
 
+    strategy_name: str = attr.ib(validator=attr.validators.instance_of(str))
     orders: bool = attr.ib(validator=attr.validators.instance_of(bool))
     positions: bool = attr.ib(validator=attr.validators.instance_of(bool))
 
@@ -283,6 +286,7 @@ class GetAccountResponseMessage:
 class CancelOrderRequestMessage:
     """Generic request object for cancelling an order."""
 
+    strategy_name: str = attr.ib(validator=attr.validators.instance_of(str))
     orderid: int = attr.ib(validator=attr.validators.instance_of(int))
 
 
@@ -297,6 +301,7 @@ class CancelOrderResponseMessage:
 class GetOrderRequestMessage:
     """Generic request object for reading an order."""
 
+    strategy_name: str = attr.ib(validator=attr.validators.instance_of(str))
     orderid: int = attr.ib(validator=attr.validators.instance_of(int))
 
 
@@ -355,6 +360,7 @@ class GetOrderResponseMessage:
 class GetMarketHoursRequestMessage:
     """Generic request object for getting Market Hours."""
 
+    strategy_name: str = attr.ib(validator=attr.validators.instance_of(str))
     market: str = attr.ib(
         validator=attr.validators.in_(["OPTION", "EQUITY", "FUTURE", "FOREX", "BOND"])
     )

@@ -13,7 +13,7 @@ from basetypes.Strategy.abstractStrategy import Strategy
 logger = logging.getLogger("autotrader")
 
 
-@attr.s(auto_attribs=True)
+@attr.s(auto_attribs=True, eq=False, repr=False)
 class CspByDeltaStrategy(Strategy, Component):
     """The concrete implementation of the generic LoopTrader Strategy class for trading Cash-Secured Puts by Delta."""
 
@@ -254,7 +254,7 @@ class CspByDeltaStrategy(Strategy, Component):
 
         # Get account balance
         account = self.mediator.get_account(
-            baseRR.GetAccountRequestMessage(False, True)
+            baseRR.GetAccountRequestMessage(self.strategy_name, False, True)
         )
 
         if account is None or not hasattr(account, "positions"):
@@ -307,6 +307,7 @@ class CspByDeltaStrategy(Strategy, Component):
             baseRR.GetOptionChainRequestMessage: Option chain request message
         """
         return baseRR.GetOptionChainRequestMessage(
+            self.strategy_name,
             contracttype="PUT",
             fromdate=dt.date.today() + dt.timedelta(days=self.minimumdte),
             todate=dt.date.today() + dt.timedelta(days=self.maximumdte),
@@ -344,6 +345,7 @@ class CspByDeltaStrategy(Strategy, Component):
 
         # Build Order
         orderrequest = baseRR.PlaceOrderRequestMessage()
+        orderrequest.strategy_name = self.strategy_name
         orderrequest.orderstrategytype = "SINGLE"
         orderrequest.duration = "GOOD_TILL_CANCEL"
         orderrequest.ordertype = "LIMIT"
@@ -364,7 +366,9 @@ class CspByDeltaStrategy(Strategy, Component):
         orderrequests = []
 
         # Get account balance
-        accountrequest = baseRR.GetAccountRequestMessage(True, False)
+        accountrequest = baseRR.GetAccountRequestMessage(
+            self.strategy_name, True, False
+        )
         account = self.mediator.get_account(accountrequest)
 
         if account is None:
@@ -374,7 +378,9 @@ class CspByDeltaStrategy(Strategy, Component):
         # Look for open positions
         for order in account.orders:
             if order.status == "QUEUED" and order.legs[0].positioneffect == "CLOSING":
-                orderrequest = baseRR.CancelOrderRequestMessage(int(order.orderid))
+                orderrequest = baseRR.CancelOrderRequestMessage(
+                    self.strategy_name, int(order.orderid)
+                )
                 orderrequests.append(orderrequest)
 
         return orderrequests
@@ -388,7 +394,7 @@ class CspByDeltaStrategy(Strategy, Component):
         orderrequests = []
 
         # Get account balance
-        accountrequest = baseRR.GetAccountRequestMessage(True, True)
+        accountrequest = baseRR.GetAccountRequestMessage(self.strategy_name, True, True)
         account = self.mediator.get_account(accountrequest)
 
         if account is None:
@@ -428,6 +434,7 @@ class CspByDeltaStrategy(Strategy, Component):
             leg.instruction = "SELL_TO_CLOSE"
 
         orderrequest = baseRR.PlaceOrderRequestMessage()
+        orderrequest.strategy_name = self.strategy_name
         orderrequest.orderstrategytype = "SINGLE"
         orderrequest.duration = "GOOD_TILL_CANCEL"
         orderrequest.ordertype = "LIMIT"
@@ -487,7 +494,9 @@ class CspByDeltaStrategy(Strategy, Component):
         time.sleep(self.openingorderloopseconds)
 
         # Re-get the Order
-        getorderrequest = baseRR.GetOrderRequestMessage(int(neworderresult.orderid))
+        getorderrequest = baseRR.GetOrderRequestMessage(
+            self.strategy_name, int(neworderresult.orderid)
+        )
         processedorder = self.mediator.get_order(getorderrequest)
 
         if processedorder is None:
@@ -502,7 +511,7 @@ class CspByDeltaStrategy(Strategy, Component):
         if processedorder.status != "FILLED":
             # Cancel it
             cancelorderrequest = baseRR.CancelOrderRequestMessage(
-                int(neworderresult.orderid)
+                self.strategy_name, int(neworderresult.orderid)
             )
             self.mediator.cancel_order(cancelorderrequest)
 
@@ -528,13 +537,21 @@ class CspByDeltaStrategy(Strategy, Component):
         self, date: dt.datetime
     ) -> baseRR.GetMarketHoursResponseMessage:
         """Looping Logic for getting the next open session start and end times"""
+
         logger.debug("get_market_session_loop")
+
         request = baseRR.GetMarketHoursRequestMessage(
-            market="OPTION", product="IND", datetime=date
+            self.strategy_name, market="OPTION", product="IND", datetime=date
         )
+
+        # Get the market hours
         hours = self.mediator.get_market_hours(request)
 
-        if hours is None or hours.end < dt.datetime.now().astimezone(dt.timezone.utc):
+        # If we didn't get hours, i.e. Weekend or if we are more than 15 minutes past market close, check tomorrow.
+        # The 15 minute check is to allow the after-hours market logic to run
+        if hours is None or hours.end + dt.timedelta(
+            minutes=15
+        ) < dt.datetime.now().astimezone(dt.timezone.utc):
             return self.get_market_session_loop(date + dt.timedelta(days=1))
         return hours
 
@@ -671,17 +688,17 @@ class CspByDeltaStrategy(Strategy, Component):
         trade_size = remainingbalance // max_loss
 
         # Log Values
-        logger.info(
-            "Strike: {} BuyingPower: {} LiquidationValue: {} MaxLoss: {} BalanceToRisk: {} RemainingBalance: {} TradeSize: {} ".format(
-                strike,
-                buyingpower,
-                liquidationvalue,
-                max_loss,
-                balance_to_risk,
-                remainingbalance,
-                trade_size,
-            )
-        )
+        # logger.info(
+        #     "Strike: {} BuyingPower: {} LiquidationValue: {} MaxLoss: {} BalanceToRisk: {} RemainingBalance: {} TradeSize: {} ".format(
+        #         strike,
+        #         buyingpower,
+        #         liquidationvalue,
+        #         max_loss,
+        #         balance_to_risk,
+        #         remainingbalance,
+        #         trade_size,
+        #     )
+        # )
 
         # Return quantity
         return int(trade_size)
