@@ -110,9 +110,11 @@ class TdaBroker(Broker, Component):
         return self.build_account_reponse(securitiesaccount)
 
     def build_account_reponse(
-        self, securitiesaccount
+        self, securitiesaccount: dict
     ) -> baseRR.GetAccountResponseMessage:
         response = baseRR.GetAccountResponseMessage()
+
+        response.accountnumber = securitiesaccount.get("accountId", int)
 
         # If we requested Orders, build them if request.orders:
         response.orders = self.build_account_orders(securitiesaccount)

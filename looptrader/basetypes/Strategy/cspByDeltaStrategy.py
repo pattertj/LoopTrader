@@ -30,7 +30,7 @@ class CspByDeltaStrategy(Strategy, Component):
         default="SELL", validator=attr.validators.in_(["SELL", "BUY"])
     )
     targetdelta: float = attr.ib(
-        default=-0.06, validator=attr.validators.instance_of(float)
+        default=-0.07, validator=attr.validators.instance_of(float)
     )
     mindelta: float = attr.ib(
         default=-0.03, validator=attr.validators.instance_of(float)

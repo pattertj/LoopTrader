@@ -90,6 +90,32 @@ class Bot(Mediator):
 
         return broker.get_account(request)
 
+    def get_all_accounts(
+        self, request: baseRR.GetAllAccountsRequestMessage
+    ) -> Union[baseRR.GetAllAccountsResponseMessage, None]:
+
+        response = baseRR.GetAllAccountsResponseMessage()
+        response.accounts = []
+
+        distinct_brokers = list(set(self.brokerstrategy.keys()))
+
+        for strategy in distinct_brokers:
+            broker = self.get_broker(strategy.strategy_name)
+
+            if broker is None:
+                continue
+
+            acct_request = baseRR.GetAccountRequestMessage(
+                strategy.strategy_name, request.orders, request.positions
+            )
+
+            account = broker.get_account(acct_request)
+
+            if account is not None:
+                response.accounts.append(account)
+
+        return response
+
     def place_order(
         self, request: baseRR.PlaceOrderRequestMessage
     ) -> Union[baseRR.PlaceOrderResponseMessage, None]:

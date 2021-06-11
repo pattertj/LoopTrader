@@ -24,6 +24,14 @@ class Mediator(abc.ABC):
         )
 
     @abc.abstractmethod
+    def get_all_accounts(
+        self, request: baseRR.GetAllAccountsRequestMessage
+    ) -> Union[baseRR.GetAllAccountsResponseMessage, None]:
+        raise NotImplementedError(
+            "Each mediator must implement the 'Get_All_Accounts' method."
+        )
+
+    @abc.abstractmethod
     def place_order(
         self, request: baseRR.PlaceOrderRequestMessage
     ) -> Union[baseRR.PlaceOrderResponseMessage, None]:

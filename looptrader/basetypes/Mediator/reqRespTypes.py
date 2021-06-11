@@ -153,6 +153,14 @@ class GetAccountRequestMessage:
     positions: bool = attr.ib(validator=attr.validators.instance_of(bool))
 
 
+@attr.s(auto_attribs=True)
+class GetAllAccountsRequestMessage:
+    """Generic request object for retrieving account details."""
+
+    orders: bool = attr.ib(validator=attr.validators.instance_of(bool))
+    positions: bool = attr.ib(validator=attr.validators.instance_of(bool))
+
+
 @attr.s(auto_attribs=True, init=False)
 class AccountPosition:
     """Generic object for retrieving position details on an account."""
@@ -271,6 +279,7 @@ class AccountBalance:
 class GetAccountResponseMessage:
     """Generic response object for retrieving account details."""
 
+    accountnumber: int = attr.ib(validator=attr.validators.instance_of(int))
     currentbalances: AccountBalance = attr.ib(
         validator=attr.validators.instance_of(AccountBalance)
     )
@@ -279,6 +288,15 @@ class GetAccountResponseMessage:
     )
     orders: list[AccountOrder] = attr.ib(
         validator=attr.validators.instance_of(list[AccountOrder])
+    )
+
+
+@attr.s(auto_attribs=True, init=False)
+class GetAllAccountsResponseMessage:
+    """Generic response object for retrieving all account details."""
+
+    accounts: list[GetAccountResponseMessage] = attr.ib(
+        validator=attr.validators.instance_of(list[GetAccountResponseMessage])
     )
 
 

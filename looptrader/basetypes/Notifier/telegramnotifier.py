@@ -16,10 +16,7 @@ from typing import Optional, Union
 import attr
 import basetypes.Mediator.reqRespTypes as baseRR
 from basetypes.Component.abstractComponent import Component
-from basetypes.Mediator.reqRespTypes import (
-    GetAccountRequestMessage,
-    GetAccountResponseMessage,
-)
+from basetypes.Mediator.reqRespTypes import GetAllAccountsRequestMessage
 from basetypes.Notifier.abstractnotifier import Notifier
 from dotenv import load_dotenv
 from telegram import ParseMode, Update
@@ -244,53 +241,57 @@ class TelegramNotifier(Notifier, Component):
     def build_balances_message(self) -> str:
         """Method to build the message string for the /balances command"""
         # Get Account
-        strategies = self.mediator.get_all_strategies()
-
-        accounts = list[GetAccountResponseMessage]()
-        for strategy in strategies:
-            request = GetAccountRequestMessage(strategy, False, False)
-            account = self.mediator.get_account(request)
-            if account is not None:
-                accounts.append(account)
-
-        print(accounts)
-
-        reply = r"Account Balances:"
-
-        if account is None or account.currentbalances is None:
-            reply += " \r\n No Account Found"
-            return reply
+        request = GetAllAccountsRequestMessage(False, True)
+        response = self.mediator.get_all_accounts(request)
 
         # Build Reply
-        reply += "\r\n - <b>Liquidation Value:</b> <code>${}</code>".format(
-            "{:,.2f}".format(account.currentbalances.liquidationvalue)
-        )
-        reply += "\r\n - <b>Buying Power:</b> <code>${}</code>".format(
-            "{:,.2f}".format(account.currentbalances.buyingpower)
-        )
+        reply = r"Account Balances:"
+
+        if response is None:
+            reply += " \r\n No Accounts Found"
+            return reply
+
+        account: baseRR.GetAccountResponseMessage
+        for account in response.accounts:
+            reply += " \r\n<code>Account: {}</code>".format(account.accountnumber)
+            if account is None or account.currentbalances is None:
+                reply += " \r\n No Account Found"
+                return reply
+
+            # Build Reply
+            reply += "\r\n - <b>Liquidation Value:</b> <code>${}</code>".format(
+                "{:,.2f}".format(account.currentbalances.liquidationvalue)
+            )
+            reply += "\r\n - <b>Buying Power:</b> <code>${}</code>".format(
+                "{:,.2f}".format(account.currentbalances.buyingpower)
+            )
 
         return reply
 
     def build_performance_message(self) -> str:
         """Method to build the message string for the /performance command"""
         # Get Account
-        request = GetAccountRequestMessage(False, True)
-        account = self.mediator.get_account(request)
+        request = GetAllAccountsRequestMessage(False, True)
+        response = self.mediator.get_all_accounts(request)
 
         # Build Reply
         reply = r"Account Performance:"
 
-        if account is None or account.positions is None:
-            reply += " \r\n No Positions Found"
+        if response is None:
+            reply += " \r\n No Accounts Found"
             return reply
 
         total = 0.0
 
-        for position in account.positions:
-            total += position.currentdayprofitloss
-            reply += " \r\n - <code>{}</code> > <code>${}</code>".format(
-                str(position.symbol), "{:,.2f}".format(position.currentdayprofitloss)
-            )
+        account: baseRR.GetAccountResponseMessage
+        for account in response.accounts:
+            reply += " \r\n<code>Account: {}</code>".format(account.accountnumber)
+            for position in account.positions:
+                total += position.currentdayprofitloss
+                reply += " \r\n - <code>{}</code> > <code>${}</code>".format(
+                    str(position.symbol),
+                    "{:,.2f}".format(position.currentdayprofitloss),
+                )
 
         reply += "\r\n\r\n<b>Total P&L:</b> <code>{}</code>".format(
             "{:,.2f}".format(total)
@@ -301,47 +302,60 @@ class TelegramNotifier(Notifier, Component):
     def build_positions_message(self) -> str:
         """Method to build the message string for the /positions command"""
         # Get Account
-        request = GetAccountRequestMessage(False, True)
-        account = self.mediator.get_account(request)
+        request = GetAllAccountsRequestMessage(False, True)
+        response = self.mediator.get_all_accounts(request)
 
         # Build Reply
         reply = r"Account Positions:"
 
-        if account is None or account.positions is None:
-            reply += " \r\n No Positions Found"
+        if response is None:
+            reply += " \r\n No Accounts Found"
             return reply
 
-        for position in account.positions:
-            qty = position.shortquantity + position.longquantity
-            reply += " \r\n <code>- {}x {} @ ${}</code>".format(
-                str(qty), str(position.symbol), "{:,.2f}".format(position.averageprice)
-            )
+        account: baseRR.GetAccountResponseMessage
+        for account in response.accounts:
+            reply += " \r\n<code>Account: {}</code>".format(account.accountnumber)
+            for position in account.positions:
+                qty = position.shortquantity + position.longquantity
+                reply += " \r\n <code>- {}x {} @ ${}</code>".format(
+                    str(qty),
+                    str(position.symbol),
+                    "{:,.2f}".format(position.averageprice),
+                )
 
         return reply
 
     def build_orders_message(self) -> str:
         """Method to build the message string for the /orders command"""
         # Get Account
-        request = GetAccountRequestMessage(True, False)
-        account = self.mediator.get_account(request)
+        request = GetAllAccountsRequestMessage(True, False)
+        response = self.mediator.get_all_accounts(request)
 
         # Build Reply
         reply = r"Open Orders:"
 
-        if account is None or account.orders is None:
-            reply += " \r\n No Orders Found"
+        if response is None:
+            reply += " \r\n No Accounts Found"
             return reply
 
-        for order in account.orders:
-            if order.status in ["OPEN", "QUEUED"]:
-                price = 0 if order.price is None else order.price
-                formattedprice = "{:,.2f}".format(price)
+        account: baseRR.GetAccountResponseMessage
+        for account in response.accounts:
+            reply += " \r\n<code>Account: {}</code>".format(account.accountnumber)
 
-                leg = order.legs[0]
+            if account.orders is None:
+                reply += " \r\n <code>- N/A</code>"
+                continue
 
-                reply += " \r\n <code>- {}x {} {} @ ${}</code>".format(
-                    str(order.quantity), leg.instruction, leg.symbol, formattedprice
-                )
+            for order in account.orders:
+                if order.status in ["OPEN", "QUEUED"]:
+                    price = 0 if order.price is None else order.price
+                    formattedprice = "{:,.2f}".format(price)
+
+                    leg = order.legs[0]
+
+                    reply += " \r\n <code>- {}x {} {} @ ${}</code>".format(
+                        str(order.quantity), leg.instruction, leg.symbol, formattedprice
+                    )
 
         return reply
 
