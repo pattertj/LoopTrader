@@ -31,6 +31,14 @@
             "index": "pypi",
             "version": "==21.2.0"
         },
+        "cachetools": {
+            "hashes": [
+                "sha256:2cc0b89715337ab6dbba85b5b50effe2b0c74e035d83ee8ed637cf52f12ae001",
+                "sha256:61b5ed1e22a0924aed1d23b478f37e8d52549ff8a961de2909c69bf950020cff"
+            ],
+            "markers": "python_version ~= '3.5'",
+            "version": "==4.2.2"
+        },
         "certifi": {
             "hashes": [
                 "sha256:2bbf76fd432960138b3ef6dda3dde0544f27cbf8546c458e60baf371917ba9ee",
@@ -232,11 +240,11 @@
         },
         "python-telegram-bot": {
             "hashes": [
-                "sha256:3f2887317ab045fc65d3c2905a66fd2c5dafcaa96af36700ac8cfaa5a51fd3ee",
-                "sha256:83dbf4cd46327fd818bb6655f2508024a0ade68ebdb3544da35c469adc23bddb"
+                "sha256:37cfe8faba16fb68a8b5ab41a10e787c385f6296200c84256cc54d7c16334643",
+                "sha256:d4b3a8fd6a927bc6dc498fa00e8d6388570d089f5c015418c3b2b954e0719a7a"
             ],
             "index": "pypi",
-            "version": "==13.5"
+            "version": "==13.6"
         },
         "pytz": {
             "hashes": [
