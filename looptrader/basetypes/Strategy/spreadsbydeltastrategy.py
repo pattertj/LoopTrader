@@ -18,12 +18,12 @@ class SpreadsByDeltaStrategy(Strategy, Component):
     """The concrete implementation of the generic LoopTrader Strategy class for trading Option Spreads by Delta."""
 
     strategy_name: str = attr.ib(default="Sample Spread Strategy", validator=attr.validators.instance_of(str))
-    underlying: str = attr.ib(default="SPY", validator=attr.validators.instance_of(str))
-    portfolioallocationpercent: float = attr.ib(default=1.0, validator=attr.validators.instance_of(float))
+    underlying: str = attr.ib(default="$SPX.X", validator=attr.validators.instance_of(str))
+    portfolioallocationpercent: float = attr.ib(default=0.50, validator=attr.validators.instance_of(float))
     put_or_call: str = attr.ib(default="PUT", validator=attr.validators.in_(["PUT", "CALL"]))
     buy_or_sell: str = attr.ib(default="SELL", validator=attr.validators.in_(["SELL", "BUY"]))
-    targetdelta: float = attr.ib(default=-0.04, validator=attr.validators.instance_of(float))
-    width: float = attr.ib(default=25.0, validator=attr.validators.instance_of(float))
+    targetdelta: float = attr.ib(default=-0.03, validator=attr.validators.instance_of(float))
+    width: float = attr.ib(default=75.0, validator=attr.validators.instance_of(float))
     minimumdte: int = attr.ib(default=1, validator=attr.validators.instance_of(int))
     maximumdte: int = attr.ib(default=4, validator=attr.validators.instance_of(int))
     openingorderloopseconds: int = attr.ib(default=60, validator=attr.validators.instance_of(int))
@@ -65,7 +65,7 @@ class SpreadsByDeltaStrategy(Strategy, Component):
 
         # If In-Market
         elif (hours.end - dt.timedelta(minutes=30)) < now < hours.end:
-            self.process_open_market(hours.end, now)
+            self.process_open_market()
 
     def process_pre_market(self):
         """Pre-Market Trading Logic"""
@@ -84,7 +84,7 @@ class SpreadsByDeltaStrategy(Strategy, Component):
             )
         )
 
-    def process_open_market(self, close: dt.datetime, now: dt.datetime):
+    def process_open_market(self):
         """Open Market Trading Logic"""
         logger.debug("Processing Open-Market")
 
@@ -118,11 +118,30 @@ class SpreadsByDeltaStrategy(Strategy, Component):
         logger.debug("build_new_order")
 
         # Get account balance
-        accountrequest = baseRR.GetAccountRequestMessage(self.strategy_name, False, True)
+        accountrequest = baseRR.GetAccountRequestMessage(self.strategy_name, True, True)
         account = self.mediator.get_account(accountrequest)
 
         if account is None:
             logger.error("Failed to get Account")
+            return None
+
+        # Check if we have positions on already that expire today.
+        expiring_day = any(
+            position.underlyingsymbol == self.underlying and position.expirationdate.date() == dt.date.today()
+            for position in account.positions
+        )
+
+        # Check Available Balance
+        tradable_today = (
+            account.currentbalances.buyingpower
+            - (account.currentbalances.liquidationvalue * self.portfolioallocationpercent)
+        ) > (self.width * 100)
+
+        # If nothing is expiring and no tradable balance, exit.
+        # If we are expiring, continue trying to place a trade
+        # If we have a tradable balance, continue trying to place a trade
+        if not expiring_day and not tradable_today:
+            logger.info("Buying Power too low.")
             return None
 
         # Calculate trade date
@@ -251,9 +270,11 @@ class SpreadsByDeltaStrategy(Strategy, Component):
         message = "Sold:<code>"
 
         for leg in orderrequest.legs:
-            message += "\r\n - {}x {} @ ${}</code>".format(
+            message += "\r\n - {}x {} @ ${}".format(
                 str(leg.quantity), str(leg.symbol), "{:,.2f}".format(orderrequest.price)
             )
+
+        message += "</code>"
 
         notification = baseRR.SendNotificationRequestMessage(message)
 
