@@ -12,9 +12,8 @@ class Strategy(abc.ABC, Component):
 
     strategy_name: str = attr.ib(validator=attr.validators.instance_of(str))
     underlying: str = attr.ib(validator=attr.validators.instance_of(str))
+    strategy_id: int = attr.ib(default=-1, validator=attr.validators.instance_of(int))
 
     @abc.abstractmethod
     def process_strategy(self):
-        raise NotImplementedError(
-            "Each strategy must implement the 'ProcessStrategy' method."
-        )
+        raise NotImplementedError("Each strategy must implement the 'ProcessStrategy' method.")

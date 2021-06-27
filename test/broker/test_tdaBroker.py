@@ -5,7 +5,7 @@ from basetypes.Broker.tdaBroker import TdaBroker
 
 
 def test_get_account():
-    broker = TdaBroker(id="ira")
+    broker = TdaBroker(id="individual")
     broker.maxretries = 3
 
     request = baseRR.GetAccountRequestMessage("", True, True)

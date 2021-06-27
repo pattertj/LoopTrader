@@ -248,6 +248,10 @@ class SpreadsByDeltaStrategy(Strategy, Component):
         if neworderresult is None or neworderresult.orderid is None or neworderresult.orderid == 0:
             return False
 
+        # Add Order to the DB
+        db_order_request = baseRR.CreateDatabaseOrderRequest(neworderresult.orderid, self.strategy_id, "NEW")
+        db_order_response = self.mediator.create_db_order(db_order_request)
+
         # Wait to let the Order process
         time.sleep(self.openingorderloopseconds)
 
@@ -267,6 +271,15 @@ class SpreadsByDeltaStrategy(Strategy, Component):
             # Return failure to fill order
             return False
 
+        # Add the position to the DB
+        if db_order_response is not None:
+            for leg in orderrequest.legs:
+                db_position_request = baseRR.CreateDatabasePositionRequest(
+                    self.strategy_id, leg.symbol, leg.quantity, True, db_order_response.order_id, 0
+                )
+                self.mediator.create_db_position(db_position_request)
+
+        # Send a notification
         message = "Sold:<code>"
 
         for leg in orderrequest.legs:

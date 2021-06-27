@@ -18,12 +18,8 @@ logger = logging.getLogger("autotrader")
 class Bot(Mediator):
     notifier: Notifier = attr.ib(validator=attr.validators.instance_of(Notifier))  # type: ignore[misc]
     database: Database = attr.ib(validator=attr.validators.instance_of(Database))  # type: ignore[misc]
-    botloopfrequency: int = attr.ib(
-        validator=attr.validators.instance_of(int), init=False
-    )
-    killswitch: bool = attr.ib(
-        default=False, validator=attr.validators.instance_of(bool), init=False
-    )
+    botloopfrequency: int = attr.ib(validator=attr.validators.instance_of(int), init=False)
+    killswitch: bool = attr.ib(default=False, validator=attr.validators.instance_of(bool), init=False)
     brokerstrategy: dict[Strategy, Broker] = attr.ib(
         validator=attr.validators.deep_mapping(
             key_validator=attr.validators.instance_of(Strategy),  # type: ignore[misc]
@@ -36,6 +32,10 @@ class Bot(Mediator):
         self.botloopfrequency = 60
         self.killswitch = False
 
+        # Set Mediators
+        self.database.mediator = self
+        self.notifier.mediator = self
+
         # Validate Broker Strategies and set Mediators
         names = []
 
@@ -47,18 +47,21 @@ class Bot(Mediator):
             broker.mediator = self
             strategy.mediator = self
 
-        # Set Mediators
-        self.database.mediator = self
-        self.notifier.mediator = self
+            # Check if Strat exists, create it if needed, store the ID
+            result = self.database.read_strategy_by_name(strategy.strategy_name)
+
+            if result == []:
+                request = baseRR.CreateDatabaseStrategyRequest(strategy_name=strategy.strategy_name)
+                strategy.strategy_id = self.database.create_strategy(request)
+            else:
+                strategy.strategy_id = result[0][0]
 
     def process_strategies(self):
         # Get the current timestamp
         starttime = time.time()
 
         # If the loop is exited, send a notification
-        self.send_notification(
-            baseRR.SendNotificationRequestMessage(message="Bot Started.")
-        )
+        self.send_notification(baseRR.SendNotificationRequestMessage(message="Bot Started."))
 
         # While the kill switch is not enabled, loop through strategies
         while not self.killswitch:
@@ -70,19 +73,12 @@ class Bot(Mediator):
 
             # Sleep for the specified time.
             logger.info("Sleeping...")
-            time.sleep(
-                self.botloopfrequency
-                - ((time.time() - starttime) % self.botloopfrequency)
-            )
+            time.sleep(self.botloopfrequency - ((time.time() - starttime) % self.botloopfrequency))
 
         # If the loop is exited, send a notification
-        self.send_notification(
-            baseRR.SendNotificationRequestMessage(message="Bot Terminated.")
-        )
+        self.send_notification(baseRR.SendNotificationRequestMessage(message="Bot Terminated."))
 
-    def get_account(
-        self, request: baseRR.GetAccountRequestMessage
-    ) -> Union[baseRR.GetAccountResponseMessage, None]:
+    def get_account(self, request: baseRR.GetAccountRequestMessage) -> Union[baseRR.GetAccountResponseMessage, None]:
         broker = self.get_broker(request.strategy_name)
 
         if broker is None:
@@ -105,9 +101,7 @@ class Bot(Mediator):
             if broker is None:
                 continue
 
-            acct_request = baseRR.GetAccountRequestMessage(
-                strategy.strategy_name, request.orders, request.positions
-            )
+            acct_request = baseRR.GetAccountRequestMessage(strategy.strategy_name, request.orders, request.positions)
 
             account = broker.get_account(acct_request)
 
@@ -116,9 +110,7 @@ class Bot(Mediator):
 
         return response
 
-    def place_order(
-        self, request: baseRR.PlaceOrderRequestMessage
-    ) -> Union[baseRR.PlaceOrderResponseMessage, None]:
+    def place_order(self, request: baseRR.PlaceOrderRequestMessage) -> Union[baseRR.PlaceOrderResponseMessage, None]:
         broker = self.get_broker(request.strategy_name)
 
         if broker is None:
@@ -136,9 +128,7 @@ class Bot(Mediator):
 
         return broker.cancel_order(request)
 
-    def get_order(
-        self, request: baseRR.GetOrderRequestMessage
-    ) -> Union[baseRR.GetOrderResponseMessage, None]:
+    def get_order(self, request: baseRR.GetOrderRequestMessage) -> Union[baseRR.GetOrderResponseMessage, None]:
         broker = self.get_broker(request.strategy_name)
 
         if broker is None:
@@ -194,3 +184,18 @@ class Bot(Mediator):
             strategies.append(strategy.strategy_name)
 
         return strategies
+
+    def create_db_strategy(
+        self, request: baseRR.CreateDatabaseStrategyRequest
+    ) -> Union[baseRR.CreateDatabaseStrategyResponse, None]:
+        return self.database.create_strategy(request)
+
+    def create_db_order(
+        self, request: baseRR.CreateDatabaseOrderRequest
+    ) -> Union[baseRR.CreateDatabaseOrderResponse, None]:
+        return self.database.create_order(request)
+
+    def create_db_position(
+        self, request: baseRR.CreateDatabasePositionRequest
+    ) -> Union[baseRR.CreateDatabasePositionResponse, None]:
+        return self.database.create_position(request)
