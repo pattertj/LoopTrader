@@ -1,21 +1,21 @@
 # import datetime as dt
 
-import basetypes.Mediator.reqRespTypes as baseRR
-from basetypes.Broker.tdaBroker import TdaBroker
+# import basetypes.Mediator.reqRespTypes as baseRR
+# from basetypes.Broker.tdaBroker import TdaBroker
 
 
-def test_get_account():
-    broker = TdaBroker(id="individual")
-    broker.maxretries = 3
+# def test_get_account():
+#     broker = TdaBroker(id="individual")
+#     broker.maxretries = 3
 
-    request = baseRR.GetAccountRequestMessage("", True, True)
-    response = broker.get_account(request)
+#     request = baseRR.GetAccountRequestMessage("", True, True)
+#     response = broker.get_account(request)
 
-    assert response is not None
-    assert response.currentbalances is not None
-    assert response.positions is not None
-    assert response.currentbalances.liquidationvalue is not None
-    assert response.currentbalances.buyingpower is not None
+#     assert response is not None
+#     assert response.currentbalances is not None
+#     assert response.positions is not None
+#     assert response.currentbalances.liquidationvalue is not None
+#     assert response.currentbalances.buyingpower is not None
 
 
 # def test_get_order():
