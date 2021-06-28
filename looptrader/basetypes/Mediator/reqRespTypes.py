@@ -43,6 +43,7 @@ class PlaceOrderRequestMessage:
         )
 
     price: float = attr.ib(validator=attr.validators.instance_of(float))
+    strategy_name: str = attr.ib(validator=attr.validators.instance_of(str))
     orderstrategytype: str = attr.ib(
         validator=attr.validators.in_(["SINGLE", "OCO", "TRIGGER"])
     )
@@ -86,6 +87,7 @@ class PlaceOrderResponseMessage:
 class GetOptionChainRequestMessage:
     """Generic request object for retrieving the Option Chain."""
 
+    strategy_name: str = attr.ib(validator=attr.validators.instance_of(str))
     symbol: str = attr.ib(validator=attr.validators.instance_of(str))
     contracttype: str = attr.ib(validator=attr.validators.in_(["CALL", "PUT", "ALL"]))
     includequotes: bool = attr.ib(validator=attr.validators.instance_of(bool))
@@ -144,6 +146,15 @@ class GetOptionChainResponseMessage:
 
 @attr.s(auto_attribs=True)
 class GetAccountRequestMessage:
+    """Generic request object for retrieving account details."""
+
+    strategy_name: str = attr.ib(validator=attr.validators.instance_of(str))
+    orders: bool = attr.ib(validator=attr.validators.instance_of(bool))
+    positions: bool = attr.ib(validator=attr.validators.instance_of(bool))
+
+
+@attr.s(auto_attribs=True)
+class GetAllAccountsRequestMessage:
     """Generic request object for retrieving account details."""
 
     orders: bool = attr.ib(validator=attr.validators.instance_of(bool))
@@ -268,6 +279,7 @@ class AccountBalance:
 class GetAccountResponseMessage:
     """Generic response object for retrieving account details."""
 
+    accountnumber: int = attr.ib(validator=attr.validators.instance_of(int))
     currentbalances: AccountBalance = attr.ib(
         validator=attr.validators.instance_of(AccountBalance)
     )
@@ -279,10 +291,20 @@ class GetAccountResponseMessage:
     )
 
 
+@attr.s(auto_attribs=True, init=False)
+class GetAllAccountsResponseMessage:
+    """Generic response object for retrieving all account details."""
+
+    accounts: list[GetAccountResponseMessage] = attr.ib(
+        validator=attr.validators.instance_of(list[GetAccountResponseMessage])
+    )
+
+
 @attr.s(auto_attribs=True)
 class CancelOrderRequestMessage:
     """Generic request object for cancelling an order."""
 
+    strategy_name: str = attr.ib(validator=attr.validators.instance_of(str))
     orderid: int = attr.ib(validator=attr.validators.instance_of(int))
 
 
@@ -297,6 +319,7 @@ class CancelOrderResponseMessage:
 class GetOrderRequestMessage:
     """Generic request object for reading an order."""
 
+    strategy_name: str = attr.ib(validator=attr.validators.instance_of(str))
     orderid: int = attr.ib(validator=attr.validators.instance_of(int))
 
 
@@ -355,6 +378,7 @@ class GetOrderResponseMessage:
 class GetMarketHoursRequestMessage:
     """Generic request object for getting Market Hours."""
 
+    strategy_name: str = attr.ib(validator=attr.validators.instance_of(str))
     market: str = attr.ib(
         validator=attr.validators.in_(["OPTION", "EQUITY", "FUTURE", "FOREX", "BOND"])
     )
@@ -389,3 +413,52 @@ class SetKillSwitchRequestMessage:
     """Generic request object for setting the bot killswitch."""
 
     kill_switch: bool = attr.ib(validator=attr.validators.instance_of(bool))
+
+
+@attr.s(auto_attribs=True)
+class CreateDatabaseStrategyRequest:
+    strategy_name: str = attr.ib(validator=attr.validators.instance_of(str))
+
+
+@attr.s(auto_attribs=True)
+class CreateDatabaseStrategyResponse:
+    strategy_id: int = attr.ib(validator=attr.validators.instance_of(int))
+
+
+@attr.s(auto_attribs=True)
+class CreateDatabaseOrderRequest:
+    broker_order_number: int = attr.ib(validator=attr.validators.instance_of(int))
+    strategy_id: int = attr.ib(validator=attr.validators.instance_of(int))
+    status: str = attr.ib(validator=attr.validators.instance_of(str))
+
+
+@attr.s(auto_attribs=True)
+class CreateDatabaseOrderResponse:
+    order_id: int = attr.ib(validator=attr.validators.instance_of(int))
+
+
+@attr.s(auto_attribs=True)
+class CreateDatabasePositionRequest:
+    strategy_id: int = attr.ib(validator=attr.validators.instance_of(int))
+    symbol: str = attr.ib(validator=attr.validators.instance_of(str))
+    quantity: int = attr.ib(validator=attr.validators.instance_of(int))
+    is_open: bool = attr.ib(validator=attr.validators.instance_of(bool))
+    entry_order_id: int = attr.ib(validator=attr.validators.instance_of(int))
+    exit_order_id: int = attr.ib(validator=attr.validators.instance_of(int))
+
+
+@attr.s(auto_attribs=True)
+class CreateDatabasePositionResponse:
+    position_id: int = attr.ib(validator=attr.validators.instance_of(int))
+
+
+@attr.s(auto_attribs=True)
+class ReadOpenPositionsByStrategyIDRequest:
+    strategy_id: int = attr.ib(validator=attr.validators.instance_of(int))
+
+
+@attr.s(auto_attribs=True, init=False)
+class ReadOpenPositionsByStrategyIDResponse:
+    positions: list[AccountPosition] = attr.ib(
+        validator=attr.validators.instance_of(list[AccountPosition])
+    )

@@ -24,6 +24,14 @@ class Mediator(abc.ABC):
         )
 
     @abc.abstractmethod
+    def get_all_accounts(
+        self, request: baseRR.GetAllAccountsRequestMessage
+    ) -> Union[baseRR.GetAllAccountsResponseMessage, None]:
+        raise NotImplementedError(
+            "Each mediator must implement the 'Get_All_Accounts' method."
+        )
+
+    @abc.abstractmethod
     def place_order(
         self, request: baseRR.PlaceOrderRequestMessage
     ) -> Union[baseRR.PlaceOrderResponseMessage, None]:
@@ -73,4 +81,41 @@ class Mediator(abc.ABC):
     def set_kill_switch(self, kill_switch: baseRR.SetKillSwitchRequestMessage) -> None:
         raise NotImplementedError(
             "Each mediator must implement the 'set_kill_switch' method."
+        )
+
+    @abc.abstractmethod
+    def get_all_strategies(self) -> list[str]:
+        raise NotImplementedError(
+            "Each mediator must implement the 'get_all_strategies' method."
+        )
+
+    @abc.abstractmethod
+    def create_db_strategy(
+        self, request: baseRR.CreateDatabaseStrategyRequest
+    ) -> Union[baseRR.CreateDatabaseStrategyResponse, None]:
+        raise NotImplementedError(
+            "Each mediator must implement the 'create_db_strategy' method."
+        )
+
+    @abc.abstractmethod
+    def create_db_order(
+        self, request: baseRR.CreateDatabaseOrderRequest
+    ) -> Union[baseRR.CreateDatabaseOrderResponse, None]:
+        raise NotImplementedError(
+            "Each mediator must implement the 'create_db_order' method."
+        )
+
+    @abc.abstractmethod
+    def create_db_position(
+        self, request: baseRR.CreateDatabasePositionRequest
+    ) -> Union[baseRR.CreateDatabasePositionResponse, None]:
+        raise NotImplementedError(
+            "Each mediator must implement the 'create_db_position' method."
+        )
+
+    def read_open_db_position_by_strategy_id(
+        self, request: baseRR.ReadOpenPositionsByStrategyIDRequest
+    ) -> Union[baseRR.ReadOpenPositionsByStrategyIDResponse, None]:
+        raise NotImplementedError(
+            "Each mediator must implement the 'create_db_position' method."
         )

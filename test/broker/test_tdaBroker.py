@@ -1,14 +1,14 @@
 # import datetime as dt
 
-# import looptrader.basetypes.Mediator.reqRespTypes as baseRR
-# from looptrader.basetypes.Broker.tdaBroker import TdaBroker
+# import basetypes.Mediator.reqRespTypes as baseRR
+# from basetypes.Broker.tdaBroker import TdaBroker
 
 
 # def test_get_account():
-#     broker = TdaBroker()
+#     broker = TdaBroker(id="individual")
 #     broker.maxretries = 3
 
-#     request = baseRR.GetAccountRequestMessage(True, True)
+#     request = baseRR.GetAccountRequestMessage("", True, True)
 #     response = broker.get_account(request)
 
 #     assert response is not None

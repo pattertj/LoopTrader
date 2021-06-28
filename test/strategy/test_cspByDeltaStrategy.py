@@ -1,9 +1,50 @@
+# import os
 import basetypes.Mediator.reqRespTypes as baseRR
-from basetypes.Strategy.cspByDeltaStrategy import CspByDeltaStrategy
+from basetypes.Strategy.singlebydeltastrategy import SingleByDeltaStrategy
+
+# from basetypes.Broker.tdaBroker import TdaBroker
+# from basetypes.Database.sqliteDatabase import SqliteDatabase
+# from basetypes.Mediator.botMediator import Bot
+# from basetypes.Notifier.telegramnotifier import TelegramNotifier
+
+
+# def test_sync_positions_and_orders():
+#     """This test will always pass. It's primarily how I debug the strategies off-hours. The test function can be changed, but this is the pattern. I leave it commented out when not in use since it is not a real test."""
+#     # Create our strategy
+#     teststrat = SingleByDeltaStrategy(strategy_name="calls")
+
+#     # Create our broker
+#     testbroker = TdaBroker(id="individual")
+
+#     # Create our local DB
+#     sqlitedb = SqliteDatabase("looptrader.db")
+
+#     # Create our notifier
+#     telegram_bot = TelegramNotifier()
+
+#     # Create our Bot
+#     bot = Bot(
+#         brokerstrategy={teststrat: testbroker},
+#         database=sqlitedb,
+#         notifier=telegram_bot,
+#     )
+
+#     # Assign bot to the strat
+#     teststrat.mediator = bot
+
+#     # Test our function
+#     result = teststrat.sync_positions_and_orders()
+
+#     os.remove("testdb.db")
+
+#     # Check results
+#     assert result is None or result is not None
 
 
 def test_calculate_order_quantity():
-    strat = CspByDeltaStrategy(maxlosscalcpercent=0.2, portfolioallocationpercent=1.0)
+    strat = SingleByDeltaStrategy(
+        maxlosscalcpercent=0.2, portfolioallocationpercent=1.0
+    )
 
     result = strat.calculate_order_quantity(4000, 249000, 249000)
 
@@ -11,7 +52,9 @@ def test_calculate_order_quantity():
 
 
 def test_calculate_order_quantity_insufficient():
-    strat = CspByDeltaStrategy(maxlosscalcpercent=0.2, portfolioallocationpercent=1.0)
+    strat = SingleByDeltaStrategy(
+        maxlosscalcpercent=0.2, portfolioallocationpercent=1.0
+    )
 
     result = strat.calculate_order_quantity(4000, 500, 500)
 
@@ -19,7 +62,7 @@ def test_calculate_order_quantity_insufficient():
 
 
 def test_get_best_strike():  # sourcery skip: merge-dict-assign
-    strat = CspByDeltaStrategy(
+    strat = SingleByDeltaStrategy(
         targetdelta=-0.06,
         mindelta=-0.03,
         maxlosscalcpercent=0.2,

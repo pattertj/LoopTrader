@@ -8,6 +8,7 @@ attrs = "*"
 python-telegram-bot = "*"
 td-ameritrade-python-api = "*"
 python-dotenv = "*"
+pyyaml = "*"
 
 [dev-packages]
 black = "==21.5b1"

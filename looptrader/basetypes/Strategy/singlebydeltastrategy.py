@@ -13,8 +13,8 @@ from basetypes.Strategy.abstractStrategy import Strategy
 logger = logging.getLogger("autotrader")
 
 
-@attr.s(auto_attribs=True)
-class CspByDeltaStrategy(Strategy, Component):
+@attr.s(auto_attribs=True, eq=False, repr=False)
+class SingleByDeltaStrategy(Strategy, Component):
     """The concrete implementation of the generic LoopTrader Strategy class for trading Cash-Secured Puts by Delta."""
 
     strategy_name: str = attr.ib(
@@ -29,8 +29,11 @@ class CspByDeltaStrategy(Strategy, Component):
     buy_or_sell: str = attr.ib(
         default="SELL", validator=attr.validators.in_(["SELL", "BUY"])
     )
+    put_or_call: str = attr.ib(
+        default="PUT", validator=attr.validators.in_(["PUT", "CALL"])
+    )
     targetdelta: float = attr.ib(
-        default=-0.06, validator=attr.validators.instance_of(float)
+        default=-0.07, validator=attr.validators.instance_of(float)
     )
     mindelta: float = attr.ib(
         default=-0.03, validator=attr.validators.instance_of(float)
@@ -176,7 +179,7 @@ class CspByDeltaStrategy(Strategy, Component):
 
         # Place closing Orders
         for order in closingorders:
-            self.mediator.place_order(order)
+            self.place_order(order)
 
         logger.info("Placed {} Closing Orders".format(len(closingorders)))
 
@@ -214,7 +217,7 @@ class CspByDeltaStrategy(Strategy, Component):
             # Place Closing Orders
             if closingorders is not None:
                 for order in closingorders:
-                    self.mediator.place_order(order)
+                    self.place_order(order)
 
     # Order Builders
     def build_offsetting_orders(self) -> list[baseRR.PlaceOrderRequestMessage]:
@@ -254,7 +257,7 @@ class CspByDeltaStrategy(Strategy, Component):
 
         # Get account balance
         account = self.mediator.get_account(
-            baseRR.GetAccountRequestMessage(False, True)
+            baseRR.GetAccountRequestMessage(self.strategy_name, False, True)
         )
 
         if account is None or not hasattr(account, "positions"):
@@ -274,7 +277,10 @@ class CspByDeltaStrategy(Strategy, Component):
         availbp = self.calculate_actual_buying_power(account)
 
         # Find next expiration
-        expiration = self.get_next_expiration(chain.putexpdatemap)
+        if self.put_or_call == "PUT":
+            expiration = self.get_next_expiration(chain.putexpdatemap)
+        if self.put_or_call == "CALL":
+            expiration = self.get_next_expiration(chain.callexpdatemap)
 
         # If no valid expirations, exit.
         if expiration is None:
@@ -307,7 +313,8 @@ class CspByDeltaStrategy(Strategy, Component):
             baseRR.GetOptionChainRequestMessage: Option chain request message
         """
         return baseRR.GetOptionChainRequestMessage(
-            contracttype="PUT",
+            self.strategy_name,
+            contracttype=self.put_or_call,
             fromdate=dt.date.today() + dt.timedelta(days=self.minimumdte),
             todate=dt.date.today() + dt.timedelta(days=self.maximumdte),
             symbol=self.underlying,
@@ -344,6 +351,7 @@ class CspByDeltaStrategy(Strategy, Component):
 
         # Build Order
         orderrequest = baseRR.PlaceOrderRequestMessage()
+        orderrequest.strategy_name = self.strategy_name
         orderrequest.orderstrategytype = "SINGLE"
         orderrequest.duration = "GOOD_TILL_CANCEL"
         orderrequest.ordertype = "LIMIT"
@@ -364,7 +372,9 @@ class CspByDeltaStrategy(Strategy, Component):
         orderrequests = []
 
         # Get account balance
-        accountrequest = baseRR.GetAccountRequestMessage(True, False)
+        accountrequest = baseRR.GetAccountRequestMessage(
+            self.strategy_name, True, False
+        )
         account = self.mediator.get_account(accountrequest)
 
         if account is None:
@@ -374,7 +384,9 @@ class CspByDeltaStrategy(Strategy, Component):
         # Look for open positions
         for order in account.orders:
             if order.status == "QUEUED" and order.legs[0].positioneffect == "CLOSING":
-                orderrequest = baseRR.CancelOrderRequestMessage(int(order.orderid))
+                orderrequest = baseRR.CancelOrderRequestMessage(
+                    self.strategy_name, int(order.orderid)
+                )
                 orderrequests.append(orderrequest)
 
         return orderrequests
@@ -388,7 +400,7 @@ class CspByDeltaStrategy(Strategy, Component):
         orderrequests = []
 
         # Get account balance
-        accountrequest = baseRR.GetAccountRequestMessage(True, True)
+        accountrequest = baseRR.GetAccountRequestMessage(self.strategy_name, True, True)
         account = self.mediator.get_account(accountrequest)
 
         if account is None:
@@ -399,19 +411,34 @@ class CspByDeltaStrategy(Strategy, Component):
         for position in account.positions:
             if (
                 position.underlyingsymbol == self.underlying
-                and position.putcall == "PUT"
+                and position.putcall == self.put_or_call
             ):
+                close_exists = False
+
                 # Look for closing Orders
-                closingorderexists = self.check_for_closing_orders(
-                    position.symbol, account.orders
-                )
+                for order in account.orders:
+                    # Do we have a match?
+                    if (
+                        order.status == "QUEUED"
+                        and order.legs[0].symbol == position.symbol
+                        and order.legs[0].instruction == "BUY_TO_CLOSE"
+                    ):
+                        # Does the quantity match?
+                        if order.quantity == (
+                            position.shortquantity + position.longquantity
+                        ):
+                            close_exists = True
+                        else:
+                            # Cancel current Order
+                            cancelorderrequest = baseRR.CancelOrderRequestMessage(
+                                self.strategy_name, int(order.orderid)
+                            )
+                            self.mediator.cancel_order(cancelorderrequest)
 
-                if closingorderexists:
-                    continue
-
-                orderrequest = self.build_closing_order_request(position)
-
-                orderrequests.append(orderrequest)
+                # Place a new Closing Order
+                if not close_exists:
+                    orderrequest = self.build_closing_order_request(position)
+                    orderrequests.append(orderrequest)
 
         return orderrequests
 
@@ -428,6 +455,7 @@ class CspByDeltaStrategy(Strategy, Component):
             leg.instruction = "SELL_TO_CLOSE"
 
         orderrequest = baseRR.PlaceOrderRequestMessage()
+        orderrequest.strategy_name = self.strategy_name
         orderrequest.orderstrategytype = "SINGLE"
         orderrequest.duration = "GOOD_TILL_CANCEL"
         orderrequest.ordertype = "LIMIT"
@@ -479,6 +507,12 @@ class CspByDeltaStrategy(Strategy, Component):
         ):
             return False
 
+        # Add Order to the DB
+        db_order_request = baseRR.CreateDatabaseOrderRequest(
+            int(neworderresult.orderid), self.strategy_id, "NEW"
+        )
+        db_order_response = self.mediator.create_db_order(db_order_request)
+
         # If closing order, let the order ride, otherwise continue logic
         if orderrequest.positioneffect == "CLOSING":
             return True
@@ -487,28 +521,52 @@ class CspByDeltaStrategy(Strategy, Component):
         time.sleep(self.openingorderloopseconds)
 
         # Re-get the Order
-        getorderrequest = baseRR.GetOrderRequestMessage(int(neworderresult.orderid))
+        getorderrequest = baseRR.GetOrderRequestMessage(
+            self.strategy_name, int(neworderresult.orderid)
+        )
         processedorder = self.mediator.get_order(getorderrequest)
 
         if processedorder is None:
+            # Log the Error
             logger.error(
                 "Failed to get re-get placed order, ID: {}.".format(
                     neworderresult.orderid
                 )
             )
+
+            # Cancel it
+            cancelorderrequest = baseRR.CancelOrderRequestMessage(
+                self.strategy_name, int(neworderresult.orderid)
+            )
+            self.mediator.cancel_order(cancelorderrequest)
+
             return False
 
         # If the order isn't filled
         if processedorder.status != "FILLED":
             # Cancel it
             cancelorderrequest = baseRR.CancelOrderRequestMessage(
-                int(neworderresult.orderid)
+                self.strategy_name, int(neworderresult.orderid)
             )
             self.mediator.cancel_order(cancelorderrequest)
 
             # Return failure to fill order
             return False
 
+        # Otherwise, add Position to the DB
+        if db_order_response is not None:
+            for leg in orderrequest.legs:
+                db_position_request = baseRR.CreateDatabasePositionRequest(
+                    self.strategy_id,
+                    leg.symbol,
+                    leg.quantity,
+                    True,
+                    db_order_response.order_id,
+                    0,
+                )
+                self.mediator.create_db_position(db_position_request)
+
+        # Send a notification
         message = "Sold:<code>"
 
         for leg in orderrequest.legs:
@@ -528,13 +586,21 @@ class CspByDeltaStrategy(Strategy, Component):
         self, date: dt.datetime
     ) -> baseRR.GetMarketHoursResponseMessage:
         """Looping Logic for getting the next open session start and end times"""
+
         logger.debug("get_market_session_loop")
+
         request = baseRR.GetMarketHoursRequestMessage(
-            market="OPTION", product="IND", datetime=date
+            self.strategy_name, market="OPTION", product="IND", datetime=date
         )
+
+        # Get the market hours
         hours = self.mediator.get_market_hours(request)
 
-        if hours is None or hours.end < dt.datetime.now().astimezone(dt.timezone.utc):
+        # If we didn't get hours, i.e. Weekend or if we are more than 15 minutes past market close, check tomorrow.
+        # The 15 minute check is to allow the after-hours market logic to run
+        if hours is None or hours.end + dt.timedelta(
+            minutes=15
+        ) < dt.datetime.now().astimezone(dt.timezone.utc):
             return self.get_market_session_loop(date + dt.timedelta(days=1))
         return hours
 
@@ -629,7 +695,7 @@ class CspByDeltaStrategy(Strategy, Component):
         for position in account.positions:
             if (
                 position.underlyingsymbol == self.underlying
-                and position.putcall == "PUT"
+                and position.putcall == self.put_or_call
             ):
                 usedbp += self.calculate_position_buying_power(position)
 
@@ -671,17 +737,17 @@ class CspByDeltaStrategy(Strategy, Component):
         trade_size = remainingbalance // max_loss
 
         # Log Values
-        logger.info(
-            "Strike: {} BuyingPower: {} LiquidationValue: {} MaxLoss: {} BalanceToRisk: {} RemainingBalance: {} TradeSize: {} ".format(
-                strike,
-                buyingpower,
-                liquidationvalue,
-                max_loss,
-                balance_to_risk,
-                remainingbalance,
-                trade_size,
-            )
-        )
+        # logger.info(
+        #     "Strike: {} BuyingPower: {} LiquidationValue: {} MaxLoss: {} BalanceToRisk: {} RemainingBalance: {} TradeSize: {} ".format(
+        #         strike,
+        #         buyingpower,
+        #         liquidationvalue,
+        #         max_loss,
+        #         balance_to_risk,
+        #         remainingbalance,
+        #         trade_size,
+        #     )
+        # )
 
         # Return quantity
         return int(trade_size)

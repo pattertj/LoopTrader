@@ -8,6 +8,7 @@ from basetypes.Component.abstractComponent import Component
 
 @attr.s(auto_attribs=True)
 class Broker(abc.ABC, Component):
+    id: str = attr.ib(validator=attr.validators.instance_of(str))
     client_id: str = attr.ib(validator=attr.validators.instance_of(str))
     redirect_uri: str = attr.ib(validator=attr.validators.instance_of(str))
     account_number: str = attr.ib(validator=attr.validators.instance_of(str))
