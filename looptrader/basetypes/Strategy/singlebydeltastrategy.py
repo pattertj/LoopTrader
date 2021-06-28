@@ -179,7 +179,7 @@ class SingleByDeltaStrategy(Strategy, Component):
 
         # Place closing Orders
         for order in closingorders:
-            self.mediator.place_order(order)
+            self.place_order(order)
 
         logger.info("Placed {} Closing Orders".format(len(closingorders)))
 

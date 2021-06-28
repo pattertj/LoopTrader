@@ -220,3 +220,8 @@ class Bot(Mediator):
         self, request: baseRR.CreateDatabasePositionRequest
     ) -> Union[baseRR.CreateDatabasePositionResponse, None]:
         return self.database.create_position(request)
+
+    def read_open_db_position_by_strategy_id(
+        self, request: baseRR.ReadOpenPositionsByStrategyIDRequest
+    ) -> Union[baseRR.ReadOpenPositionsByStrategyIDResponse, None]:
+        return self.database.read_open_positions_by_strategy_id(request)

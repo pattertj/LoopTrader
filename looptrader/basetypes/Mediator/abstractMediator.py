@@ -112,3 +112,10 @@ class Mediator(abc.ABC):
         raise NotImplementedError(
             "Each mediator must implement the 'create_db_position' method."
         )
+
+    def read_open_db_position_by_strategy_id(
+        self, request: baseRR.ReadOpenPositionsByStrategyIDRequest
+    ) -> Union[baseRR.ReadOpenPositionsByStrategyIDResponse, None]:
+        raise NotImplementedError(
+            "Each mediator must implement the 'create_db_position' method."
+        )

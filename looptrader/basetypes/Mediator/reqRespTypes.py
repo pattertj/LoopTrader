@@ -455,7 +455,6 @@ class CreateDatabasePositionResponse:
 @attr.s(auto_attribs=True)
 class ReadOpenPositionsByStrategyIDRequest:
     strategy_id: int = attr.ib(validator=attr.validators.instance_of(int))
-    strategy_name: str = attr.ib(validator=attr.validators.instance_of(str))
 
 
 @attr.s(auto_attribs=True, init=False)

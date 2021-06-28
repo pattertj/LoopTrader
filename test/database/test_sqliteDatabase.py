@@ -110,7 +110,7 @@ def test_read_all_positions_for_strategy_id():
     assert position_result is not None
     assert position_result.position_id >= 0
 
-    read = baseRR.ReadOpenPositionsByStrategyIDRequest(strat_result.strategy_id, "foo")
+    read = baseRR.ReadOpenPositionsByStrategyIDRequest(strat_result.strategy_id)
     read_result = db.read_open_positions_by_strategy_id(read)
 
     assert read_result is not None

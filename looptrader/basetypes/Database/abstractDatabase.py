@@ -75,3 +75,11 @@ class Database(abc.ABC, Component):
         raise NotImplementedError(
             "Each strategy must implement the 'delete_position' method."
         )
+
+    @abc.abstractmethod
+    def read_open_positions_by_strategy_id(
+        self, request: baseRR.ReadOpenPositionsByStrategyIDRequest
+    ) -> Union[baseRR.ReadOpenPositionsByStrategyIDResponse, None]:
+        raise NotImplementedError(
+            "Each strategy must implement the 'read_open_positions_by_strategy_id' method."
+        )
