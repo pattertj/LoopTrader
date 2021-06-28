@@ -5,7 +5,7 @@ from basetypes.Broker.tdaBroker import TdaBroker
 from basetypes.Database.sqliteDatabase import SqliteDatabase
 from basetypes.Mediator.botMediator import Bot
 from basetypes.Notifier.telegramnotifier import TelegramNotifier
-from basetypes.Strategy.cspByDeltaStrategy import CspByDeltaStrategy
+from basetypes.Strategy.singlebydeltastrategy import SingleByDeltaStrategy
 from basetypes.Strategy.spreadsbydeltastrategy import SpreadsByDeltaStrategy
 
 if __name__ == "__main__":
@@ -17,7 +17,14 @@ if __name__ == "__main__":
     )
 
     # Create our strategies
-    cspstrat = CspByDeltaStrategy(strategy_name="csps")
+    cspstrat = SingleByDeltaStrategy(strategy_name="csps")
+    nakedcalls = SingleByDeltaStrategy(
+        strategy_name="calls",
+        put_or_call="CALL",
+        targetdelta=0.02,
+        mindelta=0.01,
+        profittargetpercent=0.78,
+    )
     spreadstrat = SpreadsByDeltaStrategy(strategy_name="spreads")
 
     # Create our brokers
@@ -32,7 +39,11 @@ if __name__ == "__main__":
 
     # Create our Bot
     bot = Bot(
-        brokerstrategy={spreadstrat: irabroker, cspstrat: individualbroker},
+        brokerstrategy={
+            spreadstrat: irabroker,
+            cspstrat: individualbroker,
+            nakedcalls: individualbroker,
+        },
         database=sqlitedb,
         notifier=telegram_bot,
     )

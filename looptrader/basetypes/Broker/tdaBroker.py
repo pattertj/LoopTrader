@@ -233,7 +233,7 @@ class TdaBroker(Broker, Component):
             accountposition.symbol = instrument.get("symbol", str)
             accountposition.underlyingsymbol = instrument.get("underlyingSymbol", str)
 
-            strikeprice = re.search(r"(?<=[P])\d\w+", instrument.get("symbol", str))
+            strikeprice = re.search(r"(?<=[PC])\d\w+", instrument.get("symbol", str))
 
             if strikeprice is None and accountposition.assettype == "OPTION":
                 logger.error(

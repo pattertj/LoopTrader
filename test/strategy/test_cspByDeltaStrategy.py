@@ -1,9 +1,11 @@
 import basetypes.Mediator.reqRespTypes as baseRR
-from basetypes.Strategy.cspByDeltaStrategy import CspByDeltaStrategy
+from basetypes.Strategy.singlebydeltastrategy import SingleByDeltaStrategy
 
 
 def test_calculate_order_quantity():
-    strat = CspByDeltaStrategy(maxlosscalcpercent=0.2, portfolioallocationpercent=1.0)
+    strat = SingleByDeltaStrategy(
+        maxlosscalcpercent=0.2, portfolioallocationpercent=1.0
+    )
 
     result = strat.calculate_order_quantity(4000, 249000, 249000)
 
@@ -11,7 +13,9 @@ def test_calculate_order_quantity():
 
 
 def test_calculate_order_quantity_insufficient():
-    strat = CspByDeltaStrategy(maxlosscalcpercent=0.2, portfolioallocationpercent=1.0)
+    strat = SingleByDeltaStrategy(
+        maxlosscalcpercent=0.2, portfolioallocationpercent=1.0
+    )
 
     result = strat.calculate_order_quantity(4000, 500, 500)
 
@@ -19,7 +23,7 @@ def test_calculate_order_quantity_insufficient():
 
 
 def test_get_best_strike():  # sourcery skip: merge-dict-assign
-    strat = CspByDeltaStrategy(
+    strat = SingleByDeltaStrategy(
         targetdelta=-0.06,
         mindelta=-0.03,
         maxlosscalcpercent=0.2,

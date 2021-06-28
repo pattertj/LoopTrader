@@ -14,7 +14,7 @@ logger = logging.getLogger("autotrader")
 
 
 @attr.s(auto_attribs=True, eq=False, repr=False)
-class CspByDeltaStrategy(Strategy, Component):
+class SingleByDeltaStrategy(Strategy, Component):
     """The concrete implementation of the generic LoopTrader Strategy class for trading Cash-Secured Puts by Delta."""
 
     strategy_name: str = attr.ib(
@@ -28,6 +28,9 @@ class CspByDeltaStrategy(Strategy, Component):
     )
     buy_or_sell: str = attr.ib(
         default="SELL", validator=attr.validators.in_(["SELL", "BUY"])
+    )
+    put_or_call: str = attr.ib(
+        default="PUT", validator=attr.validators.in_(["PUT", "CALL"])
     )
     targetdelta: float = attr.ib(
         default=-0.07, validator=attr.validators.instance_of(float)
@@ -214,7 +217,7 @@ class CspByDeltaStrategy(Strategy, Component):
             # Place Closing Orders
             if closingorders is not None:
                 for order in closingorders:
-                    self.mediator.place_order(order)
+                    self.place_order(order)
 
     # Order Builders
     def build_offsetting_orders(self) -> list[baseRR.PlaceOrderRequestMessage]:
@@ -274,7 +277,10 @@ class CspByDeltaStrategy(Strategy, Component):
         availbp = self.calculate_actual_buying_power(account)
 
         # Find next expiration
-        expiration = self.get_next_expiration(chain.putexpdatemap)
+        if self.put_or_call == "PUT":
+            expiration = self.get_next_expiration(chain.putexpdatemap)
+        if self.put_or_call == "CALL":
+            expiration = self.get_next_expiration(chain.callexpdatemap)
 
         # If no valid expirations, exit.
         if expiration is None:
@@ -308,7 +314,7 @@ class CspByDeltaStrategy(Strategy, Component):
         """
         return baseRR.GetOptionChainRequestMessage(
             self.strategy_name,
-            contracttype="PUT",
+            contracttype=self.put_or_call,
             fromdate=dt.date.today() + dt.timedelta(days=self.minimumdte),
             todate=dt.date.today() + dt.timedelta(days=self.maximumdte),
             symbol=self.underlying,
@@ -405,19 +411,34 @@ class CspByDeltaStrategy(Strategy, Component):
         for position in account.positions:
             if (
                 position.underlyingsymbol == self.underlying
-                and position.putcall == "PUT"
+                and position.putcall == self.put_or_call
             ):
+                close_exists = False
+
                 # Look for closing Orders
-                closingorderexists = self.check_for_closing_orders(
-                    position.symbol, account.orders
-                )
+                for order in account.orders:
+                    # Do we have a match?
+                    if (
+                        order.status == "QUEUED"
+                        and order.legs[0].symbol == position.symbol
+                        and order.legs[0].instruction == "BUY_TO_CLOSE"
+                    ):
+                        # Does the quantity match?
+                        if order.quantity == (
+                            position.shortquantity + position.longquantity
+                        ):
+                            close_exists = True
+                        else:
+                            # Cancel current Order
+                            cancelorderrequest = baseRR.CancelOrderRequestMessage(
+                                self.strategy_name, int(order.orderid)
+                            )
+                            self.mediator.cancel_order(cancelorderrequest)
 
-                if closingorderexists:
-                    continue
-
-                orderrequest = self.build_closing_order_request(position)
-
-                orderrequests.append(orderrequest)
+                # Place a new Closing Order
+                if not close_exists:
+                    orderrequest = self.build_closing_order_request(position)
+                    orderrequests.append(orderrequest)
 
         return orderrequests
 
@@ -488,7 +509,7 @@ class CspByDeltaStrategy(Strategy, Component):
 
         # Add Order to the DB
         db_order_request = baseRR.CreateDatabaseOrderRequest(
-            neworderresult.orderid, self.strategy_id, "NEW"
+            int(neworderresult.orderid), self.strategy_id, "NEW"
         )
         db_order_response = self.mediator.create_db_order(db_order_request)
 
@@ -674,7 +695,7 @@ class CspByDeltaStrategy(Strategy, Component):
         for position in account.positions:
             if (
                 position.underlyingsymbol == self.underlying
-                and position.putcall == "PUT"
+                and position.putcall == self.put_or_call
             ):
                 usedbp += self.calculate_position_buying_power(position)
 
