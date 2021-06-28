@@ -61,7 +61,7 @@ class SpreadsByDeltaStrategy(Strategy, Component):
             return
 
         # Check market hours
-        hours = self.get_market_session_loop(dt.datetime.now())
+        hours = self.get_market_session_loop(now)
 
         if hours is None:
             logger.error("Failed to get market hours, exiting and retrying.")
@@ -145,26 +145,8 @@ class SpreadsByDeltaStrategy(Strategy, Component):
             logger.error("Failed to get Account")
             return None
 
-        # Check if we have positions on already that expire today.
-        expiring_day = any(
-            position.underlyingsymbol == self.underlying
-            and position.expirationdate.date() == dt.date.today()
-            for position in account.positions
-        )
-
-        # Check Available Balance
-        tradable_today = (
-            account.currentbalances.buyingpower
-            - (
-                account.currentbalances.liquidationvalue
-                * self.portfolioallocationpercent
-            )
-        ) > (self.width * 100)
-
-        # If nothing is expiring and no tradable balance, exit.
-        # If we are expiring, continue trying to place a trade
-        # If we have a tradable balance, continue trying to place a trade
-        if not expiring_day and not tradable_today:
+        # Check if we should place a trade
+        if not self.build_new_order_precheck(account):
             logger.info("Buying Power too low.")
             return None
 
@@ -216,6 +198,15 @@ class SpreadsByDeltaStrategy(Strategy, Component):
             short_strike.strike, long_strike.strike, account.currentbalances
         )
 
+        # Return Order
+        return self.build_order_request(short_strike, long_strike, qty)
+
+    def build_order_request(
+        self,
+        short_strike: baseRR.GetOptionChainResponseMessage.ExpirationDate.Strike,
+        long_strike: baseRR.GetOptionChainResponseMessage.ExpirationDate.Strike,
+        qty: int,
+    ) -> Union[baseRR.PlaceOrderRequestMessage, None]:
         # If no valid qty, exit.
         if qty is None or qty == 0:
             return None
@@ -227,28 +218,11 @@ class SpreadsByDeltaStrategy(Strategy, Component):
         formattedprice = self.format_order_price(price)
 
         # Build Short Leg
-        shortleg = baseRR.PlaceOrderRequestMessage.Leg()
-        shortleg.symbol = short_strike.symbol
-        shortleg.assettype = "OPTION"
-        shortleg.quantity = qty
-
-        if self.buy_or_sell == "SELL":
-            shortleg.instruction = "SELL_TO_OPEN"
-        else:
-            shortleg.instruction = "BUY_TO_OPEN"
+        shortleg = self.build_leg(short_strike, qty)
 
         # Build Long Leg
-        longleg = baseRR.PlaceOrderRequestMessage.Leg()
-        longleg.symbol = long_strike.symbol
-        longleg.assettype = "OPTION"
-        longleg.quantity = qty
+        longleg = self.build_leg(long_strike, qty)
 
-        if self.buy_or_sell == "SELL":
-            longleg.instruction = "BUY_TO_OPEN"
-        else:
-            longleg.instruction = "SELL_TO_OPEN"
-
-        # Build Order
         orderrequest = baseRR.PlaceOrderRequestMessage()
         orderrequest.strategy_name = self.strategy_name
         orderrequest.orderstrategytype = "SINGLE"
@@ -264,8 +238,59 @@ class SpreadsByDeltaStrategy(Strategy, Component):
         orderrequest.legs.append(shortleg)
         orderrequest.legs.append(longleg)
 
-        # Return Order
         return orderrequest
+
+    def build_leg(
+        self,
+        strike: baseRR.GetOptionChainResponseMessage.ExpirationDate.Strike,
+        quantity: int,
+    ) -> baseRR.PlaceOrderRequestMessage.Leg:
+        leg = baseRR.PlaceOrderRequestMessage.Leg()
+        leg.symbol = strike.symbol
+        leg.assettype = "OPTION"
+        leg.quantity = quantity
+
+        if self.buy_or_sell == "SELL":
+            leg.instruction = "SELL_TO_OPEN"
+        else:
+            leg.instruction = "BUY_TO_OPEN"
+
+        return leg
+
+    def build_leg_instruction(self, short_or_long: str) -> str:
+        if (
+            short_or_long == "short"
+            and self.buy_or_sell == "SELL"
+            or short_or_long != "short"
+            and self.buy_or_sell != "SELL"
+        ):
+            return "SELL_TO_OPEN"
+        else:
+            return "BUY_TO_OPEN"
+
+    def build_new_order_precheck(
+        self, account: baseRR.GetAccountResponseMessage
+    ) -> bool:
+        # Check if we have positions on already that expire today.
+        expiring_day = any(
+            position.underlyingsymbol == self.underlying
+            and position.expirationdate.date() == dt.date.today()
+            for position in account.positions
+        )
+
+        # Check Available Balance
+        tradable_today = (
+            account.currentbalances.buyingpower
+            - (
+                account.currentbalances.liquidationvalue
+                * self.portfolioallocationpercent
+            )
+        ) > (self.width * 100)
+
+        # If nothing is expiring and no tradable balance, exit.
+        # If we are expiring, continue trying to place a trade
+        # If we have a tradable balance, continue trying to place a trade
+        return expiring_day or tradable_today
 
     def place_order(self, orderrequest: baseRR.PlaceOrderRequestMessage) -> bool:
         """Method for placing new Orders and handling fills"""
@@ -339,7 +364,7 @@ class SpreadsByDeltaStrategy(Strategy, Component):
         # If we got here, return success
         return True
 
-    # Helpers
+    # Market Hours Functions
     def get_market_session_loop(
         self, date: dt.datetime
     ) -> baseRR.GetMarketHoursResponseMessage:
@@ -357,6 +382,7 @@ class SpreadsByDeltaStrategy(Strategy, Component):
 
         return hours
 
+    # Option Chain Functions
     @staticmethod
     def get_next_expiration(
         expirations: list[baseRR.GetOptionChainResponseMessage.ExpirationDate],
@@ -475,6 +501,7 @@ class SpreadsByDeltaStrategy(Strategy, Component):
         # Return quantity
         return int(trade_size)
 
+    # Helpers
     def format_order_price(self, price: float) -> float:
         """Formats a price according to brokerage rules."""
         logger.debug("format_order_price")
