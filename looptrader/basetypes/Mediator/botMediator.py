@@ -18,8 +18,12 @@ logger = logging.getLogger("autotrader")
 class Bot(Mediator):
     notifier: Notifier = attr.ib(validator=attr.validators.instance_of(Notifier))  # type: ignore[misc]
     database: Database = attr.ib(validator=attr.validators.instance_of(Database))  # type: ignore[misc]
-    botloopfrequency: int = attr.ib(validator=attr.validators.instance_of(int), init=False)
-    killswitch: bool = attr.ib(default=False, validator=attr.validators.instance_of(bool), init=False)
+    botloopfrequency: int = attr.ib(
+        validator=attr.validators.instance_of(int), init=False
+    )
+    killswitch: bool = attr.ib(
+        default=False, validator=attr.validators.instance_of(bool), init=False
+    )
     brokerstrategy: dict[Strategy, Broker] = attr.ib(
         validator=attr.validators.deep_mapping(
             key_validator=attr.validators.instance_of(Strategy),  # type: ignore[misc]
@@ -51,7 +55,9 @@ class Bot(Mediator):
             result = self.database.read_strategy_by_name(strategy.strategy_name)
 
             if result == []:
-                request = baseRR.CreateDatabaseStrategyRequest(strategy_name=strategy.strategy_name)
+                request = baseRR.CreateDatabaseStrategyRequest(
+                    strategy_name=strategy.strategy_name
+                )
                 strategy.strategy_id = self.database.create_strategy(request)
             else:
                 strategy.strategy_id = result[0][0]
@@ -61,7 +67,9 @@ class Bot(Mediator):
         starttime = time.time()
 
         # If the loop is exited, send a notification
-        self.send_notification(baseRR.SendNotificationRequestMessage(message="Bot Started."))
+        self.send_notification(
+            baseRR.SendNotificationRequestMessage(message="Bot Started.")
+        )
 
         # While the kill switch is not enabled, loop through strategies
         while not self.killswitch:
@@ -73,12 +81,19 @@ class Bot(Mediator):
 
             # Sleep for the specified time.
             logger.info("Sleeping...")
-            time.sleep(self.botloopfrequency - ((time.time() - starttime) % self.botloopfrequency))
+            time.sleep(
+                self.botloopfrequency
+                - ((time.time() - starttime) % self.botloopfrequency)
+            )
 
         # If the loop is exited, send a notification
-        self.send_notification(baseRR.SendNotificationRequestMessage(message="Bot Terminated."))
+        self.send_notification(
+            baseRR.SendNotificationRequestMessage(message="Bot Terminated.")
+        )
 
-    def get_account(self, request: baseRR.GetAccountRequestMessage) -> Union[baseRR.GetAccountResponseMessage, None]:
+    def get_account(
+        self, request: baseRR.GetAccountRequestMessage
+    ) -> Union[baseRR.GetAccountResponseMessage, None]:
         broker = self.get_broker(request.strategy_name)
 
         if broker is None:
@@ -101,7 +116,9 @@ class Bot(Mediator):
             if broker is None:
                 continue
 
-            acct_request = baseRR.GetAccountRequestMessage(strategy.strategy_name, request.orders, request.positions)
+            acct_request = baseRR.GetAccountRequestMessage(
+                strategy.strategy_name, request.orders, request.positions
+            )
 
             account = broker.get_account(acct_request)
 
@@ -110,7 +127,9 @@ class Bot(Mediator):
 
         return response
 
-    def place_order(self, request: baseRR.PlaceOrderRequestMessage) -> Union[baseRR.PlaceOrderResponseMessage, None]:
+    def place_order(
+        self, request: baseRR.PlaceOrderRequestMessage
+    ) -> Union[baseRR.PlaceOrderResponseMessage, None]:
         broker = self.get_broker(request.strategy_name)
 
         if broker is None:
@@ -128,7 +147,9 @@ class Bot(Mediator):
 
         return broker.cancel_order(request)
 
-    def get_order(self, request: baseRR.GetOrderRequestMessage) -> Union[baseRR.GetOrderResponseMessage, None]:
+    def get_order(
+        self, request: baseRR.GetOrderRequestMessage
+    ) -> Union[baseRR.GetOrderResponseMessage, None]:
         broker = self.get_broker(request.strategy_name)
 
         if broker is None:

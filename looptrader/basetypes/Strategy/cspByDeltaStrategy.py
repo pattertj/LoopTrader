@@ -17,23 +17,43 @@ logger = logging.getLogger("autotrader")
 class CspByDeltaStrategy(Strategy, Component):
     """The concrete implementation of the generic LoopTrader Strategy class for trading Cash-Secured Puts by Delta."""
 
-    strategy_name: str = attr.ib(default="Sample Strategy", validator=attr.validators.instance_of(str))
-    underlying: str = attr.ib(default="$SPX.X", validator=attr.validators.instance_of(str))
-    portfolioallocationpercent: float = attr.ib(default=1.0, validator=attr.validators.instance_of(float))
-    buy_or_sell: str = attr.ib(default="SELL", validator=attr.validators.in_(["SELL", "BUY"]))
-    targetdelta: float = attr.ib(default=-0.07, validator=attr.validators.instance_of(float))
-    mindelta: float = attr.ib(default=-0.03, validator=attr.validators.instance_of(float))
+    strategy_name: str = attr.ib(
+        default="Sample Strategy", validator=attr.validators.instance_of(str)
+    )
+    underlying: str = attr.ib(
+        default="$SPX.X", validator=attr.validators.instance_of(str)
+    )
+    portfolioallocationpercent: float = attr.ib(
+        default=1.0, validator=attr.validators.instance_of(float)
+    )
+    buy_or_sell: str = attr.ib(
+        default="SELL", validator=attr.validators.in_(["SELL", "BUY"])
+    )
+    targetdelta: float = attr.ib(
+        default=-0.07, validator=attr.validators.instance_of(float)
+    )
+    mindelta: float = attr.ib(
+        default=-0.03, validator=attr.validators.instance_of(float)
+    )
     minimumdte: int = attr.ib(default=1, validator=attr.validators.instance_of(int))
     maximumdte: int = attr.ib(default=4, validator=attr.validators.instance_of(int))
-    profittargetpercent: float = attr.ib(default=0.7, validator=attr.validators.instance_of(float))
-    maxlosscalcpercent: float = attr.ib(default=0.2, validator=attr.validators.instance_of(float))
-    openingorderloopseconds: int = attr.ib(default=20, validator=attr.validators.instance_of(int))
+    profittargetpercent: float = attr.ib(
+        default=0.7, validator=attr.validators.instance_of(float)
+    )
+    maxlosscalcpercent: float = attr.ib(
+        default=0.2, validator=attr.validators.instance_of(float)
+    )
+    openingorderloopseconds: int = attr.ib(
+        default=20, validator=attr.validators.instance_of(int)
+    )
     sleepuntil: dt.datetime = attr.ib(
         init=False,
         default=dt.datetime.now().astimezone(dt.timezone.utc),
         validator=attr.validators.instance_of(dt.datetime),
     )
-    minutesafteropendelay: int = attr.ib(default=3, validator=attr.validators.instance_of(int))
+    minutesafteropendelay: int = attr.ib(
+        default=3, validator=attr.validators.instance_of(int)
+    )
 
     # Core Strategy Process
     def process_strategy(self):
@@ -57,8 +77,16 @@ class CspByDeltaStrategy(Strategy, Component):
 
         # If the next market session is not today, wait for it
         if hours.start.day != now.day:
-            self.sleepuntil = hours.start + dt.timedelta(minutes=self.minutesafteropendelay) - dt.timedelta(minutes=5)
-            logger.info("Markets are closed until {}. Sleeping until {}".format(hours.start, self.sleepuntil))
+            self.sleepuntil = (
+                hours.start
+                + dt.timedelta(minutes=self.minutesafteropendelay)
+                - dt.timedelta(minutes=5)
+            )
+            logger.info(
+                "Markets are closed until {}. Sleeping until {}".format(
+                    hours.start, self.sleepuntil
+                )
+            )
             return
 
         # If Pre-Market
@@ -66,7 +94,11 @@ class CspByDeltaStrategy(Strategy, Component):
             self.process_pre_market()
 
         # If In-Market
-        elif hours.start + dt.timedelta(minutes=self.minutesafteropendelay) < now < hours.end:
+        elif (
+            hours.start + dt.timedelta(minutes=self.minutesafteropendelay)
+            < now
+            < hours.end
+        ):
             self.process_open_market(hours.end, now)
 
         # If After-Hours
@@ -83,12 +115,15 @@ class CspByDeltaStrategy(Strategy, Component):
 
         # Set sleepuntil
         self.sleepuntil = (
-            nextmarketsession.start + dt.timedelta(minutes=self.minutesafteropendelay) - dt.timedelta(minutes=5)
+            nextmarketsession.start
+            + dt.timedelta(minutes=self.minutesafteropendelay)
+            - dt.timedelta(minutes=5)
         )
 
         logger.info(
             "Markets are closed until {}. Sleeping until {}".format(
-                nextmarketsession.start + dt.timedelta(minutes=self.minutesafteropendelay),
+                nextmarketsession.start
+                + dt.timedelta(minutes=self.minutesafteropendelay),
                 self.sleepuntil,
             )
         )
@@ -119,12 +154,16 @@ class CspByDeltaStrategy(Strategy, Component):
         # If beyond 5 min after close, exit
         if minutesafterclose > 5:
             # Get Next Open
-            nextmarketsession = self.get_market_session_loop(dt.datetime.now() + dt.timedelta(days=1))
+            nextmarketsession = self.get_market_session_loop(
+                dt.datetime.now() + dt.timedelta(days=1)
+            )
             # Set sleepuntil
             self.sleepuntil = nextmarketsession.start - dt.timedelta(minutes=5)
 
             logger.info(
-                "Markets are closed until {}. Sleeping until {}".format(nextmarketsession.start, self.sleepuntil)
+                "Markets are closed until {}. Sleeping until {}".format(
+                    nextmarketsession.start, self.sleepuntil
+                )
             )
             return
 
@@ -214,7 +253,9 @@ class CspByDeltaStrategy(Strategy, Component):
         logger.debug("build_new_order")
 
         # Get account balance
-        account = self.mediator.get_account(baseRR.GetAccountRequestMessage(self.strategy_name, False, True))
+        account = self.mediator.get_account(
+            baseRR.GetAccountRequestMessage(self.strategy_name, False, True)
+        )
 
         if account is None or not hasattr(account, "positions"):
             logger.error("Failed to get Account")
@@ -240,14 +281,18 @@ class CspByDeltaStrategy(Strategy, Component):
             return None
 
         # Find best strike to trade
-        strike = self.get_best_strike(expiration.strikes, availbp, account.currentbalances.liquidationvalue)
+        strike = self.get_best_strike(
+            expiration.strikes, availbp, account.currentbalances.liquidationvalue
+        )
 
         # If no valid strikes, exit.
         if strike is None:
             return None
 
         # Calculate Quantity
-        qty = self.calculate_order_quantity(strike.strike, availbp, account.currentbalances.liquidationvalue)
+        qty = self.calculate_order_quantity(
+            strike.strike, availbp, account.currentbalances.liquidationvalue
+        )
 
         # Calculate price
         formattedprice = self.format_order_price((strike.bid + strike.ask) / 2)
@@ -321,7 +366,9 @@ class CspByDeltaStrategy(Strategy, Component):
         orderrequests = []
 
         # Get account balance
-        accountrequest = baseRR.GetAccountRequestMessage(self.strategy_name, True, False)
+        accountrequest = baseRR.GetAccountRequestMessage(
+            self.strategy_name, True, False
+        )
         account = self.mediator.get_account(accountrequest)
 
         if account is None:
@@ -331,7 +378,9 @@ class CspByDeltaStrategy(Strategy, Component):
         # Look for open positions
         for order in account.orders:
             if order.status == "QUEUED" and order.legs[0].positioneffect == "CLOSING":
-                orderrequest = baseRR.CancelOrderRequestMessage(self.strategy_name, int(order.orderid))
+                orderrequest = baseRR.CancelOrderRequestMessage(
+                    self.strategy_name, int(order.orderid)
+                )
                 orderrequests.append(orderrequest)
 
         return orderrequests
@@ -354,9 +403,14 @@ class CspByDeltaStrategy(Strategy, Component):
 
         # Look for open positions
         for position in account.positions:
-            if position.underlyingsymbol == self.underlying and position.putcall == "PUT":
+            if (
+                position.underlyingsymbol == self.underlying
+                and position.putcall == "PUT"
+            ):
                 # Look for closing Orders
-                closingorderexists = self.check_for_closing_orders(position.symbol, account.orders)
+                closingorderexists = self.check_for_closing_orders(
+                    position.symbol, account.orders
+                )
 
                 if closingorderexists:
                     continue
@@ -387,7 +441,9 @@ class CspByDeltaStrategy(Strategy, Component):
         orderrequest.ordersession = "NORMAL"
         orderrequest.positioneffect = "CLOSING"
         orderrequest.price = self.truncate(
-            self.format_order_price(position.averageprice * (1 - float(self.profittargetpercent))),
+            self.format_order_price(
+                position.averageprice * (1 - float(self.profittargetpercent))
+            ),
             2,
         )
         orderrequest.legs = list[baseRR.PlaceOrderRequestMessage.Leg]()
@@ -423,11 +479,17 @@ class CspByDeltaStrategy(Strategy, Component):
         neworderresult = self.mediator.place_order(orderrequest)
 
         # If the order placement fails, exit the method.
-        if neworderresult is None or neworderresult.orderid is None or neworderresult.orderid == 0:
+        if (
+            neworderresult is None
+            or neworderresult.orderid is None
+            or neworderresult.orderid == 0
+        ):
             return False
 
         # Add Order to the DB
-        db_order_request = baseRR.CreateDatabaseOrderRequest(neworderresult.orderid, self.strategy_id, "NEW")
+        db_order_request = baseRR.CreateDatabaseOrderRequest(
+            neworderresult.orderid, self.strategy_id, "NEW"
+        )
         db_order_response = self.mediator.create_db_order(db_order_request)
 
         # If closing order, let the order ride, otherwise continue logic
@@ -438,15 +500,23 @@ class CspByDeltaStrategy(Strategy, Component):
         time.sleep(self.openingorderloopseconds)
 
         # Re-get the Order
-        getorderrequest = baseRR.GetOrderRequestMessage(self.strategy_name, int(neworderresult.orderid))
+        getorderrequest = baseRR.GetOrderRequestMessage(
+            self.strategy_name, int(neworderresult.orderid)
+        )
         processedorder = self.mediator.get_order(getorderrequest)
 
         if processedorder is None:
             # Log the Error
-            logger.error("Failed to get re-get placed order, ID: {}.".format(neworderresult.orderid))
+            logger.error(
+                "Failed to get re-get placed order, ID: {}.".format(
+                    neworderresult.orderid
+                )
+            )
 
             # Cancel it
-            cancelorderrequest = baseRR.CancelOrderRequestMessage(self.strategy_name, int(neworderresult.orderid))
+            cancelorderrequest = baseRR.CancelOrderRequestMessage(
+                self.strategy_name, int(neworderresult.orderid)
+            )
             self.mediator.cancel_order(cancelorderrequest)
 
             return False
@@ -454,7 +524,9 @@ class CspByDeltaStrategy(Strategy, Component):
         # If the order isn't filled
         if processedorder.status != "FILLED":
             # Cancel it
-            cancelorderrequest = baseRR.CancelOrderRequestMessage(self.strategy_name, int(neworderresult.orderid))
+            cancelorderrequest = baseRR.CancelOrderRequestMessage(
+                self.strategy_name, int(neworderresult.orderid)
+            )
             self.mediator.cancel_order(cancelorderrequest)
 
             # Return failure to fill order
@@ -464,7 +536,12 @@ class CspByDeltaStrategy(Strategy, Component):
         if db_order_response is not None:
             for leg in orderrequest.legs:
                 db_position_request = baseRR.CreateDatabasePositionRequest(
-                    self.strategy_id, leg.symbol, leg.quantity, True, db_order_response.order_id, 0
+                    self.strategy_id,
+                    leg.symbol,
+                    leg.quantity,
+                    True,
+                    db_order_response.order_id,
+                    0,
                 )
                 self.mediator.create_db_position(db_position_request)
 
@@ -484,7 +561,9 @@ class CspByDeltaStrategy(Strategy, Component):
         return True
 
     # Helpers
-    def get_market_session_loop(self, date: dt.datetime) -> baseRR.GetMarketHoursResponseMessage:
+    def get_market_session_loop(
+        self, date: dt.datetime
+    ) -> baseRR.GetMarketHoursResponseMessage:
         """Looping Logic for getting the next open session start and end times"""
 
         logger.debug("get_market_session_loop")
@@ -498,12 +577,16 @@ class CspByDeltaStrategy(Strategy, Component):
 
         # If we didn't get hours, i.e. Weekend or if we are more than 15 minutes past market close, check tomorrow.
         # The 15 minute check is to allow the after-hours market logic to run
-        if hours is None or hours.end + dt.timedelta(minutes=15) < dt.datetime.now().astimezone(dt.timezone.utc):
+        if hours is None or hours.end + dt.timedelta(
+            minutes=15
+        ) < dt.datetime.now().astimezone(dt.timezone.utc):
             return self.get_market_session_loop(date + dt.timedelta(days=1))
         return hours
 
     @staticmethod
-    def check_for_closing_orders(symbol: str, orders: list[baseRR.AccountOrder]) -> bool:
+    def check_for_closing_orders(
+        symbol: str, orders: list[baseRR.AccountOrder]
+    ) -> bool:
         """Checks a list of Orders for closing orders."""
         logger.debug("check_for_closing_orders")
 
@@ -511,7 +594,9 @@ class CspByDeltaStrategy(Strategy, Component):
             return False
 
         return any(
-            order.status == "QUEUED" and order.legs[0].symbol == symbol and order.legs[0].instruction == "BUY_TO_CLOSE"
+            order.status == "QUEUED"
+            and order.legs[0].symbol == symbol
+            and order.legs[0].instruction == "BUY_TO_CLOSE"
             for order in orders
         )
 
@@ -541,7 +626,9 @@ class CspByDeltaStrategy(Strategy, Component):
 
     def get_best_strike(
         self,
-        strikes: dict[float, baseRR.GetOptionChainResponseMessage.ExpirationDate.Strike],
+        strikes: dict[
+            float, baseRR.GetOptionChainResponseMessage.ExpirationDate.Strike
+        ],
         buyingpower: float,
         liquidationvalue: float,
     ) -> Union[baseRR.GetOptionChainResponseMessage.ExpirationDate.Strike, None]:
@@ -554,9 +641,13 @@ class CspByDeltaStrategy(Strategy, Component):
         # Iterate through strikes
         for strike, details in strikes.items():
             # Make sure strike delta is less then our target delta
-            if (abs(details.delta) <= abs(self.targetdelta)) and (abs(details.delta) >= abs(self.mindelta)):
+            if (abs(details.delta) <= abs(self.targetdelta)) and (
+                abs(details.delta) >= abs(self.mindelta)
+            ):
                 # Calculate the total premium for the strike based on our buying power
-                qty = self.calculate_order_quantity(strike, buyingpower, liquidationvalue)
+                qty = self.calculate_order_quantity(
+                    strike, buyingpower, liquidationvalue
+                )
                 totalpremium = ((details.bid + details.ask) / 2) * qty
 
                 # If the strike's premium is larger than our best premium, update it
@@ -567,7 +658,9 @@ class CspByDeltaStrategy(Strategy, Component):
         # Return the strike with the highest premium
         return beststrike
 
-    def calculate_actual_buying_power(self, account: baseRR.GetAccountResponseMessage) -> float:
+    def calculate_actual_buying_power(
+        self, account: baseRR.GetAccountResponseMessage
+    ) -> float:
         """Calculates the actual buying power based on the MaxLossCalcPercentage and current account balances.
 
         Args:
@@ -579,12 +672,17 @@ class CspByDeltaStrategy(Strategy, Component):
         usedbp = 0.0
 
         for position in account.positions:
-            if position.underlyingsymbol == self.underlying and position.putcall == "PUT":
+            if (
+                position.underlyingsymbol == self.underlying
+                and position.putcall == "PUT"
+            ):
                 usedbp += self.calculate_position_buying_power(position)
 
         return account.currentbalances.liquidationvalue - usedbp
 
-    def calculate_position_buying_power(self, position: baseRR.AccountPosition) -> float:
+    def calculate_position_buying_power(
+        self, position: baseRR.AccountPosition
+    ) -> float:
         """Calculates the actual buying power for a given position
 
         Args:
@@ -593,9 +691,16 @@ class CspByDeltaStrategy(Strategy, Component):
         Returns:
             float: Required buying power
         """
-        return position.strikeprice * 100 * position.shortquantity * self.maxlosscalcpercent
+        return (
+            position.strikeprice
+            * 100
+            * position.shortquantity
+            * self.maxlosscalcpercent
+        )
 
-    def calculate_order_quantity(self, strike: float, buyingpower: float, liquidationvalue: float) -> int:
+    def calculate_order_quantity(
+        self, strike: float, buyingpower: float, liquidationvalue: float
+    ) -> int:
         """Calculates the number of positions to open for a given account and strike."""
         logger.debug("calculate_order_quantity")
 

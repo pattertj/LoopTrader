@@ -14,7 +14,9 @@ logger = logging.getLogger("autotrader")
 @attr.s(auto_attribs=True)
 class SqliteDatabase(Database):
     connectionstring: str = attr.ib(validator=attr.validators.instance_of(str))
-    connection: Connection = attr.ib(validator=attr.validators.instance_of(Connection), init=False)
+    connection: Connection = attr.ib(
+        validator=attr.validators.instance_of(Connection), init=False
+    )
     cursor: Cursor = attr.ib(validator=attr.validators.instance_of(Cursor), init=False)
 
     def __attrs_post_init__(self):
@@ -54,7 +56,9 @@ class SqliteDatabase(Database):
     def create_order(
         self, request: baseRR.CreateDatabaseOrderRequest
     ) -> Union[baseRR.CreateDatabaseOrderResponse, None]:
-        query = "INSERT INTO Orders(StrategyID, BrokerOrderNumber, Status) VALUES (?,?,?)"
+        query = (
+            "INSERT INTO Orders(StrategyID, BrokerOrderNumber, Status) VALUES (?,?,?)"
+        )
 
         try:
             self.cursor.execute(
@@ -73,16 +77,24 @@ class SqliteDatabase(Database):
         return baseRR.CreateDatabaseOrderResponse(self.cursor.lastrowid)
 
     def read_order_by_id(self) -> bool:
-        raise NotImplementedError("Each strategy must implement the 'read_order' method.")
+        raise NotImplementedError(
+            "Each strategy must implement the 'read_order' method."
+        )
 
     def update_order_by_id(self) -> bool:
-        raise NotImplementedError("Each strategy must implement the 'update_order' method.")
+        raise NotImplementedError(
+            "Each strategy must implement the 'update_order' method."
+        )
 
     def delete_order_by_id(self) -> bool:
-        raise NotImplementedError("Each strategy must implement the 'delete_order' method.")
+        raise NotImplementedError(
+            "Each strategy must implement the 'delete_order' method."
+        )
 
     def read_open_orders(self) -> bool:
-        raise NotImplementedError("Each strategy must implement the 'delete_position' method.")
+        raise NotImplementedError(
+            "Each strategy must implement the 'delete_position' method."
+        )
 
     # POSITION FUNCTIONS
     def create_position(
@@ -110,13 +122,19 @@ class SqliteDatabase(Database):
         return baseRR.CreateDatabasePositionResponse(self.cursor.lastrowid)
 
     def read_position_by_id(self) -> bool:
-        raise NotImplementedError("Each strategy must implement the 'read_position' method.")
+        raise NotImplementedError(
+            "Each strategy must implement the 'read_position' method."
+        )
 
     def update_position_by_id(self) -> bool:
-        raise NotImplementedError("Each strategy must implement the 'update_position' method.")
+        raise NotImplementedError(
+            "Each strategy must implement the 'update_position' method."
+        )
 
     def delete_position_by_id(self) -> bool:
-        raise NotImplementedError("Each strategy must implement the 'delete_position' method.")
+        raise NotImplementedError(
+            "Each strategy must implement the 'delete_position' method."
+        )
 
     def read_open_positions_by_strategy_id(
         self, request: baseRR.ReadOpenPositionsByStrategyIDRequest

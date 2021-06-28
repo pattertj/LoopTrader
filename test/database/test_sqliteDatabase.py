@@ -27,7 +27,9 @@ def test_create_order():
     assert strat_result is not None
     assert strat_result.strategy_id >= 0
 
-    order_request = baseRR.CreateDatabaseOrderRequest(123, strat_result.strategy_id, "PENDING")
+    order_request = baseRR.CreateDatabaseOrderRequest(
+        123, strat_result.strategy_id, "PENDING"
+    )
     order_result = db.create_order(order_request)
 
     assert order_result is not None
@@ -47,7 +49,9 @@ def test_create_position():
     assert strat_result is not None
     assert strat_result.strategy_id >= 0
 
-    order_request = baseRR.CreateDatabaseOrderRequest(123, strat_result.strategy_id, "PENDING")
+    order_request = baseRR.CreateDatabaseOrderRequest(
+        123, strat_result.strategy_id, "PENDING"
+    )
     order_result = db.create_order(order_request)
 
     assert order_result is not None
@@ -75,7 +79,9 @@ def test_read_all_positions_for_strategy_id():
     assert strat_result is not None
     assert strat_result.strategy_id >= 0
 
-    order_request = baseRR.CreateDatabaseOrderRequest(123, strat_result.strategy_id, "PENDING")
+    order_request = baseRR.CreateDatabaseOrderRequest(
+        123, strat_result.strategy_id, "PENDING"
+    )
     order_result = db.create_order(order_request)
 
     assert order_result is not None

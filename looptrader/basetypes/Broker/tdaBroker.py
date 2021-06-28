@@ -39,9 +39,15 @@ class TdaBroker(Broker, Component):
     id: str = attr.ib(validator=attr.validators.instance_of(str))
     client_id: str = attr.ib(validator=attr.validators.instance_of(str), init=False)
     redirect_uri: str = attr.ib(validator=attr.validators.instance_of(str), init=False)
-    account_number: str = attr.ib(validator=attr.validators.instance_of(str), init=False)
-    credentials_path: str = attr.ib(validator=attr.validators.instance_of(str), init=False)
-    maxretries: int = attr.ib(default=3, validator=attr.validators.instance_of(int), init=False)
+    account_number: str = attr.ib(
+        validator=attr.validators.instance_of(str), init=False
+    )
+    credentials_path: str = attr.ib(
+        validator=attr.validators.instance_of(str), init=False
+    )
+    maxretries: int = attr.ib(
+        default=3, validator=attr.validators.instance_of(int), init=False
+    )
 
     def __attrs_post_init__(self):
         with open("config.yaml", "r") as file:
@@ -68,7 +74,9 @@ class TdaBroker(Broker, Component):
             # If no match, raise exception
             raise Exception("No credentials found in config.yaml")
 
-    def get_account(self, request: baseRR.GetAccountRequestMessage) -> Union[baseRR.GetAccountResponseMessage, None]:
+    def get_account(
+        self, request: baseRR.GetAccountRequestMessage
+    ) -> Union[baseRR.GetAccountResponseMessage, None]:
         """The function for reading account details from TD Ameritrade."""
 
         # Build Request
@@ -82,9 +90,15 @@ class TdaBroker(Broker, Component):
         # Get Account Details
         for attempt in range(self.maxretries):
             try:
-                account = self.getsession().get_accounts(self.account_number, fields=optionalfields)
+                account = self.getsession().get_accounts(
+                    self.account_number, fields=optionalfields
+                )
             except Exception:
-                logger.exception("Failed to get Account {}. Attempt #{}".format(self.account_number, attempt))
+                logger.exception(
+                    "Failed to get Account {}. Attempt #{}".format(
+                        self.account_number, attempt
+                    )
+                )
                 if attempt == self.maxretries - 1:
                     return None
 
@@ -95,7 +109,9 @@ class TdaBroker(Broker, Component):
 
         return self.build_account_reponse(securitiesaccount)
 
-    def build_account_reponse(self, securitiesaccount: dict) -> baseRR.GetAccountResponseMessage:
+    def build_account_reponse(
+        self, securitiesaccount: dict
+    ) -> baseRR.GetAccountResponseMessage:
         response = baseRR.GetAccountResponseMessage()
 
         response.accountnumber = securitiesaccount.get("accountId", int)
@@ -116,12 +132,16 @@ class TdaBroker(Broker, Component):
 
         currentbalances = securitiesaccount.get("currentBalances", dict)
 
-        response.buyingpower = currentbalances.get("buyingPowerNonMarginableTrade", float)
+        response.buyingpower = currentbalances.get(
+            "buyingPowerNonMarginableTrade", float
+        )
         response.liquidationvalue = currentbalances.get("liquidationValue", float)
 
         return response
 
-    def build_account_positions(self, securitiesaccount: dict) -> list[baseRR.AccountPosition]:
+    def build_account_positions(
+        self, securitiesaccount: dict
+    ) -> list[baseRR.AccountPosition]:
         """Builds a list of Account Positions from a raw list of positions."""
         response = list[baseRR.AccountPosition]()
 
@@ -182,8 +202,12 @@ class TdaBroker(Broker, Component):
         accountposition = baseRR.AccountPosition()
         accountposition.shortquantity = position.get("shortQuantity", int)
         accountposition.averageprice = position.get("averagePrice", float)
-        accountposition.currentdayprofitloss = position.get("currentDayProfitLoss", float)
-        accountposition.currentdayprofitlosspercentage = position.get("currentDayProfitLossPercentage", float)
+        accountposition.currentdayprofitloss = position.get(
+            "currentDayProfitLoss", float
+        )
+        accountposition.currentdayprofitlosspercentage = position.get(
+            "currentDayProfitLossPercentage", float
+        )
 
         accountposition.marketvalue = position.get("marketValue", float)
         accountposition.longquantity = position.get("longQuantity", int)
@@ -195,9 +219,13 @@ class TdaBroker(Broker, Component):
             desc = instrument.get("description")
 
             if desc is not None:
-                match = re.search(r"([A-Z]{1}[a-z]{2} \d{2} \d{4})", instrument.get("description"))
+                match = re.search(
+                    r"([A-Z]{1}[a-z]{2} \d{2} \d{4})", instrument.get("description")
+                )
                 if match is not None:
-                    accountposition.expirationdate = dtime.datetime.strptime(match.group(), "%b %d %Y")
+                    accountposition.expirationdate = dtime.datetime.strptime(
+                        match.group(), "%b %d %Y"
+                    )
 
             accountposition.assettype = instrument.get("assetType", str)
             accountposition.description = instrument.get("description", str)
@@ -208,13 +236,17 @@ class TdaBroker(Broker, Component):
             strikeprice = re.search(r"(?<=[P])\d\w+", instrument.get("symbol", str))
 
             if strikeprice is None and accountposition.assettype == "OPTION":
-                logger.error("No strike price found for {}".format(instrument.get("symbol", str)))
+                logger.error(
+                    "No strike price found for {}".format(instrument.get("symbol", str))
+                )
             elif strikeprice is not None:
                 accountposition.strikeprice = float(strikeprice.group())
 
         return accountposition
 
-    def build_account_orders(self, securitiesaccount: dict) -> list[baseRR.AccountOrder]:
+    def build_account_orders(
+        self, securitiesaccount: dict
+    ) -> list[baseRR.AccountOrder]:
         """Builds a list of Account Orders from a raw list of orders."""
         response: list[baseRR.AccountOrder] = []
 
@@ -236,7 +268,9 @@ class TdaBroker(Broker, Component):
 
         return response
 
-    def place_order(self, request: baseRR.PlaceOrderRequestMessage) -> Union[baseRR.PlaceOrderResponseMessage, None]:
+    def place_order(
+        self, request: baseRR.PlaceOrderRequestMessage
+    ) -> Union[baseRR.PlaceOrderResponseMessage, None]:
         """The function for placing an order with TD Ameritrade."""
 
         # Check killswitch
@@ -279,7 +313,9 @@ class TdaBroker(Broker, Component):
 
         # Place the Order
         try:
-            orderresponse = self.getsession().place_order(account=self.account_number, order=orderrequest)
+            orderresponse = self.getsession().place_order(
+                account=self.account_number, order=orderrequest
+            )
             logger.info("Order {} Placed".format(orderresponse["order_id"]))
         except Exception:
             logger.exception("Failed to place order.")
@@ -290,14 +326,20 @@ class TdaBroker(Broker, Component):
         # Return the Order ID
         return response
 
-    def get_order(self, request: baseRR.GetOrderRequestMessage) -> Union[baseRR.GetOrderResponseMessage, None]:
+    def get_order(
+        self, request: baseRR.GetOrderRequestMessage
+    ) -> Union[baseRR.GetOrderResponseMessage, None]:
         """Reads a single order from TDA and returns it's details"""
 
         for attempt in range(self.maxretries):
             try:
-                order = self.getsession().get_orders(account=self.account_number, order_id=str(request.orderid))
+                order = self.getsession().get_orders(
+                    account=self.account_number, order_id=str(request.orderid)
+                )
             except Exception:
-                logger.exception("Failed to read order {}.".format(str(request.orderid)))
+                logger.exception(
+                    "Failed to read order {}.".format(str(request.orderid))
+                )
                 if attempt == self.maxretries - 1:
                     return None
 
@@ -345,7 +387,9 @@ class TdaBroker(Broker, Component):
             try:
                 optionschain = self.getsession().get_options_chain(optionchainrequest)
             except Exception:
-                logger.exception("Failed to get Options Chain. Attempt #{}".format(attempt))
+                logger.exception(
+                    "Failed to get Options Chain. Attempt #{}".format(attempt)
+                )
                 if attempt == self.maxretries - 1:
                     return None
 
@@ -356,12 +400,18 @@ class TdaBroker(Broker, Component):
         response.underlyinglastprice = optionschain.get("underlyingPrice", float)
         response.volatility = optionschain.get("volatility", float)
 
-        response.putexpdatemap = self.build_option_chain(dict(optionschain.get("putExpDateMap")))
-        response.callexpdatemap = self.build_option_chain(dict(optionschain.get("callExpDateMap")))
+        response.putexpdatemap = self.build_option_chain(
+            dict(optionschain.get("putExpDateMap"))
+        )
+        response.callexpdatemap = self.build_option_chain(
+            dict(optionschain.get("callExpDateMap"))
+        )
 
         return response
 
-    def build_option_chain_request(self, request: baseRR.GetOptionChainRequestMessage) -> dict[str, Any]:
+    def build_option_chain_request(
+        self, request: baseRR.GetOptionChainRequestMessage
+    ) -> dict[str, Any]:
         """Builds the Option Chain Request Message"""
         return {
             "symbol": request.symbol,
@@ -405,11 +455,15 @@ class TdaBroker(Broker, Component):
         # Get Market Hours
         for attempt in range(self.maxretries):
             try:
-                hours = self.getsession().get_market_hours(markets=markets, date=str(request.datetime))
+                hours = self.getsession().get_market_hours(
+                    markets=markets, date=str(request.datetime)
+                )
                 break
             except Exception:
                 logger.exception(
-                    "Failed to get market hours for {} on {}. Attempt #{}".format(markets, request.datetime, attempt),
+                    "Failed to get market hours for {} on {}. Attempt #{}".format(
+                        markets, request.datetime, attempt
+                    ),
                 )
                 if attempt == self.maxretries - 1:
                     return None
@@ -426,7 +480,9 @@ class TdaBroker(Broker, Component):
 
         return None
 
-    def process_session_hours(self, sessionhours: dict, details: dict) -> baseRR.GetMarketHoursResponseMessage:
+    def process_session_hours(
+        self, sessionhours: dict, details: dict
+    ) -> baseRR.GetMarketHoursResponseMessage:
         """Iterates session hours to build a market hours response"""
         for session, markethours in sessionhours.items():
             if session == "regularMarket":
@@ -434,12 +490,18 @@ class TdaBroker(Broker, Component):
         return response
 
     @staticmethod
-    def build_market_hours_response(markethours: list, details: dict) -> baseRR.GetMarketHoursResponseMessage:
+    def build_market_hours_response(
+        markethours: list, details: dict
+    ) -> baseRR.GetMarketHoursResponseMessage:
         """Builds a Market Hours reponse Message for given details"""
         response = baseRR.GetMarketHoursResponseMessage()
 
-        startdt = dtime.datetime.strptime(str(dict(markethours[0]).get("start")), "%Y-%m-%dT%H:%M:%S%z")
-        enddt = dtime.datetime.strptime(str(dict(markethours[0]).get("end")), "%Y-%m-%dT%H:%M:%S%z")
+        startdt = dtime.datetime.strptime(
+            str(dict(markethours[0]).get("start")), "%Y-%m-%dT%H:%M:%S%z"
+        )
+        enddt = dtime.datetime.strptime(
+            str(dict(markethours[0]).get("end")), "%Y-%m-%dT%H:%M:%S%z"
+        )
         response.start = startdt.astimezone(dtime.timezone.utc)
         response.end = enddt.astimezone(dtime.timezone.utc)
         response.isopen = details.get("isOpen", bool)
@@ -487,7 +549,9 @@ class TdaBroker(Broker, Component):
             for details in strikes.values():
                 detail: dict
                 for detail in details:
-                    strikeresponse = baseRR.GetOptionChainResponseMessage.ExpirationDate.Strike()
+                    strikeresponse = (
+                        baseRR.GetOptionChainResponseMessage.ExpirationDate.Strike()
+                    )
                     strikeresponse.strike = detail.get("strikePrice", float)
                     strikeresponse.multiplier = detail.get("multiplier", float)
                     strikeresponse.bid = detail.get("bid", float)

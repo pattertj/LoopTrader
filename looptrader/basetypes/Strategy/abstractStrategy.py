@@ -16,4 +16,6 @@ class Strategy(abc.ABC, Component):
 
     @abc.abstractmethod
     def process_strategy(self):
-        raise NotImplementedError("Each strategy must implement the 'ProcessStrategy' method.")
+        raise NotImplementedError(
+            "Each strategy must implement the 'ProcessStrategy' method."
+        )

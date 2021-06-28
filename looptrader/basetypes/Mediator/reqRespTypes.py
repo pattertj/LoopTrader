@@ -44,8 +44,12 @@ class PlaceOrderRequestMessage:
 
     price: float = attr.ib(validator=attr.validators.instance_of(float))
     strategy_name: str = attr.ib(validator=attr.validators.instance_of(str))
-    orderstrategytype: str = attr.ib(validator=attr.validators.in_(["SINGLE", "OCO", "TRIGGER"]))
-    duration: str = attr.ib(validator=attr.validators.in_(["DAY", "GOOD_TILL_CANCEL", "FILL_OR_KILL"]))
+    orderstrategytype: str = attr.ib(
+        validator=attr.validators.in_(["SINGLE", "OCO", "TRIGGER"])
+    )
+    duration: str = attr.ib(
+        validator=attr.validators.in_(["DAY", "GOOD_TILL_CANCEL", "FILL_OR_KILL"])
+    )
     ordertype: str = attr.ib(
         validator=attr.validators.in_(
             [
@@ -63,8 +67,12 @@ class PlaceOrderRequestMessage:
             ]
         )
     )
-    ordersession: str = attr.ib(validator=attr.validators.in_(["NORMAL", "AM", "PM", "SEAMLESS"]))
-    positioneffect: str = attr.ib(validator=attr.validators.in_(["OPENING", "CLOSING", "AUTOMATIC"]))
+    ordersession: str = attr.ib(
+        validator=attr.validators.in_(["NORMAL", "AM", "PM", "SEAMLESS"])
+    )
+    positioneffect: str = attr.ib(
+        validator=attr.validators.in_(["OPENING", "CLOSING", "AUTOMATIC"])
+    )
     legs: list[Leg] = attr.ib(validator=attr.validators.instance_of(list[Leg]))
 
 
@@ -83,7 +91,9 @@ class GetOptionChainRequestMessage:
     symbol: str = attr.ib(validator=attr.validators.instance_of(str))
     contracttype: str = attr.ib(validator=attr.validators.in_(["CALL", "PUT", "ALL"]))
     includequotes: bool = attr.ib(validator=attr.validators.instance_of(bool))
-    optionrange: str = attr.ib(validator=attr.validators.in_(["ITM", "NTM", "OTM", "SAK", "SBK", "SNK", "ALL"]))
+    optionrange: str = attr.ib(
+        validator=attr.validators.in_(["ITM", "NTM", "OTM", "SAK", "SBK", "SNK", "ALL"])
+    )
     fromdate: date = attr.ib(validator=attr.validators.instance_of(date))
     todate: date = attr.ib(validator=attr.validators.instance_of(date))
 
@@ -114,16 +124,24 @@ class GetOptionChainResponseMessage:
             settlementtype: str = attr.ib(validator=attr.validators.instance_of(str))
             expirationtype: str = attr.ib(validator=attr.validators.instance_of(str))
 
-        expirationdate: datetime = attr.ib(validator=attr.validators.instance_of(datetime))
+        expirationdate: datetime = attr.ib(
+            validator=attr.validators.instance_of(datetime)
+        )
         daystoexpiration: int = attr.ib(validator=attr.validators.instance_of(int))
-        strikes: dict[float, Strike] = attr.ib(validator=attr.validators.instance_of(dict[float, Strike]))
+        strikes: dict[float, Strike] = attr.ib(
+            validator=attr.validators.instance_of(dict[float, Strike])
+        )
 
     symbol: str = attr.ib(validator=attr.validators.instance_of(str))
     status: str = attr.ib(validator=attr.validators.instance_of(str))
     underlyinglastprice: float = attr.ib(validator=attr.validators.instance_of(float))
     volatility: float = attr.ib(validator=attr.validators.instance_of(float))
-    putexpdatemap: list[ExpirationDate] = attr.ib(validator=attr.validators.instance_of(list[ExpirationDate]))
-    callexpdatemap: list[ExpirationDate] = attr.ib(validator=attr.validators.instance_of(list[ExpirationDate]))
+    putexpdatemap: list[ExpirationDate] = attr.ib(
+        validator=attr.validators.instance_of(list[ExpirationDate])
+    )
+    callexpdatemap: list[ExpirationDate] = attr.ib(
+        validator=attr.validators.instance_of(list[ExpirationDate])
+    )
 
 
 @attr.s(auto_attribs=True)
@@ -151,7 +169,9 @@ class AccountPosition:
     averageprice: float = attr.ib(validator=attr.validators.instance_of(float))
     strikeprice: float = attr.ib(validator=attr.validators.instance_of(float))
     currentdayprofitloss: float = attr.ib(validator=attr.validators.instance_of(float))
-    currentdayprofitlosspercentage: float = attr.ib(validator=attr.validators.instance_of(float))
+    currentdayprofitlosspercentage: float = attr.ib(
+        validator=attr.validators.instance_of(float)
+    )
     marketvalue: float = attr.ib(validator=attr.validators.instance_of(float))
     longquantity: int = attr.ib(validator=attr.validators.instance_of(int))
     assettype: str = attr.ib(
@@ -198,7 +218,9 @@ class AccountOrderLeg:
             ]
         )
     )
-    positioneffect: str = attr.ib(validator=attr.validators.in_(["OPENING", "CLOSING", "AUTOMATIC"]))
+    positioneffect: str = attr.ib(
+        validator=attr.validators.in_(["OPENING", "CLOSING", "AUTOMATIC"])
+    )
     quantity: int = attr.ib(validator=attr.validators.instance_of(int))
     putcall: str = attr.ib(validator=attr.validators.in_(["CALL", "PUT"]))
 
@@ -207,7 +229,9 @@ class AccountOrderLeg:
 class AccountOrder:
     """Generic object to hold order details for an account."""
 
-    duration: str = attr.ib(validator=attr.validators.in_(["DAY", "GOOD_TILL_CANCEL", "FILL_OR_KILL"]))
+    duration: str = attr.ib(
+        validator=attr.validators.in_(["DAY", "GOOD_TILL_CANCEL", "FILL_OR_KILL"])
+    )
     quantity: int = attr.ib(validator=attr.validators.instance_of(int))
     filledquantity: int = attr.ib(validator=attr.validators.instance_of(int))
     price: float = attr.ib(validator=attr.validators.instance_of(float))
@@ -238,7 +262,9 @@ class AccountOrder:
     accountid: int = attr.ib(validator=attr.validators.instance_of(int))
     cancelable: bool = attr.ib(validator=attr.validators.instance_of(bool))
     editable: bool = attr.ib(validator=attr.validators.instance_of(bool))
-    legs: list[AccountOrderLeg] = attr.ib(validator=attr.validators.instance_of(list[AccountOrderLeg]))
+    legs: list[AccountOrderLeg] = attr.ib(
+        validator=attr.validators.instance_of(list[AccountOrderLeg])
+    )
 
 
 @attr.s(auto_attribs=True, init=False)
@@ -254,9 +280,15 @@ class GetAccountResponseMessage:
     """Generic response object for retrieving account details."""
 
     accountnumber: int = attr.ib(validator=attr.validators.instance_of(int))
-    currentbalances: AccountBalance = attr.ib(validator=attr.validators.instance_of(AccountBalance))
-    positions: list[AccountPosition] = attr.ib(validator=attr.validators.instance_of(list[AccountPosition]))
-    orders: list[AccountOrder] = attr.ib(validator=attr.validators.instance_of(list[AccountOrder]))
+    currentbalances: AccountBalance = attr.ib(
+        validator=attr.validators.instance_of(AccountBalance)
+    )
+    positions: list[AccountPosition] = attr.ib(
+        validator=attr.validators.instance_of(list[AccountPosition])
+    )
+    orders: list[AccountOrder] = attr.ib(
+        validator=attr.validators.instance_of(list[AccountOrder])
+    )
 
 
 @attr.s(auto_attribs=True, init=False)
@@ -337,7 +369,9 @@ class GetOrderResponseMessage:
     )
     symbol: str = attr.ib(validator=attr.validators.instance_of(str))
     description: str = attr.ib(validator=attr.validators.instance_of(str))
-    positioneffect: str = attr.ib(validator=attr.validators.in_(["OPENING", "CLOSING", "AUTOMATIC"]))
+    positioneffect: str = attr.ib(
+        validator=attr.validators.in_(["OPENING", "CLOSING", "AUTOMATIC"])
+    )
 
 
 @attr.s(auto_attribs=True)
@@ -345,9 +379,13 @@ class GetMarketHoursRequestMessage:
     """Generic request object for getting Market Hours."""
 
     strategy_name: str = attr.ib(validator=attr.validators.instance_of(str))
-    market: str = attr.ib(validator=attr.validators.in_(["OPTION", "EQUITY", "FUTURE", "FOREX", "BOND"]))
+    market: str = attr.ib(
+        validator=attr.validators.in_(["OPTION", "EQUITY", "FUTURE", "FOREX", "BOND"])
+    )
     product: str = attr.ib(validator=attr.validators.in_(["EQO", "IND"]))
-    datetime: datetime = attr.ib(default=datetime.now(), validator=attr.validators.instance_of(datetime))
+    datetime: datetime = attr.ib(
+        default=datetime.now(), validator=attr.validators.instance_of(datetime)
+    )
 
 
 @attr.s(auto_attribs=True, init=False)
@@ -422,4 +460,6 @@ class ReadOpenPositionsByStrategyIDRequest:
 
 @attr.s(auto_attribs=True, init=False)
 class ReadOpenPositionsByStrategyIDResponse:
-    positions: list[AccountPosition] = attr.ib(validator=attr.validators.instance_of(list[AccountPosition]))
+    positions: list[AccountPosition] = attr.ib(
+        validator=attr.validators.instance_of(list[AccountPosition])
+    )
