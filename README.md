@@ -30,7 +30,7 @@ The goal for LoopTrader is to provide a flexible engine for running one or more 
 
 * Simple to setup and run multiple trading bots
 * Extensibility for various brokers, trading strategies, and logging patterns
-* Local storage for trades and orders
+* Local storage for trades and orders *(In Progress)*
 * Support for notifications and interactions through tools like Telegram  
 
 <b>LoopTrader is very much a work in progress and is currently not feature complete. See the [Issues](https://github.com/pattertj/LoopTrader/issues) for what remains open, or to make a suggestion.</b>
