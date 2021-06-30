@@ -509,7 +509,7 @@ class SingleByDeltaStrategy(Strategy, Component):
 
         # Add Order to the DB
         db_order_request = baseRR.CreateDatabaseOrderRequest(
-            int(neworderresult.orderid), self.strategy_id, "NEW"
+            int(neworderresult.orderid), int(self.strategy_id), "NEW"
         )
         db_order_response = self.mediator.create_db_order(db_order_request)
 

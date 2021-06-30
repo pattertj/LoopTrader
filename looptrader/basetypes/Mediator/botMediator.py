@@ -58,7 +58,9 @@ class Bot(Mediator):
                 request = baseRR.CreateDatabaseStrategyRequest(
                     strategy_name=strategy.strategy_name
                 )
-                strategy.strategy_id = self.database.create_strategy(request)
+                strategy.strategy_id = self.database.create_strategy(
+                    request
+                ).strategy_id
             else:
                 strategy.strategy_id = result[0][0]
 
