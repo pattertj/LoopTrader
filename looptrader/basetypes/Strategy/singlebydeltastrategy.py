@@ -570,9 +570,11 @@ class SingleByDeltaStrategy(Strategy, Component):
         message = "Sold:<code>"
 
         for leg in orderrequest.legs:
-            message += "\r\n - {}x {} @ ${}</code>".format(
+            message += "\r\n - {}x {} @ ${}".format(
                 str(leg.quantity), str(leg.symbol), "{:,.2f}".format(orderrequest.price)
             )
+
+        message += "</code>"
 
         notification = baseRR.SendNotificationRequestMessage(message)
 
