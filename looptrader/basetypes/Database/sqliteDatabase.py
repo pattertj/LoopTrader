@@ -96,6 +96,35 @@ class SqliteDatabase(Database):
             "Each strategy must implement the 'delete_position' method."
         )
 
+    def read_orders_by_position_id(
+        self, request: baseRR.ReadOrdersByPositionIDRequest
+    ) -> Union[baseRR.ReadOrdersByPositionIDResponse, None]:
+        query = "SELECT * FROM Orders WHERE PositionID=?"
+
+        try:
+            self.cursor.execute(query, (request.position_id,))
+            # results = self.cursor.fetchall()
+        except Exception as e:
+            print(e)
+            return None
+
+        response = baseRR.ReadOrdersByPositionIDResponse()
+        response.orders = []
+
+        # for result in results:
+        # order = baseRR.AccountOrder()
+        # order.orderid = result[0]
+        # order.symbol = result[2]
+
+        # if result[3] > 0:
+        #     order.longquantity = result[3]
+        # else:
+        #     order.shortquantity = result[3]
+
+        # response.orders.append(order)
+
+        return response
+
     # POSITION FUNCTIONS
     def create_position(
         self, request: baseRR.CreateDatabasePositionRequest

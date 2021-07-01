@@ -227,3 +227,8 @@ class Bot(Mediator):
         self, request: baseRR.ReadOpenPositionsByStrategyIDRequest
     ) -> Union[baseRR.ReadOpenPositionsByStrategyIDResponse, None]:
         return self.database.read_open_positions_by_strategy_id(request)
+
+    def read_orders_by_position_id(
+        self, request: baseRR.ReadOrdersByPositionIDRequest
+    ) -> Union[baseRR.ReadOrdersByPositionIDResponse, None]:
+        return self.database.read_orders_by_position_id(request)

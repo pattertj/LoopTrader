@@ -83,3 +83,11 @@ class Database(abc.ABC, Component):
         raise NotImplementedError(
             "Each strategy must implement the 'read_open_positions_by_strategy_id' method."
         )
+
+    @abc.abstractmethod
+    def read_orders_by_position_id(
+        self, request: baseRR.ReadOrdersByPositionIDRequest
+    ) -> Union[baseRR.ReadOrdersByPositionIDResponse, None]:
+        raise NotImplementedError(
+            "Each strategy must implement the 'read_open_positions_by_strategy_id' method."
+        )

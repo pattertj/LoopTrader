@@ -3,6 +3,9 @@ from datetime import date, datetime
 import attr
 
 
+###########################################
+### Brokerage Request/Response Messages ###
+###########################################
 @attr.s(auto_attribs=True, init=False)
 class PlaceOrderRequestMessage:
     """Generic request object for placing an order."""
@@ -397,6 +400,9 @@ class GetMarketHoursResponseMessage:
     isopen: bool = attr.ib(validator=attr.validators.instance_of(bool))
 
 
+####################################
+### Notification Request Message ###
+####################################
 @attr.s(auto_attribs=True)
 class SendNotificationRequestMessage:
     """Generic request object for sending a notification."""
@@ -408,6 +414,9 @@ class SendNotificationRequestMessage:
     )
 
 
+####################################
+### Bot Request/Response Message ###
+####################################
 @attr.s(auto_attribs=True)
 class SetKillSwitchRequestMessage:
     """Generic request object for setting the bot killswitch."""
@@ -415,6 +424,9 @@ class SetKillSwitchRequestMessage:
     kill_switch: bool = attr.ib(validator=attr.validators.instance_of(bool))
 
 
+##########################################
+### Database Request Response Messages ###
+##########################################
 @attr.s(auto_attribs=True)
 class CreateDatabaseStrategyRequest:
     strategy_name: str = attr.ib(validator=attr.validators.instance_of(str))
@@ -461,4 +473,16 @@ class ReadOpenPositionsByStrategyIDRequest:
 class ReadOpenPositionsByStrategyIDResponse:
     positions: list[AccountPosition] = attr.ib(
         validator=attr.validators.instance_of(list[AccountPosition])
+    )
+
+
+@attr.s(auto_attribs=True)
+class ReadOrdersByPositionIDRequest:
+    position_id: int = attr.ib(validator=attr.validators.instance_of(int))
+
+
+@attr.s(auto_attribs=True, init=False)
+class ReadOrdersByPositionIDResponse:
+    orders: list[AccountOrder] = attr.ib(
+        validator=attr.validators.instance_of(list[AccountOrder])
     )
