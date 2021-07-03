@@ -372,7 +372,7 @@ class SpreadsByDeltaStrategy(Strategy, Component):
         logger.debug("get_market_session_loop")
 
         request = baseRR.GetMarketHoursRequestMessage(
-            self.strategy_name, market="OPTION", product="IND", datetime=date
+            self.strategy_name, market="OPTION", product="EQO", datetime=date
         )
 
         hours = self.mediator.get_market_hours(request)
