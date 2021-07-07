@@ -35,7 +35,7 @@ class SpreadsByDeltaStrategy(Strategy, Component):
     targetdelta: float = attr.ib(
         default=-0.03, validator=attr.validators.instance_of(float)
     )
-    width: float = attr.ib(default=75.0, validator=attr.validators.instance_of(float))
+    width: float = attr.ib(default=70.0, validator=attr.validators.instance_of(float))
     minimumdte: int = attr.ib(default=1, validator=attr.validators.instance_of(int))
     maximumdte: int = attr.ib(default=4, validator=attr.validators.instance_of(int))
     openingorderloopseconds: int = attr.ib(
@@ -280,12 +280,10 @@ class SpreadsByDeltaStrategy(Strategy, Component):
 
         # Check Available Balance
         tradable_today = (
-            account.currentbalances.buyingpower
-            - (
-                account.currentbalances.liquidationvalue
-                * self.portfolioallocationpercent
-            )
-        ) > (self.width * 100)
+            account.currentbalances.liquidationvalue * self.portfolioallocationpercent
+        ) > (self.width * 100) and account.currentbalances.buyingpower > (
+            self.width * 100
+        )
 
         # If nothing is expiring and no tradable balance, exit.
         # If we are expiring, continue trying to place a trade
