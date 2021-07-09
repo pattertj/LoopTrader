@@ -395,8 +395,8 @@ class GetMarketHoursRequestMessage:
 class GetMarketHoursResponseMessage:
     """Generic reponse object for getting Market Hours."""
 
-    start: datetime = attr.ib(validator=attr.validators.instance_of(datetime))
-    end: datetime = attr.ib(validator=attr.validators.instance_of(datetime))
+    open: datetime = attr.ib(validator=attr.validators.instance_of(datetime))
+    close: datetime = attr.ib(validator=attr.validators.instance_of(datetime))
     isopen: bool = attr.ib(validator=attr.validators.instance_of(bool))
 
 

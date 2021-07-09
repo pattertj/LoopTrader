@@ -502,8 +502,8 @@ class TdaBroker(Broker, Component):
         enddt = dtime.datetime.strptime(
             str(dict(markethours[0]).get("end")), "%Y-%m-%dT%H:%M:%S%z"
         )
-        response.start = startdt.astimezone(dtime.timezone.utc)
-        response.end = enddt.astimezone(dtime.timezone.utc)
+        response.open = startdt.astimezone(dtime.timezone.utc)
+        response.close = enddt.astimezone(dtime.timezone.utc)
         response.isopen = details.get("isOpen", bool)
 
         return response

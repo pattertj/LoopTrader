@@ -79,34 +79,34 @@ class SingleByDeltaStrategy(Strategy, Component):
             return
 
         # If the next market session is not today, wait for it
-        if hours.start.day != now.day:
+        if hours.open.day != now.day:
             self.sleepuntil = (
-                hours.start
+                hours.open
                 + dt.timedelta(minutes=self.minutesafteropendelay)
                 - dt.timedelta(minutes=5)
             )
             logger.info(
                 "Markets are closed until {}. Sleeping until {}".format(
-                    hours.start, self.sleepuntil
+                    hours.open, self.sleepuntil
                 )
             )
             return
 
         # If Pre-Market
-        if now < hours.start + dt.timedelta(minutes=self.minutesafteropendelay):
+        if now < hours.open + dt.timedelta(minutes=self.minutesafteropendelay):
             self.process_pre_market()
 
         # If In-Market
         elif (
-            hours.start + dt.timedelta(minutes=self.minutesafteropendelay)
+            hours.open + dt.timedelta(minutes=self.minutesafteropendelay)
             < now
-            < hours.end
+            < hours.close
         ):
-            self.process_open_market(hours.end, now)
+            self.process_open_market(hours.close, now)
 
         # If After-Hours
-        elif hours.end < now:
-            self.process_after_hours(hours.end, now)
+        elif hours.close < now:
+            self.process_after_hours(hours.close, now)
 
     # Process Market
     def process_pre_market(self):
@@ -118,14 +118,14 @@ class SingleByDeltaStrategy(Strategy, Component):
 
         # Set sleepuntil
         self.sleepuntil = (
-            nextmarketsession.start
+            nextmarketsession.open
             + dt.timedelta(minutes=self.minutesafteropendelay)
             - dt.timedelta(minutes=5)
         )
 
         logger.info(
             "Markets are closed until {}. Sleeping until {}".format(
-                nextmarketsession.start
+                nextmarketsession.open
                 + dt.timedelta(minutes=self.minutesafteropendelay),
                 self.sleepuntil,
             )
@@ -161,11 +161,11 @@ class SingleByDeltaStrategy(Strategy, Component):
                 dt.datetime.now() + dt.timedelta(days=1)
             )
             # Set sleepuntil
-            self.sleepuntil = nextmarketsession.start - dt.timedelta(minutes=5)
+            self.sleepuntil = nextmarketsession.open - dt.timedelta(minutes=5)
 
             logger.info(
                 "Markets are closed until {}. Sleeping until {}".format(
-                    nextmarketsession.start, self.sleepuntil
+                    nextmarketsession.open, self.sleepuntil
                 )
             )
             return
@@ -600,7 +600,7 @@ class SingleByDeltaStrategy(Strategy, Component):
 
         # If we didn't get hours, i.e. Weekend or if we are more than 15 minutes past market close, check tomorrow.
         # The 15 minute check is to allow the after-hours market logic to run
-        if hours is None or hours.end + dt.timedelta(
+        if hours is None or hours.close + dt.timedelta(
             minutes=15
         ) < dt.datetime.now().astimezone(dt.timezone.utc):
             return self.get_market_session_loop(date + dt.timedelta(days=1))

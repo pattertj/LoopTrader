@@ -68,21 +68,21 @@ class SpreadsByDeltaStrategy(Strategy, Component):
             return
 
         # If the next market session is not today, wait until 30minutes before close
-        if hours.start.day != now.day:
-            self.sleepuntil = hours.end - dt.timedelta(minutes=30)
+        if hours.open.day != now.day:
+            self.sleepuntil = hours.close - dt.timedelta(minutes=30)
             logger.info(
                 "Markets are closed until {}. Sleeping until {}".format(
-                    hours.start, self.sleepuntil
+                    hours.open, self.sleepuntil
                 )
             )
             return
 
         # If Pre-Market
-        if now < (hours.end - dt.timedelta(minutes=30)):
+        if now < (hours.close - dt.timedelta(minutes=30)):
             self.process_pre_market()
 
         # If In-Market
-        elif (hours.end - dt.timedelta(minutes=30)) < now < hours.end:
+        elif (hours.close - dt.timedelta(minutes=30)) < now < hours.close:
             self.process_open_market()
 
     def process_pre_market(self):
@@ -94,12 +94,12 @@ class SpreadsByDeltaStrategy(Strategy, Component):
 
         # Set sleepuntil
         self.sleepuntil = (
-            nextmarketsession.end - dt.timedelta(minutes=30) - dt.timedelta(minutes=5)
+            nextmarketsession.close - dt.timedelta(minutes=30) - dt.timedelta(minutes=5)
         )
 
         logger.info(
             "Markets are closed until {}. Sleeping until {}".format(
-                nextmarketsession.start,
+                nextmarketsession.open,
                 self.sleepuntil,
             )
         )
@@ -377,7 +377,7 @@ class SpreadsByDeltaStrategy(Strategy, Component):
 
         hours = self.mediator.get_market_hours(request)
 
-        if hours is None or hours.end < dt.datetime.now().astimezone(dt.timezone.utc):
+        if hours is None or hours.close < dt.datetime.now().astimezone(dt.timezone.utc):
             return self.get_market_session_loop(date + dt.timedelta(days=1))
 
         return hours
