@@ -427,6 +427,24 @@ class SetKillSwitchRequestMessage:
 ##########################################
 ### Database Request Response Messages ###
 ##########################################
+@attr.s(auto_attribs=True, init=False)
+class DatabasePosition:
+    position_id: int = attr.ib(validator=attr.validators.instance_of(int))
+    strategy_id: int = attr.ib(validator=attr.validators.instance_of(int))
+    symbol: str = attr.ib(validator=attr.validators.instance_of(str))
+    quantity: int = attr.ib(validator=attr.validators.instance_of(int))
+    is_open: bool = attr.ib(validator=attr.validators.instance_of(bool))
+    entry_order_id: int = attr.ib(validator=attr.validators.instance_of(int))
+    exit_order_id: int = attr.ib(validator=attr.validators.instance_of(int))
+
+
+class DatabaseOrder:
+    order_id: int = attr.ib(validator=attr.validators.instance_of(int))
+    broker_order_number: int = attr.ib(validator=attr.validators.instance_of(int))
+    strategy_id: int = attr.ib(validator=attr.validators.instance_of(int))
+    status: str = attr.ib(validator=attr.validators.instance_of(str))
+
+
 @attr.s(auto_attribs=True)
 class CreateDatabaseStrategyRequest:
     strategy_name: str = attr.ib(validator=attr.validators.instance_of(str))

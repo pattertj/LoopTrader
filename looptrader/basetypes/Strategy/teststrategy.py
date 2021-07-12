@@ -6,6 +6,7 @@ import time
 import attr
 import basetypes.Strategy.helpers as helpers
 from basetypes.Component.abstractComponent import Component
+from basetypes.Mediator.reqRespTypes import DatabaseOrder, DatabasePosition
 from basetypes.Strategy.abstractStrategy import Strategy
 
 logger = logging.getLogger("autotrader")
@@ -162,9 +163,9 @@ class TestStrategy(Strategy, Component):
             # Process Position
             self.process_open_position(position)
 
-    def process_open_position(self, position):
+    def process_open_position(self, position: DatabasePosition):
         # Get Orders from DB
-        orders = helpers.get_db_orders(self.mediator, position.positionid)
+        orders = helpers.get_db_orders(self.mediator, position.position_id)
 
         # If none, check expiration
         if orders is None:
@@ -172,6 +173,7 @@ class TestStrategy(Strategy, Component):
             return
 
         # If yes, call broker and process Orders by status
+        order: DatabaseOrder
         for order in orders:
             if order.status == "CANCELLED":
                 # Cancelled
@@ -181,11 +183,11 @@ class TestStrategy(Strategy, Component):
                 self.process_working_order()
             elif order.status == "CLOSED":
                 # Closed
-                self.process_closed_order()
+                self.process_closed_order(order)
             else:
                 logger.error(
                     "Position {}, Order {}, has invalid Status {}.".format(
-                        position.id, order.id, order.status
+                        position.position_id, order.order_id, order.status
                     )
                 )
 
@@ -197,11 +199,11 @@ class TestStrategy(Strategy, Component):
         # Nothing to do, continue
         pass
 
-    def process_closed_order(self, order):
+    def process_closed_order(self, order: DatabaseOrder):
         # Close Order in DB
-        helpers.close_db_order(self.mediator, order.orderid)
-        # Close Position in DB
-        helpers.close_db_position(self.mediator, order.positionid)
+        helpers.close_db_order(self.mediator, order.order_id)
+        # TODO: Close Position in DB
+        # helpers.close_db_position(self.mediator, order.position_id)
 
     def process_position_expiration(self, position):
         if position.expiration_date < dt.datetime.now().astimezone(dt.timezone.utc):
