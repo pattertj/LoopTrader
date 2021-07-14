@@ -6,7 +6,12 @@ import time
 import attr
 import basetypes.Strategy.helpers as helpers
 from basetypes.Component.abstractComponent import Component
-from basetypes.Mediator.reqRespTypes import DatabaseOrder, DatabasePosition
+from basetypes.Mediator.reqRespTypes import (
+    AccountOrder,
+    DatabaseOrder,
+    DatabasePosition,
+    PlaceOrderResponseMessage,
+)
 from basetypes.Strategy.abstractStrategy import Strategy
 
 logger = logging.getLogger("autotrader")
@@ -205,16 +210,16 @@ class TestStrategy(Strategy, Component):
         # TODO: Close Position in DB
         # helpers.close_db_position(self.mediator, order.position_id)
 
-    def process_position_expiration(self, position):
+    def process_position_expiration(self, position: DatabasePosition):
         if position.expiration_date < dt.datetime.now().astimezone(dt.timezone.utc):
             # If expired, close Position in DB
-            helpers.close_db_position(self.mediator, position.positionid)
+            helpers.close_db_position(self.mediator, position.position_id)
             # Open a new Position
             self.place_opening_order()
             return
 
         # If not, open new Closing Order
-        self.place_closing_order()
+        self.place_closing_order(position)
 
     ########################
     ### Late Open Market ###
@@ -301,7 +306,11 @@ class TestStrategy(Strategy, Component):
         order_request = self.generate_opening_order_request()
 
         # Place Order
-        new_order_response = helpers.place_order(order_request)
+        new_order_response = helpers.place_order(self.mediator, order_request)
+
+        # If no response, there must have been an error logged.
+        if new_order_response is None:
+            return
 
         # Process the order response message.
         self.process_opening_order_response(new_order_response)
@@ -349,7 +358,7 @@ class TestStrategy(Strategy, Component):
         # Get Account Balance
         account = helpers.get_account(self.mediator, self.strategy_name, False, False)
 
-        # If no Strike, exit
+        # If no Account, exit
         if account is None or account.currentbalances is None:
             logger.error("Failed to return account balance.")
             return None
@@ -383,7 +392,9 @@ class TestStrategy(Strategy, Component):
             self.strategy_name,
         )
 
-    def process_opening_order_response(self, new_order_response):
+    def process_opening_order_response(
+        self, new_order_response: PlaceOrderResponseMessage
+    ):
         # Wait configured time
         time.sleep(self.order_looping_in_seconds)
 
@@ -392,34 +403,42 @@ class TestStrategy(Strategy, Component):
             self.mediator, int(new_order_response.orderid), self.strategy_name
         )
 
+        # If the read is empty, an error was logged, escape.
+        if new_order is None:
+            return
+
         # If successful
-        if new_order is not None and new_order.status != "FILLED":
+        if new_order.status != "FILLED":
             # Log Order in DB
             helpers.create_db_order(self.mediator, new_order.orderid, self.strategy_id)
             # Log Position in DB
-            helpers.create_db_position(
-                self.mediator,
-                self.strategy_id,
-                new_order.symbol,
-                new_order.quantity,
-                new_order.orderid,
-            )
+            for leg in new_order.legs:
+                helpers.create_db_position(
+                    self.mediator,
+                    self.strategy_id,
+                    leg.symbol,
+                    leg.quantity,
+                    new_order.orderid,
+                )
+
+            notification = helpers.build_option_order_placed_notification(new_order)
+
             # Send Notification
-            helpers.send_notification()
+            helpers.send_notification(self.mediator, notification)
 
         # If it failed
         else:
             # Cancel the Order
             helpers.cancel_broker_order(
-                self.mediator, new_order.orderid, self.strategy_id
+                self.mediator, new_order.orderid, self.strategy_name
             )
             # Retry
             self.place_opening_order()
 
-    def place_closing_order(self, position):
+    def place_closing_order(self, position: DatabasePosition):
         # Build Request
         request = helpers.build_single_order_request(
-            position.strike,
+            position.symbol,
             position.quantity,
             position.price * self.profit_target,
             self.buy_or_sell,
@@ -428,38 +447,55 @@ class TestStrategy(Strategy, Component):
         )
 
         # Place Order
-        response = helpers.place_order(request)
+        response = helpers.place_order(self.mediator, request)
+
+        # If response is None, there was an error logged, so exit.
+        if response is None:
+            return
 
         # Confirm Order
         closing_order = helpers.get_order(
             self.mediator, int(response.orderid), self.strategy_name
         )
 
+        # If closing_order is None, there was an error logged, so exit.
+        if closing_order is None:
+            return
+
         # Log Order in DB
         helpers.create_db_order(self.mediator, closing_order.orderid, self.strategy_id)
 
+        notification = helpers.build_option_order_placed_notification(closing_order)
+
         # Send Notification
-        helpers.send_notification()
+        helpers.send_notification(self.mediator, notification)
 
-    def place_order_cancel(self, order):
-        # Build Request
-        request = ""
-
+    def place_order_cancel(self, order: AccountOrder):
         # Place Order
-        cancel_response = helpers.cancel_broker_order(self.mediator, request)
+        cancel_response = helpers.cancel_broker_order(
+            self.mediator, order.order_id, self.strategy_name
+        )
 
         # Confirm Cancel was successful, or try again
         if cancel_response == "200:":
-            cancel_status = helpers.get_order(order.order_id)
+            cancel_status = helpers.get_order(
+                self.mediator, order.order_id, self.strategy_name
+            )
         else:
             return self.place_order_cancel(order)
+
+        # If None, an error was logged, exit.
+        if cancel_status is None:
+            return
 
         # If successful
         if cancel_status == "CANCELLED":
             # Log Order in DB
-            helpers.cancel_db_order(self.mediator, order.orderid)
+            helpers.cancel_db_order(self.mediator, order.order_id)
+
             # Send Notification
-            helpers.send_notification("")
+            notification = helpers.build_option_order_placed_notification(cancel_status)
+            helpers.send_notification(self.mediator, notification)
             return
 
         # If it failed, log error, send notification, exit

@@ -185,7 +185,7 @@ class TdaBroker(Broker, Component):
         accountorder.quantity = order.get("quantity", int)
         accountorder.filledquantity = order.get("filledQuantity", int)
         accountorder.price = order.get("price", float)
-        accountorder.orderid = order.get("orderId", str)
+        accountorder.order_id = order.get("orderId", str)
         accountorder.status = order.get("status", str)
         accountorder.enteredtime = order.get("enteredTime", dtime.datetime)
         accountorder.closetime = order.get("closeTime", dtime.datetime)
@@ -336,6 +336,7 @@ class TdaBroker(Broker, Component):
                 order = self.getsession().get_orders(
                     account=self.account_number, order_id=str(request.orderid)
                 )
+                break
             except Exception:
                 logger.exception(
                     "Failed to read order {}.".format(str(request.orderid))
@@ -350,18 +351,14 @@ class TdaBroker(Broker, Component):
         response.enteredtime = order.get("enteredTime")
         response.orderid = order.get("orderId")
         response.status = order.get("status")
+        response.price = order.get("price")
+        response.legs = []
 
-        orderleg = order.get("orderLegCollection")[0]
-
-        if orderleg is not None:
-            response.instruction = orderleg.get("instruction")
-            response.positioneffect = orderleg.get("positionEffect")
-
-        instrument = orderleg.get("instrument")
-
-        if instrument is not None:
-            response.description = instrument.get("description")
-            response.symbol = instrument.get("symbol")
+        for leg in order.get("orderLegCollection", dict):
+            # Build Leg
+            accountorderleg = self.build_account_order_leg(leg)
+            # Append Leg
+            response.legs.append(accountorderleg)
 
         return response
 

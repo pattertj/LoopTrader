@@ -7,43 +7,44 @@ import attr
 ### Brokerage Request/Response Messages ###
 ###########################################
 @attr.s(auto_attribs=True, init=False)
+class Leg:
+
+    price: float = attr.ib(validator=attr.validators.instance_of(float))
+    quantity: int = attr.ib(validator=attr.validators.instance_of(int))
+    symbol: str = attr.ib(validator=attr.validators.instance_of(str))
+    assettype: str = attr.ib(
+        validator=attr.validators.in_(
+            [
+                "EQUITY",
+                "OPTION",
+                "INDEX",
+                "MUTUAL_FUND",
+                "CASH_EQUIVALENT",
+                "FIXED_INCOME",
+                "CURRENCY",
+            ]
+        )
+    )
+    instruction: str = attr.ib(
+        validator=attr.validators.in_(
+            [
+                "BUY",
+                "SELL",
+                "BUY_TO_COVER",
+                "SELL_SHORT",
+                "BUY_TO_OPEN",
+                "BUY_TO_CLOSE",
+                "SELL_TO_OPEN",
+                "SELL_TO_CLOSE",
+                "EXCHANGE",
+            ]
+        )
+    )
+
+
+@attr.s(auto_attribs=True, init=False)
 class PlaceOrderRequestMessage:
     """Generic request object for placing an order."""
-
-    # Define Order Request Leg Object
-    @attr.s(auto_attribs=True, init=False)
-    class Leg:
-
-        quantity: int = attr.ib(validator=attr.validators.instance_of(int))
-        symbol: str = attr.ib(validator=attr.validators.instance_of(str))
-        assettype: str = attr.ib(
-            validator=attr.validators.in_(
-                [
-                    "EQUITY",
-                    "OPTION",
-                    "INDEX",
-                    "MUTUAL_FUND",
-                    "CASH_EQUIVALENT",
-                    "FIXED_INCOME",
-                    "CURRENCY",
-                ]
-            )
-        )
-        instruction: str = attr.ib(
-            validator=attr.validators.in_(
-                [
-                    "BUY",
-                    "SELL",
-                    "BUY_TO_COVER",
-                    "SELL_SHORT",
-                    "BUY_TO_OPEN",
-                    "BUY_TO_CLOSE",
-                    "SELL_TO_OPEN",
-                    "SELL_TO_CLOSE",
-                    "EXCHANGE",
-                ]
-            )
-        )
 
     price: float = attr.ib(validator=attr.validators.instance_of(float))
     strategy_name: str = attr.ib(validator=attr.validators.instance_of(str))
@@ -238,7 +239,7 @@ class AccountOrder:
     quantity: int = attr.ib(validator=attr.validators.instance_of(int))
     filledquantity: int = attr.ib(validator=attr.validators.instance_of(int))
     price: float = attr.ib(validator=attr.validators.instance_of(float))
-    orderid: str = attr.ib(validator=attr.validators.instance_of(str))
+    order_id: int = attr.ib(validator=attr.validators.instance_of(int))
     status: str = attr.ib(
         validator=attr.validators.in_(
             [
@@ -355,26 +356,8 @@ class GetOrderResponseMessage:
     accountid: int = attr.ib(validator=attr.validators.instance_of(int))
     enteredtime: datetime = attr.ib(validator=attr.validators.instance_of(datetime))
     closetime: datetime = attr.ib(validator=attr.validators.instance_of(datetime))
-    instruction: str = attr.ib(
-        validator=attr.validators.in_(
-            [
-                "BUY",
-                "SELL",
-                "BUY_TO_COVER",
-                "SELL_SHORT",
-                "BUY_TO_OPEN",
-                "BUY_TO_CLOSE",
-                "SELL_TO_OPEN",
-                "SELL_TO_CLOSE",
-                "EXCHANGE",
-            ]
-        )
-    )
-    symbol: str = attr.ib(validator=attr.validators.instance_of(str))
-    description: str = attr.ib(validator=attr.validators.instance_of(str))
-    positioneffect: str = attr.ib(
-        validator=attr.validators.in_(["OPENING", "CLOSING", "AUTOMATIC"])
-    )
+    price: float = attr.ib(validator=attr.validators.instance_of(float))
+    legs: list[Leg] = attr.ib(validator=attr.validators.instance_of(list[Leg]))
 
 
 @attr.s(auto_attribs=True)
@@ -433,9 +416,12 @@ class DatabasePosition:
     strategy_id: int = attr.ib(validator=attr.validators.instance_of(int))
     symbol: str = attr.ib(validator=attr.validators.instance_of(str))
     quantity: int = attr.ib(validator=attr.validators.instance_of(int))
+    strike: float = attr.ib(validator=attr.validators.instance_of(float))
+    price: float = attr.ib(validator=attr.validators.instance_of(float))
     is_open: bool = attr.ib(validator=attr.validators.instance_of(bool))
     entry_order_id: int = attr.ib(validator=attr.validators.instance_of(int))
     exit_order_id: int = attr.ib(validator=attr.validators.instance_of(int))
+    expiration_date: datetime = attr.ib(validator=attr.validators.instance_of(datetime))
 
 
 class DatabaseOrder:

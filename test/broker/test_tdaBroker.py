@@ -19,11 +19,11 @@
 
 
 # def test_get_order():
-#     broker = TdaBroker()
+#     broker = TdaBroker("ira")
 #     broker.maxretries = 3
 
-#     requestorderid = 4240878201
-#     request = baseRR.GetOrderRequestMessage(requestorderid)
+#     requestorderid = 4009676401
+#     request = baseRR.GetOrderRequestMessage("", requestorderid)
 #     response = broker.get_order(request)
 
 #     assert response is not None

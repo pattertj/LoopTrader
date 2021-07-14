@@ -1,4 +1,5 @@
-# # import os
+# import logging
+# import logging.config
 # import os
 
 # from basetypes.Broker.tdaBroker import TdaBroker
@@ -10,6 +11,13 @@
 
 # def test_process_core_open_market():
 #     """This test will always pass. It's primarily how I debug the strategies off-hours. The test function can be changed, but this is the pattern. I leave it commented out when not in use since it is not a real test."""
+#     # Create Logging
+#     logging.config.fileConfig(
+#         "logConfig.ini",
+#         defaults={"logfilename": "debug.log"},
+#         disable_existing_loggers=False,
+#     )
+
 #     # Create our strategy
 #     teststrat = TestStrategy(strategy_name="test")
 
@@ -17,7 +25,7 @@
 #     testbroker = TdaBroker(id="individual")
 
 #     # Create our local DB
-#     sqlitedb = SqliteDatabase("looptrader.db")
+#     sqlitedb = SqliteDatabase("testdb.db")
 
 #     # Create our notifier
 #     telegram_bot = TelegramNotifier()
@@ -36,6 +44,7 @@
 #     result = teststrat.process_core_open_market()
 
 #     os.remove("testdb.db")
+#     os.remove("debug.log")
 
 #     # Check results
 #     assert result is None or result is not None

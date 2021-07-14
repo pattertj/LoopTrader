@@ -25,6 +25,21 @@ def send_notification(mediator: Mediator, message: str):
     mediator.send_notification(notification)
 
 
+def build_option_order_placed_notification(
+    order: baseRR.GetOrderResponseMessage,
+) -> str:
+    message = "Placed Order For:<code>"
+
+    for leg in order.legs:
+        message += "\r\n - {}x {} @ ${}".format(
+            str(leg.quantity), str(leg.symbol), "{:,.2f}".format(order.price)
+        )
+
+    message += "</code>"
+
+    return message
+
+
 ####################
 ### DB Functions ###
 ####################
@@ -76,7 +91,7 @@ def create_db_position(
     mediator.create_db_position(request)
 
 
-def cancel_db_order(self, mediator: Mediator, order_id: int):
+def cancel_db_order(mediator: Mediator, order_id: int):
     pass
 
 
@@ -306,9 +321,7 @@ def get_best_strike_by_delta(
     max_delta: float,
     buying_power: float,
     max_loss_percent: float,
-) -> Tuple[
-    Union[None, baseRR.GetOptionChainResponseMessage.ExpirationDate.Strike], int, float
-]:
+) -> Tuple[Union[str, None], int, float]:
     """Returns the strike providing the maximum total premium bewteen the given deltas, based on the quantity calculated using buying_power and max_loss_percent.
 
     Args:
@@ -319,30 +332,35 @@ def get_best_strike_by_delta(
         max_loss_percent (float): Max loss percentages
 
     Returns:
-        Tuple[Union[None, baseRR.GetOptionChainResponseMessage.ExpirationDate.Strike], int, float]: Tuple containing the Strike, quantity, and mid-price.
+        Tuple[ Union[str, None], int, float ]: Tuple containing the Strike, quantity, and mid-price.
     """
 
     best_mid_price = 0.0
     best_quantity = 0
-    best_strike = None
+    best_symbol = None
     best_total_premium = 0.0
 
     for strike in strikes.items():
-        if min_delta <= strike[1].delta <= max_delta:
+        # If our strike delta is between our range
+        if abs(min_delta) <= abs(strike[1].delta) <= abs(max_delta):
+            # Calculate mid-price, quantity, and total premium for the strike.
             mid_price = (strike[1].bid + strike[1].ask) / 2
             quantity = int(buying_power // (strike[0] * 100 * float(max_loss_percent)))
             total_premium = mid_price * quantity
+            # If the strike's premium > our best so far
             if total_premium > best_total_premium:
+                # Update our best strike values
                 best_mid_price = mid_price
                 best_quantity = quantity
                 best_total_premium = total_premium
-                best_strike = strike[1]
+                best_symbol = strike[1].symbol
 
-    return (best_strike, best_quantity, best_mid_price)
+    # Return the best strike details.
+    return (best_symbol, best_quantity, best_mid_price)
 
 
 def build_single_order_request(
-    strike: baseRR.GetOptionChainResponseMessage.ExpirationDate.Strike,
+    symbol: str,
     qty: int,
     price: float,
     buy_or_sell: str,
@@ -364,8 +382,8 @@ def build_single_order_request(
     """
 
     # Build Leg
-    leg = baseRR.PlaceOrderRequestMessage.Leg()
-    leg.symbol = strike.symbol
+    leg = baseRR.Leg()
+    leg.symbol = symbol
     leg.assettype = "OPTION"
     leg.quantity = qty
 
@@ -387,7 +405,7 @@ def build_single_order_request(
         orderrequest.positioneffect = "CLOSING"
 
     # Assemble
-    orderrequest.legs = list[baseRR.PlaceOrderRequestMessage.Leg]()
+    orderrequest.legs = list[baseRR.Leg]()
     orderrequest.legs.append(leg)
 
     # Return request
