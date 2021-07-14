@@ -208,7 +208,7 @@ class SpreadsByDeltaStrategy(Strategy, Component):
         qty: int,
     ) -> Union[baseRR.PlaceOrderRequestMessage, None]:
         # If no valid qty, exit.
-        if qty is None or qty == 0:
+        if qty is None or qty <= 0:
             return None
 
         # Calculate price
