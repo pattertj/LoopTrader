@@ -462,3 +462,29 @@ class ReadOpenPositionsByStrategyIDResponse:
     positions: list[AccountPosition] = attr.ib(
         validator=attr.validators.instance_of(list[AccountPosition])
     )
+
+
+@attr.s(auto_attribs=True)
+class GetQuoteRequestMessage:
+    strategy_name: str = attr.ib(validator=attr.validators.instance_of(str))
+    instruments: list[str] = attr.ib(validator=attr.validators.instance_of(list))
+
+
+@attr.s(auto_attribs=True, init=False)
+class Instrument:
+    symbol: str = attr.ib(validator=attr.validators.instance_of(str))
+    bidPrice: float = attr.ib(validator=attr.validators.instance_of(float))
+    bidSize: float = attr.ib(validator=attr.validators.instance_of(float))
+    askPrice: float = attr.ib(validator=attr.validators.instance_of(float))
+    askSize: float = attr.ib(validator=attr.validators.instance_of(float))
+    lastPrice: float = attr.ib(validator=attr.validators.instance_of(float))
+    openPrice: float = attr.ib(validator=attr.validators.instance_of(float))
+    highPrice: float = attr.ib(validator=attr.validators.instance_of(float))
+    lowPrice: float = attr.ib(validator=attr.validators.instance_of(float))
+    closePrice: float = attr.ib(validator=attr.validators.instance_of(float))
+    volatility: float = attr.ib(validator=attr.validators.instance_of(float))
+
+
+@attr.s(auto_attribs=True, init=False)
+class GetQuoteResponseMessage:
+    instruments: list[Instrument] = attr.ib(validator=attr.validators.instance_of(list[Instrument]))

@@ -64,3 +64,11 @@ class Broker(abc.ABC, Component):
         raise NotImplementedError(
             "Each strategy must implement the 'Get_Order' method."
         )
+
+    @abc.abstractmethod
+    def get_quote(
+        self, request: baseRR.GetQuoteRequestMessage
+    ) -> Union[baseRR.GetQuoteResponseMessage, None]:
+        raise NotImplementedError(
+            "Each strategy must implement the 'Get_Quote' method."
+        )

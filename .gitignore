@@ -138,3 +138,4 @@ pyvenv.cfg
 # Project Specific Ignore
 LoopTrader.db
 config.yaml
+td_state.json

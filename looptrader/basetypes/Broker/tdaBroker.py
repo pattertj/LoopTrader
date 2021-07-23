@@ -288,7 +288,8 @@ class TdaBroker(Broker, Component):
         orderrequest["orderType"] = request.ordertype
         orderrequest["session"] = request.ordersession
         orderrequest["duration"] = request.duration
-        orderrequest["price"] = str(request.price)
+        if request.price is not None:
+            orderrequest["price"] = str(request.price)
 
         legs = []
 
@@ -442,6 +443,42 @@ class TdaBroker(Broker, Component):
 
         response = baseRR.CancelOrderResponseMessage()
         response.responsecode = cancelresponse.get("status_code")
+
+        return response
+
+    def get_quote(self, request: baseRR.GetQuoteRequestMessage) -> Union[None, baseRR.GetQuoteResponseMessage]:
+
+        for attempt in range(self.maxretries):
+            try:
+                quotes = self.getsession().get_quotes(request.instruments)
+                break
+            except Exception:
+                logger.exception(
+                    "Failed to get quotes. Attempt #{}".format(
+                        attempt
+                    ),
+                )
+                if attempt == self.maxretries - 1:
+                    return None
+
+        response = baseRR.GetQuoteResponseMessage()
+        response.instruments = []
+
+        quote: dict
+        for quote in quotes.values():
+            instrument = baseRR.Instrument()
+            instrument.symbol = quote.get('symbol', str)
+            instrument.bidPrice = quote.get('bidPrice', float)
+            instrument.bidSize = quote.get('bidSize', float)
+            instrument.askPrice = quote.get('askPrice', float)
+            instrument.askSize = quote.get('askSize', float)
+            instrument.lastPrice = quote.get('lastPrice', float)
+            instrument.openPrice = quote.get('openPrice', float)
+            instrument.highPrice = quote.get('highPrice', float)
+            instrument.lowPrice = quote.get('lowPrice', float)
+            instrument.closePrice = quote.get('closePrice', float)
+            instrument.volatility = quote.get('volatility', float)
+            response.instruments.append(instrument)
 
         return response
 

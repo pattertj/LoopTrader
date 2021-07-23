@@ -169,6 +169,16 @@ class Bot(Mediator):
 
         return broker.get_market_hours(request)
 
+    def get_quote(
+        self, request: baseRR.GetQuoteRequestMessage
+    ) -> Union[baseRR.GetQuoteResponseMessage, None]:
+        broker = self.get_broker(request.strategy_name)
+
+        if broker is None:
+            return None
+
+        return broker.get_quote(request)
+
     def get_option_chain(
         self, request: baseRR.GetOptionChainRequestMessage
     ) -> Union[baseRR.GetOptionChainResponseMessage, None]:

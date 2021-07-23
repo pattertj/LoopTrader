@@ -119,3 +119,10 @@ class Mediator(abc.ABC):
         raise NotImplementedError(
             "Each mediator must implement the 'create_db_position' method."
         )
+
+    def get_quote(
+        self, request: baseRR.GetQuoteRequestMessage
+    ) -> Union[baseRR.GetQuoteResponseMessage, None]:
+        raise NotImplementedError(
+            "Each mediator must implement the 'get_quote' method."
+        )

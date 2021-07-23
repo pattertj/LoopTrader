@@ -9,6 +9,7 @@ python-telegram-bot = "*"
 td-ameritrade-python-api = "*"
 python-dotenv = "*"
 pyyaml = "*"
+types-pyyaml = "*"
 
 [dev-packages]
 black = "==21.5b1"

@@ -7,6 +7,7 @@ from basetypes.Mediator.botMediator import Bot
 from basetypes.Notifier.telegramnotifier import TelegramNotifier
 from basetypes.Strategy.singlebydeltastrategy import SingleByDeltaStrategy
 from basetypes.Strategy.spreadsbydeltastrategy import SpreadsByDeltaStrategy
+from basetypes.Strategy.longsharesstrategy import LongSharesStrategy
 
 if __name__ == "__main__":
     # Create Logging
@@ -17,9 +18,10 @@ if __name__ == "__main__":
     )
 
     # Create our strategies
-    cspstrat = SingleByDeltaStrategy(strategy_name="csps")
+    vgshstrat = LongSharesStrategy(strategy_name='VGSH Core', underlying='VGSH', portfolio_allocation_percent=0.9)
+    cspstrat = SingleByDeltaStrategy(strategy_name="Puts", put_or_call="PUT", targetdelta=0.07, mindelta=0.03, profittargetpercent=0.7)
     nakedcalls = SingleByDeltaStrategy(
-        strategy_name="calls",
+        strategy_name="Calls",
         put_or_call="CALL",
         targetdelta=0.02,
         mindelta=0.01,
@@ -43,6 +45,7 @@ if __name__ == "__main__":
             spreadstrat: irabroker,
             cspstrat: individualbroker,
             nakedcalls: individualbroker,
+            vgshstrat: individualbroker
         },
         database=sqlitedb,
         notifier=telegram_bot,
