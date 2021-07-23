@@ -446,7 +446,9 @@ class TdaBroker(Broker, Component):
 
         return response
 
-    def get_quote(self, request: baseRR.GetQuoteRequestMessage) -> Union[None, baseRR.GetQuoteResponseMessage]:
+    def get_quote(
+        self, request: baseRR.GetQuoteRequestMessage
+    ) -> Union[None, baseRR.GetQuoteResponseMessage]:
 
         for attempt in range(self.maxretries):
             try:
@@ -454,9 +456,7 @@ class TdaBroker(Broker, Component):
                 break
             except Exception:
                 logger.exception(
-                    "Failed to get quotes. Attempt #{}".format(
-                        attempt
-                    ),
+                    "Failed to get quotes. Attempt #{}".format(attempt),
                 )
                 if attempt == self.maxretries - 1:
                     return None
@@ -467,17 +467,17 @@ class TdaBroker(Broker, Component):
         quote: dict
         for quote in quotes.values():
             instrument = baseRR.Instrument()
-            instrument.symbol = quote.get('symbol', str)
-            instrument.bidPrice = quote.get('bidPrice', float)
-            instrument.bidSize = quote.get('bidSize', float)
-            instrument.askPrice = quote.get('askPrice', float)
-            instrument.askSize = quote.get('askSize', float)
-            instrument.lastPrice = quote.get('lastPrice', float)
-            instrument.openPrice = quote.get('openPrice', float)
-            instrument.highPrice = quote.get('highPrice', float)
-            instrument.lowPrice = quote.get('lowPrice', float)
-            instrument.closePrice = quote.get('closePrice', float)
-            instrument.volatility = quote.get('volatility', float)
+            instrument.symbol = quote.get("symbol", str)
+            instrument.bidPrice = quote.get("bidPrice", float)
+            instrument.bidSize = quote.get("bidSize", float)
+            instrument.askPrice = quote.get("askPrice", float)
+            instrument.askSize = quote.get("askSize", float)
+            instrument.lastPrice = quote.get("lastPrice", float)
+            instrument.openPrice = quote.get("openPrice", float)
+            instrument.highPrice = quote.get("highPrice", float)
+            instrument.lowPrice = quote.get("lowPrice", float)
+            instrument.closePrice = quote.get("closePrice", float)
+            instrument.volatility = quote.get("volatility", float)
             response.instruments.append(instrument)
 
         return response

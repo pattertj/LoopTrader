@@ -487,4 +487,6 @@ class Instrument:
 
 @attr.s(auto_attribs=True, init=False)
 class GetQuoteResponseMessage:
-    instruments: list[Instrument] = attr.ib(validator=attr.validators.instance_of(list[Instrument]))
+    instruments: list[Instrument] = attr.ib(
+        validator=attr.validators.instance_of(list[Instrument])
+    )
