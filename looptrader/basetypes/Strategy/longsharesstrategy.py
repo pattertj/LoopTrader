@@ -23,7 +23,7 @@ class LongSharesStrategy(Strategy, Component):
         default="VGSH", validator=attr.validators.instance_of(str)
     )
     portfolio_allocation_percent: float = attr.ib(
-        default=.90, validator=attr.validators.instance_of(float)
+        default=0.90, validator=attr.validators.instance_of(float)
     )
     opening_order_loop_seconds: int = attr.ib(
         default=20, validator=attr.validators.instance_of(int)
@@ -97,10 +97,16 @@ class LongSharesStrategy(Strategy, Component):
             return
 
         # Get Share Price
-        quoteRequest = baseRR.GetQuoteRequestMessage(self.strategy_name, [self.underlying])
+        quoteRequest = baseRR.GetQuoteRequestMessage(
+            self.strategy_name, [self.underlying]
+        )
         share_price = self.mediator.get_quote(quoteRequest)
 
-        if share_price is None or share_price.instruments is None or share_price.instruments == []:
+        if (
+            share_price is None
+            or share_price.instruments is None
+            or share_price.instruments == []
+        ):
             logger.error("Failed to get quote for {}.".format(self.underlying))
             return
 
@@ -112,16 +118,26 @@ class LongSharesStrategy(Strategy, Component):
                 break
 
         # Calculate share delta, rounded to 100
-        target_value = self.portfolio_allocation_percent * account.currentbalances.liquidationvalue
+        target_value = (
+            self.portfolio_allocation_percent * account.currentbalances.liquidationvalue
+        )
         target_shares = int(target_value // share_price.instruments[0].lastPrice)
         rounded_target_shares = (target_shares // 100) * 100
         share_delta = current_position - rounded_target_shares
 
         # Log Status
         if share_delta == 0:
-            logger.info("Share Target: {} = Current Shares: {}. No change.".format(rounded_target_shares, current_position))
+            logger.info(
+                "Share Target: {} = Current Shares: {}. No change.".format(
+                    rounded_target_shares, current_position
+                )
+            )
             return
-        logger.info("Share Target: {} <> Current Shares: {}. Placing Order...".format(rounded_target_shares, current_position))
+        logger.info(
+            "Share Target: {} <> Current Shares: {}. Placing Order...".format(
+                rounded_target_shares, current_position
+            )
+        )
 
         # Place Order
         order = self.build_order(share_delta)
