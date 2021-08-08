@@ -16,7 +16,7 @@ logger = logging.getLogger("autotrader")
 
 @attr.s(auto_attribs=True)
 class Bot(Mediator):
-    notifier: Notifier = attr.ib(validator=attr.validators.instance_of(Notifier))  # type: ignore[misc]
+    notifier: Union[Notifier, None] = attr.ib(validator=attr.validators.optional(attr.validators.instance_of(Notifier)))  # type: ignore[misc]
     database: Database = attr.ib(validator=attr.validators.instance_of(Database))  # type: ignore[misc]
     botloopfrequency: int = attr.ib(
         validator=attr.validators.instance_of(int), init=False
@@ -38,7 +38,8 @@ class Bot(Mediator):
 
         # Set Mediators
         self.database.mediator = self
-        self.notifier.mediator = self
+        if self.notifier is not None:
+            self.notifier.mediator = self
 
         # Validate Broker Strategies and set Mediators
         names = []
@@ -180,7 +181,8 @@ class Bot(Mediator):
         return broker.get_option_chain(request)
 
     def send_notification(self, request: baseRR.SendNotificationRequestMessage) -> None:
-        self.notifier.send_notification(request)
+        if self.notifier is not None:
+            self.notifier.send_notification(request)
 
     def set_kill_switch(self, request: baseRR.SetKillSwitchRequestMessage) -> None:
         self.killswitch = request.kill_switch

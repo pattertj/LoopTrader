@@ -25,7 +25,7 @@ class TestStrategy(Strategy, Component):
         default="Sample Strategy", validator=attr.validators.instance_of(str)
     )
     underlying: str = attr.ib(
-        default="$SPX.X", validator=attr.validators.instance_of(str)
+        default="$XSP.X", validator=attr.validators.instance_of(str)
     )
     sleep_until: dt.datetime = attr.ib(
         init=False,
@@ -45,7 +45,7 @@ class TestStrategy(Strategy, Component):
         validator=attr.validators.instance_of(dt.timedelta),
     )
     portfolio_allocation: float = attr.ib(
-        default=1.0, validator=attr.validators.instance_of(float)
+        default=0.05, validator=attr.validators.instance_of(float)
     )
     buy_or_sell: str = attr.ib(
         default="SELL", validator=attr.validators.in_(["SELL", "BUY"])
@@ -290,12 +290,19 @@ class TestStrategy(Strategy, Component):
     def sleep_until_market_open(self, datetime: dt.datetime):
         # Populate sleep-until variable
         self.sleep_until = datetime
+
+        # Build Message
+        alert = "Markets are closed until {}. Sleeping until {}".format(
+            datetime, self.sleep_until
+        )
+
+        # Log our sleep
+        logger.info(alert)
+
         # Send a notification that we are sleeping
         helpers.send_notification(
             mediator=self.mediator,
-            message="Markets are closed until {}. Sleeping until {}".format(
-                datetime, self.sleep_until
-            ),
+            message=alert,
         )
 
     #################################
@@ -502,7 +509,3 @@ class TestStrategy(Strategy, Component):
         message = "Failed to Cancel Order {}".format(order)
         logger.error(message)
         helpers.send_notification(self.mediator, message)
-
-
-# CREATE TABLE trades (id INTEGER PRIMARY KEY,status INTEGER,entry_order_id INTEGER,exit_order_id INTEGER, target_delta REAL);
-# CREATE TABLE orders (id INTEGER PRIMARY KEY,trade_id INTEGER,symbol TEXT,strike REAL,action INTEGER,time TEXT,size INTEGER,price REAL,commissions REAL,underlying_price REAL,delta REAL,implied_volatility REAL,vix REAL,expiry_date TEXT, usdcad REAL, right TEXT,FOREIGN KEY(trade_id) REFERENCES trades(id));
