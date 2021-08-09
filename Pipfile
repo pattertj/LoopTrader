@@ -10,6 +10,7 @@ td-ameritrade-python-api = "*"
 python-dotenv = "*"
 pyyaml = "*"
 py-vollib = "*"
+
 types-pyyaml = "*"
 
 [dev-packages]
