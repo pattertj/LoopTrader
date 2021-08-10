@@ -126,3 +126,10 @@ class Mediator(abc.ABC):
         raise NotImplementedError(
             "Each mediator must implement the 'read_orders_by_position_id' method."
         )
+
+    def get_quote(
+        self, request: baseRR.GetQuoteRequestMessage
+    ) -> Union[baseRR.GetQuoteResponseMessage, None]:
+        raise NotImplementedError(
+            "Each mediator must implement the 'get_quote' method."
+        )

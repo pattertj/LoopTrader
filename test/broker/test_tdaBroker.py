@@ -18,6 +18,15 @@
 #     assert response.currentbalances.buyingpower is not None
 
 
+# def test_get_quote():
+#     broker = TdaBroker(id="individual")
+#     broker.maxretries = 3
+
+#     request = baseRR.GetQuoteRequestMessage('', ['VGSH'])
+#     response = broker.get_quote(request)
+
+#     assert response is not None
+
 # def test_get_order():
 #     broker = TdaBroker("ira")
 #     broker.maxretries = 3

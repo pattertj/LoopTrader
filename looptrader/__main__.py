@@ -6,6 +6,7 @@ from basetypes.Database.sqliteDatabase import SqliteDatabase
 from basetypes.Mediator.botMediator import Bot
 from basetypes.Strategy.teststrategy import TestStrategy
 
+
 if __name__ == "__main__":
     # Create Logging
     logging.config.fileConfig(

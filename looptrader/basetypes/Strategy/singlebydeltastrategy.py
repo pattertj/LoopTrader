@@ -592,7 +592,7 @@ class SingleByDeltaStrategy(Strategy, Component):
         logger.debug("get_market_session_loop")
 
         request = baseRR.GetMarketHoursRequestMessage(
-            self.strategy_name, market="OPTION", product="IND", datetime=date
+            self.strategy_name, market="OPTION", product="EQO", datetime=date
         )
 
         # Get the market hours
