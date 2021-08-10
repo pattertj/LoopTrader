@@ -1,3 +1,4 @@
+from datetime import datetime
 import logging
 import logging.config
 import sqlite3
@@ -96,32 +97,20 @@ class SqliteDatabase(Database):
             "Each strategy must implement the 'delete_position' method."
         )
 
-    def read_orders_by_position_id(
-        self, request: baseRR.ReadOrdersByPositionIDRequest
-    ) -> Union[baseRR.ReadOrdersByPositionIDResponse, None]:
-        query = "SELECT * FROM Orders WHERE PositionID=?"
+    def read_open_orders_by_strategy_id(
+        self, request: baseRR.ReadOrdersByStrategyIDRequest
+    ) -> Union[baseRR.ReadOrdersByStrategyIDResponse, None]:
+        query = "SELECT * FROM Orders WHERE Status<>'FILLED' AND StrategyID=?"
 
         try:
-            self.cursor.execute(query, (request.position_id,))
-            # results = self.cursor.fetchall()
+            self.cursor.execute(query, (request.strategy_id,))
+            results = self.cursor.fetchall()
         except Exception as e:
             print(e)
             return None
 
-        response = baseRR.ReadOrdersByPositionIDResponse()
-        response.orders = []
-
-        # for result in results:
-        # order = baseRR.AccountOrder()
-        # order.orderid = result[0]
-        # order.symbol = result[2]
-
-        # if result[3] > 0:
-        #     order.longquantity = result[3]
-        # else:
-        #     order.shortquantity = result[3]
-
-        # response.orders.append(order)
+        response = baseRR.ReadOrdersByStrategyIDResponse()
+        response.orders = results
 
         return response
 
@@ -129,7 +118,7 @@ class SqliteDatabase(Database):
     def create_position(
         self, request: baseRR.CreateDatabasePositionRequest
     ) -> Union[baseRR.CreateDatabasePositionResponse, None]:
-        query = "INSERT INTO Positions(StrategyID, Symbol, Quantity, IsOpen, EntryOrderID, ExitOrderID) VALUES (?,?,?,?,?,?)"
+        query = "INSERT INTO Positions(StrategyID, Symbol, Quantity, IsOpen, ExpirationDate, Price, EntryOrderID, ExitOrderID) VALUES (?,?,?,?,?,?,?,?)"
 
         try:
             self.cursor.execute(
@@ -139,6 +128,8 @@ class SqliteDatabase(Database):
                     request.symbol,
                     request.quantity,
                     request.is_open,
+                    str(request.expiration_date),
+                    request.price,
                     request.entry_order_id,
                     request.exit_order_id,
                 ),
@@ -181,14 +172,16 @@ class SqliteDatabase(Database):
         response.positions = []
 
         for result in results:
-            position = baseRR.AccountPosition()
+            position = baseRR.DatabasePosition()
+            position.position_id = result[0]
+            position.strategy_id = result[1]
             position.symbol = result[2]
-
-            if result[3] > 0:
-                position.longquantity = result[3]
-            else:
-                position.shortquantity = result[3]
-
+            position.quantity = result[3]
+            position.is_open = result[4]
+            position.expiration_date = datetime.strptime(result[5], "%Y-%m-%d 00:00:00")
+            position.price = result[6]
+            position.entry_order_id = result[7]
+            position.exit_order_id = result[8]
             response.positions.append(position)
 
         return response
@@ -217,7 +210,7 @@ class SqliteDatabase(Database):
 
         # If the Positions table is missing, create it
         if not positionsexist:
-            createpositionstable = """CREATE TABLE Positions(PositionID INTEGER PRIMARY KEY, StrategyID INTEGER, Symbol TEXT, Quantity INTEGER, IsOpen INTEGER, EntryOrderID INTEGER, ExitOrderID INTEGER, FOREIGN KEY(EntryOrderID) REFERENCES Orders(OrderID), FOREIGN KEY(ExitOrderID) REFERENCES Orders(OrderID), FOREIGN KEY(StrategyID) REFERENCES Strategies(StrategyID))"""
+            createpositionstable = """CREATE TABLE Positions(PositionID INTEGER PRIMARY KEY, StrategyID INTEGER, Symbol TEXT, Quantity INTEGER, IsOpen INTEGER, ExpirationDate TEXT, Price REAL, EntryOrderID INTEGER, ExitOrderID INTEGER, FOREIGN KEY(EntryOrderID) REFERENCES Orders(OrderID), FOREIGN KEY(ExitOrderID) REFERENCES Orders(OrderID), FOREIGN KEY(StrategyID) REFERENCES Strategies(StrategyID))"""
             self.cursor.execute(createpositionstable)
             logger.info("Positions Table Created.")
 

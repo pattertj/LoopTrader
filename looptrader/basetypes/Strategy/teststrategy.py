@@ -2,7 +2,7 @@ import datetime as dt
 import logging
 import logging.config
 import time
-
+import re
 import attr
 import basetypes.Strategy.helpers as helpers
 from basetypes.Component.abstractComponent import Component
@@ -71,7 +71,7 @@ class TestStrategy(Strategy, Component):
         default=10, validator=attr.validators.instance_of(int)
     )
     round_price_to: float = attr.ib(
-        default=0.05, validator=attr.validators.instance_of(float)
+        default=0.01, validator=attr.validators.instance_of(float)
     )
     risk_free_rate: float = attr.ib(
         default=0.05, init=False, validator=attr.validators.instance_of(float)
@@ -156,7 +156,9 @@ class TestStrategy(Strategy, Component):
     #################################
     def process_core_open_market(self):
         # Get Positions from DB
-        positions = helpers.get_db_positions(self.mediator, self.strategy_id)
+        positions = helpers.get_db_positions_by_strategy_id(
+            self.mediator, self.strategy_id
+        )
 
         # If None, open a position
         if positions is None or positions.positions == []:
@@ -170,10 +172,12 @@ class TestStrategy(Strategy, Component):
 
     def process_open_position(self, position: DatabasePosition):
         # Get Orders from DB
-        orders = helpers.get_db_orders(self.mediator, position.position_id)
+        orders = helpers.read_open_orders_by_strategy_id(
+            self.mediator, self.strategy_id
+        )
 
         # If none, check expiration
-        if orders is None:
+        if orders is None or orders.orders == []:
             self.process_position_expiration(position)
             return
 
@@ -181,14 +185,11 @@ class TestStrategy(Strategy, Component):
         order: DatabaseOrder
         for order in orders:
             if order.status == "CANCELLED":
-                # Cancelled
                 self.process_cancelled_order()
             elif order.status == "WORKING":
-                # Working
                 self.process_working_order()
-            elif order.status == "CLOSED":
-                # Closed
-                self.process_closed_order(order)
+            elif order.status == "FILLED":
+                self.process_filled_order(order)
             else:
                 logger.error(
                     "Position {}, Order {}, has invalid Status {}.".format(
@@ -204,14 +205,14 @@ class TestStrategy(Strategy, Component):
         # Nothing to do, continue
         pass
 
-    def process_closed_order(self, order: DatabaseOrder):
+    def process_filled_order(self, order: DatabaseOrder):
         # Close Order in DB
         helpers.close_db_order(self.mediator, order.order_id)
         # TODO: Close Position in DB
         # helpers.close_db_position(self.mediator, order.position_id)
 
     def process_position_expiration(self, position: DatabasePosition):
-        if position.expiration_date < dt.datetime.now().astimezone(dt.timezone.utc):
+        if position.expiration_date < dt.datetime.now():
             # If expired, close Position in DB
             helpers.close_db_position(self.mediator, position.position_id)
             # Open a new Position
@@ -226,7 +227,9 @@ class TestStrategy(Strategy, Component):
     ########################
     def process_late_open_market(self):
         # Get Positions from DB
-        positions = helpers.get_db_positions(self.mediator, self.strategy_id)
+        positions = helpers.get_db_positions_by_strategy_id(
+            self.mediator, self.strategy_id
+        )
 
         # If None, open a position
         if positions is None:
@@ -234,13 +237,15 @@ class TestStrategy(Strategy, Component):
             return
 
         # Iterate positions
-        for position in positions:
+        for position in positions.positions:
             # Process Position after-hours
             self.process_late_open_market_position(position)
 
     def process_late_open_market_position(self, position):
         # Get Orders from DB
-        orders = helpers.get_db_orders(self.mediator, position.positionid)
+        orders = helpers.get_db_orders_by_strategy_id(
+            self.mediator, position.positionid
+        )
 
         # If none, do nothing
         if orders is None:
@@ -255,7 +260,9 @@ class TestStrategy(Strategy, Component):
     #############################
     def process_early_after_hours(self):
         # Get Positions
-        positions = helpers.get_db_positions(self.mediator, self.strategy_id)
+        positions = helpers.get_db_positions_by_strategy_id(
+            self.mediator, self.strategy_id
+        )
 
         if positions is None:
             logger.info("No Positions Found")
@@ -263,7 +270,9 @@ class TestStrategy(Strategy, Component):
 
         # Iterate Positions and get orders
         for position in positions:
-            orders = helpers.get_db_orders(self.mediator, position.positionid)
+            orders = helpers.get_db_orders_by_strategy_id(
+                self.mediator, position.positionid
+            )
 
             # Check if a closing Order exists
             closing_order_exists = any(
@@ -363,7 +372,7 @@ class TestStrategy(Strategy, Component):
             strike.delta = delta
 
         # Get Account Balance
-        account = helpers.get_account(self.mediator, self.strategy_name, False, False)
+        account = helpers.get_account(self.mediator, self.strategy_name, False, True)
 
         # If no Account, exit
         if account is None or account.currentbalances is None:
@@ -393,7 +402,7 @@ class TestStrategy(Strategy, Component):
         return helpers.build_single_order_request(
             best_strike[0],
             best_strike[1],
-            best_strike[2],
+            helpers.mround(best_strike[2], self.round_price_to),
             self.buy_or_sell,
             "OPEN",
             self.strategy_name,
@@ -415,22 +424,36 @@ class TestStrategy(Strategy, Component):
             return
 
         # If successful
-        if new_order.status != "FILLED":
+        if new_order.status == "FILLED":
             # Log Order in DB
-            helpers.create_db_order(self.mediator, new_order.orderid, self.strategy_id)
+            helpers.create_db_order(
+                self.mediator, new_order.orderid, self.strategy_id, "FILLED"
+            )
+            expirationdate = None
+
             # Log Position in DB
             for leg in new_order.legs:
+                # Get Expiration
+                match = re.search(r"([A-Z]{3} \d{2} \d{4})", leg.description)
+
+                if match is not None:
+                    expirationdate = dt.datetime.strptime(match.group(), "%b %d %Y")
+
+                if expirationdate is None:
+                    expirationdate = dt.datetime.now()
+
                 helpers.create_db_position(
                     self.mediator,
                     self.strategy_id,
                     leg.symbol,
                     leg.quantity,
+                    expirationdate,
+                    new_order.price,
                     new_order.orderid,
                 )
 
-            notification = helpers.build_option_order_placed_notification(new_order)
-
             # Send Notification
+            notification = helpers.build_option_order_placed_notification(new_order)
             helpers.send_notification(self.mediator, notification)
 
         # If it failed
@@ -470,11 +493,12 @@ class TestStrategy(Strategy, Component):
             return
 
         # Log Order in DB
-        helpers.create_db_order(self.mediator, closing_order.orderid, self.strategy_id)
-
-        notification = helpers.build_option_order_placed_notification(closing_order)
+        helpers.create_db_order(
+            self.mediator, closing_order.orderid, self.strategy_id, "FILLED"
+        )
 
         # Send Notification
+        notification = helpers.build_option_order_placed_notification(closing_order)
         helpers.send_notification(self.mediator, notification)
 
     def place_order_cancel(self, order: AccountOrder):

@@ -43,7 +43,7 @@ def build_option_order_placed_notification(
 ####################
 ### DB Functions ###
 ####################
-def get_db_positions(mediator: Mediator, strategy_id: int):
+def get_db_positions_by_strategy_id(mediator: Mediator, strategy_id: int):
     # Build Request
     request = baseRR.ReadOpenPositionsByStrategyIDRequest(strategy_id)
 
@@ -51,12 +51,12 @@ def get_db_positions(mediator: Mediator, strategy_id: int):
     return mediator.read_open_db_position_by_strategy_id(request)
 
 
-def get_db_orders(mediator: Mediator, position_id: int):
+def read_open_orders_by_strategy_id(mediator: Mediator, strategy_id: int):
     # Build Request
-    request = baseRR.ReadOrdersByPositionIDRequest(position_id)
+    request = baseRR.ReadOrdersByStrategyIDRequest(strategy_id)
 
     # Create Order
-    return mediator.read_orders_by_position_id(request)
+    return mediator.read_open_orders_by_strategy_id(request)
 
 
 def close_db_order(mediator: Mediator, order_id: int):
@@ -67,12 +67,19 @@ def close_db_position(mediator: Mediator, position_id: int):
     pass
 
 
-def create_db_order(mediator: Mediator, order_id: int, strategy_id: int):
+def create_db_order(
+    mediator: Mediator, order_id: int, strategy_id: int, status: str
+) -> Union[None, int]:
     # Build Request
-    request = baseRR.CreateDatabaseOrderRequest(order_id, strategy_id, "NEW")
+    request = baseRR.CreateDatabaseOrderRequest(order_id, strategy_id, status)
 
     # Create Order
-    mediator.create_db_order(request)
+    response = mediator.create_db_order(request)
+
+    # Return ID
+    if response is None:
+        return None
+    return response.order_id
 
 
 def create_db_position(
@@ -80,15 +87,29 @@ def create_db_position(
     strategy_id: int,
     symbol: str,
     quantity: int,
+    expirationdate: dt.datetime,
+    price: float,
     opening_order_id: int,
-):
+) -> Union[None, int]:
     # Build Request
     request = baseRR.CreateDatabasePositionRequest(
-        strategy_id, symbol, quantity, True, opening_order_id, 0
+        strategy_id,
+        symbol,
+        int(quantity),
+        True,
+        expirationdate,
+        price,
+        opening_order_id,
+        0,
     )
 
     # Create Order
-    mediator.create_db_position(request)
+    response = mediator.create_db_position(request)
+
+    # Return ID
+    if response is None:
+        return None
+    return response.position_id
 
 
 def cancel_db_order(mediator: Mediator, order_id: int):
@@ -117,7 +138,7 @@ def cancel_broker_order(mediator: Mediator, orderid: int, strategy_name: str) ->
         logger.error("Cancel Order Failed.")
         return False
 
-    if response.responsecode == "200":
+    if response.responsecode == 200:
         return True
 
     logger.error("Cancel Order Failed. Code {}".format(response.responsecode))
@@ -197,7 +218,7 @@ def get_option_chain(
 ################################
 ### General Helper Functions ###
 ################################
-def format_order_price(price: float, base: float) -> float:
+def mround(price: float, base: float) -> float:
     """Formats a price according to brokerage rules."""
     logger.debug("format_order_price")
 

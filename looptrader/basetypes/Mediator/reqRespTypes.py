@@ -357,7 +357,9 @@ class GetOrderResponseMessage:
     enteredtime: datetime = attr.ib(validator=attr.validators.instance_of(datetime))
     closetime: datetime = attr.ib(validator=attr.validators.instance_of(datetime))
     price: float = attr.ib(validator=attr.validators.instance_of(float))
-    legs: list[Leg] = attr.ib(validator=attr.validators.instance_of(list[Leg]))
+    legs: list[AccountOrderLeg] = attr.ib(
+        validator=attr.validators.instance_of(list[Leg])
+    )
 
 
 @attr.s(auto_attribs=True)
@@ -459,6 +461,8 @@ class CreateDatabasePositionRequest:
     symbol: str = attr.ib(validator=attr.validators.instance_of(str))
     quantity: int = attr.ib(validator=attr.validators.instance_of(int))
     is_open: bool = attr.ib(validator=attr.validators.instance_of(bool))
+    expiration_date: datetime = attr.ib(validator=attr.validators.instance_of(datetime))
+    price: float = attr.ib(validator=attr.validators.instance_of(float))
     entry_order_id: int = attr.ib(validator=attr.validators.instance_of(int))
     exit_order_id: int = attr.ib(validator=attr.validators.instance_of(int))
 
@@ -475,18 +479,18 @@ class ReadOpenPositionsByStrategyIDRequest:
 
 @attr.s(auto_attribs=True, init=False)
 class ReadOpenPositionsByStrategyIDResponse:
-    positions: list[AccountPosition] = attr.ib(
-        validator=attr.validators.instance_of(list[AccountPosition])
+    positions: list[DatabasePosition] = attr.ib(
+        validator=attr.validators.instance_of(list[DatabasePosition])
     )
 
 
 @attr.s(auto_attribs=True)
-class ReadOrdersByPositionIDRequest:
-    position_id: int = attr.ib(validator=attr.validators.instance_of(int))
+class ReadOrdersByStrategyIDRequest:
+    strategy_id: int = attr.ib(validator=attr.validators.instance_of(int))
 
 
 @attr.s(auto_attribs=True, init=False)
-class ReadOrdersByPositionIDResponse:
-    orders: list[AccountOrder] = attr.ib(
-        validator=attr.validators.instance_of(list[AccountOrder])
+class ReadOrdersByStrategyIDResponse:
+    orders: list[DatabaseOrder] = attr.ib(
+        validator=attr.validators.instance_of(list[DatabaseOrder])
     )

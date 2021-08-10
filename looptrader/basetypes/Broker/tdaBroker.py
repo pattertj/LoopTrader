@@ -288,7 +288,7 @@ class TdaBroker(Broker, Component):
         orderrequest["orderType"] = request.ordertype
         orderrequest["session"] = request.ordersession
         orderrequest["duration"] = request.duration
-        orderrequest["price"] = str(request.price)
+        orderrequest["price"] = request.price
 
         legs = []
 
