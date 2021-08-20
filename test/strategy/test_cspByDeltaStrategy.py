@@ -96,6 +96,7 @@ def new_strike(
     new.delta = delta
     new.bid = bid
     new.ask = ask
+    new.settlementtype = "P"
 
     return new
 

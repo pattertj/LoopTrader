@@ -664,8 +664,10 @@ class SingleByDeltaStrategy(Strategy, Component):
         # Iterate through strikes
         for strike, details in strikes.items():
             # Make sure strike delta is less then our target delta
-            if (abs(details.delta) <= abs(self.targetdelta)) and (
-                abs(details.delta) >= abs(self.mindelta)
+            if (
+                (abs(details.delta) <= abs(self.targetdelta))
+                and (abs(details.delta) >= abs(self.mindelta))
+                and (details.settlementtype == "P")
             ):
                 # Calculate the total premium for the strike based on our buying power
                 qty = self.calculate_order_quantity(
