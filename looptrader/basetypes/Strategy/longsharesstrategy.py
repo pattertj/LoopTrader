@@ -132,6 +132,7 @@ class LongSharesStrategy(Strategy, Component):
                     rounded_target_shares, current_position
                 )
             )
+            self.go_to_sleep(now + dt.timedelta(days=1))
             return
         logger.info(
             "Share Target: {} <> Current Shares: {}. Placing Order...".format(
