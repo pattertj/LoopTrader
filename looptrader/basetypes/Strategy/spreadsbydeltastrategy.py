@@ -33,7 +33,7 @@ class SpreadsByDeltaStrategy(Strategy, Component):
         default="SELL", validator=attr.validators.in_(["SELL", "BUY"])
     )
     targetdelta: float = attr.ib(
-        default=-0.03, validator=attr.validators.instance_of(float)
+        default=-0.10, validator=attr.validators.instance_of(float)
     )
     width: float = attr.ib(default=70.0, validator=attr.validators.instance_of(float))
     minimumdte: int = attr.ib(default=1, validator=attr.validators.instance_of(int))
@@ -475,9 +475,7 @@ class SpreadsByDeltaStrategy(Strategy, Component):
             self.portfolioallocationpercent
         )
 
-        remainingbalance = account_balance.buyingpower - (
-            account_balance.liquidationvalue - balance_to_risk
-        )
+        remainingbalance = account_balance.buyingpower
 
         # Calculate trade size
         trade_size = remainingbalance // max_loss
@@ -504,7 +502,8 @@ class SpreadsByDeltaStrategy(Strategy, Component):
         """Formats a price according to brokerage rules."""
         logger.debug("format_order_price")
 
-        return self.truncate(0.01 * round(price / 0.01), 2)
+        base = 0.1 if price > 3 else 0.05
+        return self.truncate(base * round(price / base), 2)
 
     @staticmethod
     def truncate(number: float, digits: int) -> float:
