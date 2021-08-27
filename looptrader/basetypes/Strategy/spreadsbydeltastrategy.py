@@ -218,10 +218,10 @@ class SpreadsByDeltaStrategy(Strategy, Component):
         formattedprice = self.format_order_price(price)
 
         # Build Short Leg
-        shortleg = self.build_leg(short_strike, qty)
+        shortleg = self.build_leg(short_strike, qty, "SELL")
 
         # Build Long Leg
-        longleg = self.build_leg(long_strike, qty)
+        longleg = self.build_leg(long_strike, qty, "BUY")
 
         orderrequest = baseRR.PlaceOrderRequestMessage()
         orderrequest.strategy_name = self.strategy_name
@@ -244,13 +244,14 @@ class SpreadsByDeltaStrategy(Strategy, Component):
         self,
         strike: baseRR.GetOptionChainResponseMessage.ExpirationDate.Strike,
         quantity: int,
+        buy_or_sell: str,
     ) -> baseRR.PlaceOrderRequestMessage.Leg:
         leg = baseRR.PlaceOrderRequestMessage.Leg()
         leg.symbol = strike.symbol
         leg.assettype = "OPTION"
         leg.quantity = quantity
 
-        if self.buy_or_sell == "SELL":
+        if buy_or_sell == "SELL":
             leg.instruction = "SELL_TO_OPEN"
         else:
             leg.instruction = "BUY_TO_OPEN"
@@ -278,6 +279,13 @@ class SpreadsByDeltaStrategy(Strategy, Component):
             for position in account.positions
         )
 
+        # Check if we have positions on already that expire today.
+        nonexpiring = any(
+            position.underlyingsymbol == self.underlying
+            and position.expirationdate.date() != dt.date.today()
+            for position in account.positions
+        )
+
         # Check Available Balance
         tradable_today = (
             account.currentbalances.liquidationvalue * self.portfolioallocationpercent
@@ -288,7 +296,10 @@ class SpreadsByDeltaStrategy(Strategy, Component):
         # If nothing is expiring and no tradable balance, exit.
         # If we are expiring, continue trying to place a trade
         # If we have a tradable balance, continue trying to place a trade
-        return expiring_day or tradable_today
+        if nonexpiring:
+            return False
+        else:
+            return expiring_day or tradable_today
 
     def place_order(self, orderrequest: baseRR.PlaceOrderRequestMessage) -> bool:
         """Method for placing new Orders and handling fills"""
