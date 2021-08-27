@@ -254,15 +254,17 @@ class TdaBroker(Broker, Component):
 
         if orders is None:
             return response
-
+        # tpodo: error catch em
         order: dict
         for order in orders:
             accountorder = self.build_account_order(order)
-            for leg in order.get("orderLegCollection", dict):
-                # Build Leg
-                accountorderleg = self.build_account_order_leg(leg)
-                # Append Leg
-                accountorder.legs.append(accountorderleg)
+            legs = order.get("orderLegCollection")
+            if legs is not None:
+                for leg in legs:
+                    # Build Leg
+                    accountorderleg = self.build_account_order_leg(leg)
+                    # Append Leg
+                    accountorder.legs.append(accountorderleg)
             # Append Order
             response.append(accountorder)
 

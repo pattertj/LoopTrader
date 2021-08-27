@@ -239,7 +239,7 @@ class LongSharesStrategy(Strategy, Component):
                 db_position_request = baseRR.CreateDatabasePositionRequest(
                     self.strategy_id,
                     leg.symbol,
-                    leg.quantity,
+                    int(leg.quantity),
                     True,
                     db_order_response.order_id,
                     0,

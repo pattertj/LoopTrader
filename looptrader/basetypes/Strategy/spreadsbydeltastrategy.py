@@ -33,7 +33,7 @@ class SpreadsByDeltaStrategy(Strategy, Component):
         default="SELL", validator=attr.validators.in_(["SELL", "BUY"])
     )
     targetdelta: float = attr.ib(
-        default=-0.03, validator=attr.validators.instance_of(float)
+        default=-0.10, validator=attr.validators.instance_of(float)
     )
     width: float = attr.ib(default=70.0, validator=attr.validators.instance_of(float))
     minimumdte: int = attr.ib(default=1, validator=attr.validators.instance_of(int))
@@ -218,10 +218,10 @@ class SpreadsByDeltaStrategy(Strategy, Component):
         formattedprice = self.format_order_price(price)
 
         # Build Short Leg
-        shortleg = self.build_leg(short_strike, qty)
+        shortleg = self.build_leg(short_strike, qty, "SELL")
 
         # Build Long Leg
-        longleg = self.build_leg(long_strike, qty)
+        longleg = self.build_leg(long_strike, qty, "BUY")
 
         orderrequest = baseRR.PlaceOrderRequestMessage()
         orderrequest.strategy_name = self.strategy_name
@@ -244,17 +244,14 @@ class SpreadsByDeltaStrategy(Strategy, Component):
         self,
         strike: baseRR.GetOptionChainResponseMessage.ExpirationDate.Strike,
         quantity: int,
+        buy_or_sell: str,
     ) -> baseRR.PlaceOrderRequestMessage.Leg:
         leg = baseRR.PlaceOrderRequestMessage.Leg()
         leg.symbol = strike.symbol
         leg.assettype = "OPTION"
         leg.quantity = quantity
 
-        if self.buy_or_sell == "SELL":
-            leg.instruction = "SELL_TO_OPEN"
-        else:
-            leg.instruction = "BUY_TO_OPEN"
-
+        leg.instruction = "SELL_TO_OPEN" if buy_or_sell == "SELL" else "BUY_TO_OPEN"
         return leg
 
     def build_leg_instruction(self, short_or_long: str) -> str:
@@ -272,6 +269,19 @@ class SpreadsByDeltaStrategy(Strategy, Component):
         self, account: baseRR.GetAccountResponseMessage
     ) -> bool:
         # Check if we have positions on already that expire today.
+        nonexpiring = any(
+            position.underlyingsymbol == self.underlying
+            and position.expirationdate.date() != dt.date.today()
+            for position in account.positions
+        )
+
+        # If nothing is expiring and no tradable balance, exit.
+        # If we are expiring, continue trying to place a trade
+        # If we have a tradable balance, continue trying to place a trade
+        if nonexpiring:
+            return False
+
+        # Check if we have positions on already that expire today.
         expiring_day = any(
             position.underlyingsymbol == self.underlying
             and position.expirationdate.date() == dt.date.today()
@@ -285,9 +295,6 @@ class SpreadsByDeltaStrategy(Strategy, Component):
             self.width * 100
         )
 
-        # If nothing is expiring and no tradable balance, exit.
-        # If we are expiring, continue trying to place a trade
-        # If we have a tradable balance, continue trying to place a trade
         return expiring_day or tradable_today
 
     def place_order(self, orderrequest: baseRR.PlaceOrderRequestMessage) -> bool:
@@ -475,9 +482,7 @@ class SpreadsByDeltaStrategy(Strategy, Component):
             self.portfolioallocationpercent
         )
 
-        remainingbalance = account_balance.buyingpower - (
-            account_balance.liquidationvalue - balance_to_risk
-        )
+        remainingbalance = account_balance.buyingpower
 
         # Calculate trade size
         trade_size = remainingbalance // max_loss
@@ -504,7 +509,8 @@ class SpreadsByDeltaStrategy(Strategy, Component):
         """Formats a price according to brokerage rules."""
         logger.debug("format_order_price")
 
-        return self.truncate(0.01 * round(price / 0.01), 2)
+        base = 0.1 if price > 3 else 0.05
+        return self.truncate(base * round(price / base), 2)
 
     @staticmethod
     def truncate(number: float, digits: int) -> float:
