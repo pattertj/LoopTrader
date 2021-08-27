@@ -92,7 +92,7 @@ class TelegramNotifier(Notifier, Component):
             r"Kill switch, flipped. Awaiting confirmation...",
             update.message,
             None,
-            ParseMode.MARKDOWN_V2,
+            ParseMode.HTML,
         )
 
     def help(self, update: Update, context: CallbackContext):
