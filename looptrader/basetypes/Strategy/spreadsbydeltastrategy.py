@@ -312,7 +312,7 @@ class SpreadsByDeltaStrategy(Strategy, Component):
 
         # Add Order to the DB
         db_order_request = baseRR.CreateDatabaseOrderRequest(
-            neworderresult.orderid, self.strategy_id, "NEW"
+            int(neworderresult.orderid), self.strategy_id, "NEW"
         )
         db_order_response = self.mediator.create_db_order(db_order_request)
 
@@ -484,8 +484,9 @@ class SpreadsByDeltaStrategy(Strategy, Component):
 
         remainingbalance = account_balance.buyingpower
 
+        trading_power = min(balance_to_risk, remainingbalance)
         # Calculate trade size
-        trade_size = remainingbalance // max_loss
+        trade_size = trading_power // max_loss
 
         # Log Values
         logger.info(

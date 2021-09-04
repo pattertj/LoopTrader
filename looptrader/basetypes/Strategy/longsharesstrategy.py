@@ -250,8 +250,13 @@ class LongSharesStrategy(Strategy, Component):
         message = "Sold:<code>"
 
         for leg in orderrequest.legs:
+            price = (
+                "Market"
+                if orderrequest.price is None
+                else "{:,.2f}".format(orderrequest.price)
+            )
             message += "\r\n - {}x {} @ ${}".format(
-                str(leg.quantity), str(leg.symbol), "{:,.2f}".format(orderrequest.price)
+                str(leg.quantity), str(leg.symbol), price
             )
 
         message += "</code>"

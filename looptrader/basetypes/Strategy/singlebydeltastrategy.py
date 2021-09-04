@@ -419,7 +419,8 @@ class SingleByDeltaStrategy(Strategy, Component):
                 for order in account.orders:
                     # Do we have a match?
                     if (
-                        order.status == "QUEUED"
+                        order.legs != []
+                        and order.status == "QUEUED"
                         and order.legs[0].symbol == position.symbol
                         and order.legs[0].instruction == "BUY_TO_CLOSE"
                     ):
