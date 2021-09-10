@@ -381,9 +381,12 @@ class SingleByDeltaStrategy(Strategy, Component):
             logger.error("Failed to get Account.")
             return None
 
-        # Look for open positions
+        # Look for open orders
         for order in account.orders:
-            if order.status == "QUEUED" and order.legs[0].positioneffect == "CLOSING":
+            if (
+                order.status in ["WORKING", "QUEUED"]
+                and order.legs[0].positioneffect == "CLOSING"
+            ):
                 orderrequest = baseRR.CancelOrderRequestMessage(
                     self.strategy_name, int(order.orderid)
                 )
@@ -420,7 +423,7 @@ class SingleByDeltaStrategy(Strategy, Component):
                     # Do we have a match?
                     if (
                         order.legs != []
-                        and order.status == "QUEUED"
+                        and order.status in ["WORKING", "QUEUED"]
                         and order.legs[0].symbol == position.symbol
                         and order.legs[0].instruction == "BUY_TO_CLOSE"
                     ):
@@ -618,7 +621,7 @@ class SingleByDeltaStrategy(Strategy, Component):
             return False
 
         return any(
-            order.status == "QUEUED"
+            order.status in ["WORKING", "QUEUED"]
             and order.legs[0].symbol == symbol
             and order.legs[0].instruction == "BUY_TO_CLOSE"
             for order in orders
