@@ -588,25 +588,32 @@ class TdaBroker(Broker, Component):
             for details in strikes.values():
                 detail: dict
                 for detail in details:
-                    strikeresponse = (
-                        baseRR.GetOptionChainResponseMessage.ExpirationDate.Strike()
-                    )
-                    strikeresponse.strike = detail.get("strikePrice", float)
-                    strikeresponse.multiplier = detail.get("multiplier", float)
-                    strikeresponse.bid = detail.get("bid", float)
-                    strikeresponse.ask = detail.get("ask", float)
-                    strikeresponse.delta = detail.get("delta", float)
-                    strikeresponse.gamma = detail.get("gamma", float)
-                    strikeresponse.theta = detail.get("theta", float)
-                    strikeresponse.vega = detail.get("vega", float)
-                    strikeresponse.rho = detail.get("rho", float)
-                    strikeresponse.symbol = detail.get("symbol", str)
-                    strikeresponse.description = detail.get("description", str)
-                    strikeresponse.putcall = detail.get("putCall", str)
-                    strikeresponse.settlementtype = detail.get("settlementType", str)
-                    strikeresponse.expirationtype = detail.get("expirationType", str)
+                    if detail.get("settlementType", str) == "P":
+                        strikeresponse = (
+                            baseRR.GetOptionChainResponseMessage.ExpirationDate.Strike()
+                        )
+                        strikeresponse.strike = detail.get("strikePrice", float)
+                        strikeresponse.multiplier = detail.get("multiplier", float)
+                        strikeresponse.bid = detail.get("bid", float)
+                        strikeresponse.ask = detail.get("ask", float)
+                        strikeresponse.delta = detail.get("delta", float)
+                        strikeresponse.gamma = detail.get("gamma", float)
+                        strikeresponse.theta = detail.get("theta", float)
+                        strikeresponse.vega = detail.get("vega", float)
+                        strikeresponse.rho = detail.get("rho", float)
+                        strikeresponse.symbol = detail.get("symbol", str)
+                        strikeresponse.description = detail.get("description", str)
+                        strikeresponse.putcall = detail.get("putCall", str)
+                        strikeresponse.settlementtype = detail.get(
+                            "settlementType", str
+                        )
+                        strikeresponse.expirationtype = detail.get(
+                            "expirationType", str
+                        )
 
-                    expiry.strikes[detail.get("strikePrice", float)] = strikeresponse
+                        expiry.strikes[
+                            detail.get("strikePrice", float)
+                        ] = strikeresponse
 
             response.append(expiry)
 
