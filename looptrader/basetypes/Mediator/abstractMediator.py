@@ -8,6 +8,7 @@ import basetypes.Mediator.reqRespTypes as baseRR
 @attr.s(auto_attribs=True)
 class Mediator(abc.ABC):
     killswitch: bool = attr.ib(validator=attr.validators.instance_of(bool))
+    pause: bool = attr.ib(validator=attr.validators.instance_of(bool))
 
     @abc.abstractmethod
     def process_strategies(self):
@@ -81,6 +82,18 @@ class Mediator(abc.ABC):
     def set_kill_switch(self, kill_switch: baseRR.SetKillSwitchRequestMessage) -> None:
         raise NotImplementedError(
             "Each mediator must implement the 'set_kill_switch' method."
+        )
+
+    @abc.abstractmethod
+    def pause_bot(self) -> None:
+        raise NotImplementedError(
+            "Each mediator must implement the 'pause_bot' method."
+        )
+
+    @abc.abstractmethod
+    def resume_bot(self) -> None:
+        raise NotImplementedError(
+            "Each mediator must implement the 'resume_bot' method."
         )
 
     @abc.abstractmethod

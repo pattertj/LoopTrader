@@ -24,6 +24,9 @@ class Bot(Mediator):
     killswitch: bool = attr.ib(
         default=False, validator=attr.validators.instance_of(bool), init=False
     )
+    pause: bool = attr.ib(
+        default=False, validator=attr.validators.instance_of(bool), init=False
+    )
     brokerstrategy: dict[Strategy, Broker] = attr.ib(
         validator=attr.validators.deep_mapping(
             key_validator=attr.validators.instance_of(Strategy),  # type: ignore[misc]
@@ -79,7 +82,9 @@ class Bot(Mediator):
             # Process each strategy sequentially
             strategy: Strategy
             for strategy in self.brokerstrategy:
-                strategy.process_strategy()
+                # Check if we are paused
+                if(not self.pause):
+                    strategy.process_strategy()
 
             # Sleep for the specified time.
             logger.info("Sleeping...")
@@ -194,6 +199,12 @@ class Bot(Mediator):
 
     def set_kill_switch(self, request: baseRR.SetKillSwitchRequestMessage) -> None:
         self.killswitch = request.kill_switch
+
+    def pause_bot(self) -> None:
+        self.pause = True
+
+    def resume_bot(self) -> None:
+        self.pause = False
 
     def get_broker(self, strategy_name: str) -> Union[Broker, None]:
         """Returns the broker object associated to a given strategy

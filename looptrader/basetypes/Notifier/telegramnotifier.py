@@ -104,6 +104,27 @@ class TelegramNotifier(Notifier, Component):
             ParseMode.HTML,
         )
 
+    def pause(self, update: Update, context: CallbackContext):
+        """Method to handle the /pause command"""
+        request = baseRR.SetKillSwitchRequestMessage(True)
+        self.mediator.pause_bot()
+        self.reply_text(
+            r"Bot Paused",
+            update.message,
+            None,
+            ParseMode.HTML,
+        )
+
+    def resume(self, update: Update, context: CallbackContext):
+        """Method to handle the /resume command"""
+        self.mediator.resume_bot()
+        self.reply_text(
+            r"Resuming Bot...",
+            update.message,
+            None,
+            ParseMode.HTML,
+        )
+
     def orders(self, update: Update, context: CallbackContext):
         """Method to handle the /orders command"""
         # Build Message
