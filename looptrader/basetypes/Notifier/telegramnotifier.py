@@ -104,6 +104,26 @@ class TelegramNotifier(Notifier, Component):
             ParseMode.HTML,
         )
 
+    def pause(self, update: Update, context: CallbackContext):
+        """Method to handle the /pause command"""
+        self.mediator.pause_bot()
+        self.reply_text(
+            r"Bot Paused",
+            update.message,
+            None,
+            ParseMode.HTML,
+        )
+
+    def resume(self, update: Update, context: CallbackContext):
+        """Method to handle the /resume command"""
+        self.mediator.resume_bot()
+        self.reply_text(
+            r"Resuming Bot...",
+            update.message,
+            None,
+            ParseMode.HTML,
+        )
+
     def orders(self, update: Update, context: CallbackContext):
         """Method to handle the /orders command"""
         # Build Message
@@ -226,6 +246,8 @@ class TelegramNotifier(Notifier, Component):
         dispatcher.add_handler(CommandHandler("help", self.help))
         dispatcher.add_handler(CommandHandler("balances", self.balances))
         dispatcher.add_handler(CommandHandler("orders", self.orders))
+        dispatcher.add_handler(CommandHandler("pause", self.pause))
+        dispatcher.add_handler(CommandHandler("resume", self.resume))
         dispatcher.add_handler(CommandHandler("tail", self.tail, pass_args=True))
         dispatcher.add_handler(CommandHandler("positions", self.positions))
         dispatcher.add_handler(CommandHandler("performance", self.performance))

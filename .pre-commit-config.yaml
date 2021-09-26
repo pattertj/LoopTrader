@@ -1,14 +1,13 @@
 # See https://pre-commit.com/ for usage and config
 repos:
-- repo: local
+- repo: https://github.com/pycqa/isort
+  rev: 5.8.0
   hooks:
   - id: isort
-    name: isort
-    stages: [commit]
-    language: system
-    entry: pipenv run isort
-    types: [python]
-
+    name: isort (python)
+    args: ["--profile", "black", "--filter-files"]
+- repo: local
+  hooks:
   - id: black
     name: black
     stages: [commit]
