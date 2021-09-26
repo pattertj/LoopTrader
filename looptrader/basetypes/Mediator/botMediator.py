@@ -83,7 +83,7 @@ class Bot(Mediator):
             strategy: Strategy
             for strategy in self.brokerstrategy:
                 # Check if we are paused
-                if(not self.pause):
+                if not self.pause:
                     strategy.process_strategy()
 
             # Sleep for the specified time.
