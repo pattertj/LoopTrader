@@ -23,6 +23,7 @@ from typing import Any, Union
 
 import attr
 import basetypes.Mediator.reqRespTypes as baseRR
+import basetypes.Mediator.baseModels as baseModels
 import yaml
 from basetypes.Broker.abstractBroker import Broker
 from basetypes.Component.abstractComponent import Component
@@ -161,10 +162,10 @@ class TdaBroker(Broker, Component):
     @staticmethod
     def build_account_order_leg(leg: dict):
         """Transforms a TDA order leg dictionary into a LoopTrader order leg"""
-        accountorderleg = baseRR.AccountOrderLeg()
-        accountorderleg.legid = leg.get("legId", int)
+        accountorderleg = baseModels.OrderLeg()
+        accountorderleg.leg_id = leg.get("legId", int)
         accountorderleg.instruction = leg.get("instruction", str)
-        accountorderleg.positioneffect = leg.get("positionEffect", str)
+        accountorderleg.position_effect = leg.get("positionEffect", str)
         accountorderleg.quantity = leg.get("quantity", int)
 
         instrument = leg.get("instrument", dict)
@@ -173,23 +174,23 @@ class TdaBroker(Broker, Component):
             accountorderleg.cusip = instrument.get("cusip")
             accountorderleg.symbol = instrument.get("symbol")
             accountorderleg.description = instrument.get("description")
-            accountorderleg.putcall = instrument.get("putCall")
+            accountorderleg.put_call = instrument.get("putCall")
         return accountorderleg
 
     @staticmethod
     def build_account_order(order: dict):
         """Transforms a TDA order dictionary into a LoopTrader order"""
 
-        accountorder = baseRR.AccountOrder()
+        accountorder = baseModels.Order()
         accountorder.duration = order.get("duration", str)
         accountorder.quantity = order.get("quantity", int)
-        accountorder.filledquantity = order.get("filledQuantity", int)
+        accountorder.filled_quantity = order.get("filledQuantity", int)
         accountorder.price = order.get("price", float)
-        accountorder.orderid = order.get("orderId", str)
+        accountorder.order_id = order.get("orderId", str)
         accountorder.status = order.get("status", str)
-        accountorder.enteredtime = order.get("enteredTime", dtime.datetime)
-        accountorder.closetime = order.get("closeTime", dtime.datetime)
-        accountorder.accountid = order.get("accountId", int)
+        accountorder.entered_time = order.get("enteredTime", dtime.datetime)
+        accountorder.close_time = order.get("closeTime", dtime.datetime)
+        accountorder.account_id = order.get("accountId", int)
         accountorder.cancelable = order.get("cancelable", bool)
         accountorder.editable = order.get("editable", bool)
         accountorder.legs = []
@@ -246,9 +247,9 @@ class TdaBroker(Broker, Component):
 
     def build_account_orders(
         self, securitiesaccount: dict
-    ) -> list[baseRR.AccountOrder]:
+    ) -> list[baseModels.Order]:
         """Builds a list of Account Orders from a raw list of orders."""
-        response: list[baseRR.AccountOrder] = []
+        response: list[baseModels.Order] = []
 
         orders = securitiesaccount.get("orderStrategies")
 
@@ -286,21 +287,21 @@ class TdaBroker(Broker, Component):
 
         # Build Request. This is the bare minimum, we could extend the available request parameters in the future
         orderrequest = OrderedDict[str, Any]()
-        orderrequest["orderStrategyType"] = request.orderstrategytype
-        orderrequest["orderType"] = request.ordertype
-        orderrequest["session"] = request.ordersession
-        orderrequest["duration"] = request.duration
-        if request.price is not None:
-            orderrequest["price"] = str(request.price)
+        orderrequest["orderStrategyType"] = request.order.order_strategy_type
+        orderrequest["orderType"] = request.order.order_type
+        orderrequest["session"] = request.order.session
+        orderrequest["duration"] = request.order.duration
+        if request.order.price is not None:
+            orderrequest["price"] = str(request.order.price)
 
         legs = []
 
-        for rleg in request.legs:
+        for rleg in request.order.legs:
             leg = {
                 "instruction": rleg.instruction,
                 "quantity": rleg.quantity,
                 "instrument": {
-                    "assetType": rleg.assettype,
+                    "assetType": rleg.asset_type,
                     "symbol": rleg.symbol,
                 },
             }
@@ -324,7 +325,7 @@ class TdaBroker(Broker, Component):
             logger.exception("Failed to place order.")
             return None
 
-        response.orderid = orderresponse.get("order_id")
+        response.order_id = orderresponse.get("order_id")
 
         # Return the Order ID
         return response

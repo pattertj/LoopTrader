@@ -186,15 +186,13 @@ class LongSharesStrategy(Strategy, Component):
         # If the order placement fails, exit the method.
         if (
             neworderresult is None
-            or neworderresult.orderid is None
-            or neworderresult.orderid == 0
+            or neworderresult.order_id is None
+            or neworderresult.order_id == 0
         ):
             return False
 
         # Add Order to the DB
-        db_order_request = baseRR.CreateDatabaseOrderRequest(
-            int(neworderresult.orderid), int(self.strategy_id), "NEW"
-        )
+        db_order_request = baseRR.CreateDatabaseOrderRequest(orderrequest.order)
         db_order_response = self.mediator.create_db_order(db_order_request)
 
         # Wait to let the Order process
@@ -202,7 +200,7 @@ class LongSharesStrategy(Strategy, Component):
 
         # Re-get the Order
         getorderrequest = baseRR.GetOrderRequestMessage(
-            self.strategy_name, int(neworderresult.orderid)
+            self.strategy_name, int(neworderresult.order_id)
         )
         processedorder = self.mediator.get_order(getorderrequest)
 
@@ -210,13 +208,13 @@ class LongSharesStrategy(Strategy, Component):
             # Log the Error
             logger.error(
                 "Failed to get re-get placed order, ID: {}.".format(
-                    neworderresult.orderid
+                    neworderresult.order_id
                 )
             )
 
             # Cancel it
             cancelorderrequest = baseRR.CancelOrderRequestMessage(
-                self.strategy_name, int(neworderresult.orderid)
+                self.strategy_name, int(neworderresult.order_id)
             )
             self.mediator.cancel_order(cancelorderrequest)
 
@@ -226,7 +224,7 @@ class LongSharesStrategy(Strategy, Component):
         if processedorder.status != "FILLED":
             # Cancel it
             cancelorderrequest = baseRR.CancelOrderRequestMessage(
-                self.strategy_name, int(neworderresult.orderid)
+                self.strategy_name, int(neworderresult.order_id)
             )
             self.mediator.cancel_order(cancelorderrequest)
 
@@ -235,7 +233,7 @@ class LongSharesStrategy(Strategy, Component):
 
         # Otherwise, add Position to the DB
         if db_order_response is not None:
-            for leg in orderrequest.legs:
+            for leg in orderrequest.order.legs:
                 db_position_request = baseRR.CreateDatabasePositionRequest(
                     self.strategy_id,
                     leg.symbol,
@@ -249,11 +247,11 @@ class LongSharesStrategy(Strategy, Component):
         # Send a notification
         message = "Sold:<code>"
 
-        for leg in orderrequest.legs:
+        for leg in orderrequest.order.legs:
             price = (
                 "Market"
-                if orderrequest.price is None
-                else "{:,.2f}".format(orderrequest.price)
+                if orderrequest.order.price is None
+                else "{:,.2f}".format(orderrequest.order.price)
             )
             message += "\r\n - {}x {} @ ${}".format(
                 str(leg.quantity), str(leg.symbol), price

@@ -42,7 +42,7 @@ if __name__ == "__main__":
     irabroker = TdaBroker(id="ira")
 
     # Create our local DB
-    sqlitedb = SqliteDatabase("LoopTrader.db")
+    sqlitedb = SqliteDatabase()
 
     # Create our notifier
     telegram_bot = TelegramNotifier()

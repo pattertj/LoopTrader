@@ -1,212 +1,139 @@
 import logging
 import logging.config
-import sqlite3
-from sqlite3.dbapi2 import Connection, Cursor
 from typing import Union
+from sqlalchemy import Column, Integer, String, Table, DateTime, Float, ForeignKey, create_engine
+from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.orm import relationship, mapper, sessionmaker
+from sqlalchemy.sql.schema import MetaData
 
 import attr
+from sqlalchemy.sql.sqltypes import Boolean
 import basetypes.Mediator.reqRespTypes as baseRR
+import basetypes.Mediator.baseModels as baseModels
 from basetypes.Database.abstractDatabase import Database
 
 logger = logging.getLogger("autotrader")
 
+Base = declarative_base()
+meta = MetaData()
+
 
 @attr.s(auto_attribs=True)
 class SqliteDatabase(Database):
-    connectionstring: str = attr.ib(validator=attr.validators.instance_of(str))
-    connection: Connection = attr.ib(
-        validator=attr.validators.instance_of(Connection), init=False
-    )
-    cursor: Cursor = attr.ib(validator=attr.validators.instance_of(Cursor), init=False)
-
     def __attrs_post_init__(self):
-        self.connection = sqlite3.connect(self.connectionstring)
-        self.cursor = self.connection.cursor()
         self.pre_flight_db_check()
 
     # Abstract Methods
-    # STRATEGY FUNCTIONS
-    def create_strategy(
-        self, request: baseRR.CreateDatabaseStrategyRequest
-    ) -> Union[baseRR.CreateDatabaseStrategyResponse, None]:
-        query = "INSERT INTO Strategies(StrategyName) VALUES (?)"
-
+    def pre_flight_db_check(self) -> None:
         try:
-            self.cursor.execute(query, (request.strategy_name,))
-            self.connection.commit()
+            # Create Tables
+            execution_leg_table = self.create_execution_leg_table()
+            order_activity_table = self.create_order_activity_table()                        
+            order_leg_table = self.create_order_leg_table()            
+            # strat_table = self.create_strategy_table()            
+            order_table = self.create_order_table()
+
+            # Map Tables
+            mapper(baseModels.ExecutionLeg, execution_leg_table)
+            mapper(baseModels.OrderActivity, order_activity_table)
+            mapper(baseModels.OrderLeg, order_leg_table)
+            # mapper(baseModels.Strategy, strat_table)
+            mapper(baseModels.Order, order_table, properties={"order_legs": relationship(baseModels.OrderLeg), "order_activities": relationship(baseModels.OrderActivity), "strategy": relationship(baseModels.Strategy)})
+
+            # Create an engine that stores data in the local directory's db file
+            engine = create_engine('sqlite:///looptrader.db')
+
+            # Create all tables in the engine. This is equivalent to "Create Table" statements in raw SQL.
+            meta.create_all(bind=engine)
+
         except Exception as e:
             print(e)
             return None
 
-        return baseRR.CreateDatabaseStrategyResponse(self.cursor.lastrowid)
+    def create_order_table(self) -> Table:
+        return Table(
+                    'orders', 
+                    meta, 
+                    Column('id', Integer, primary_key=True), 
+                    Column('session', String(250)),
+                    Column('duration', String(250)),
+                    Column('order_type', String(250)),
+                    Column('quantity', Integer),
+                    Column('filled_quantity', Integer),
+                    Column('remaining_quantity', Integer),
+                    Column('requested_destination', String(250)),
+                    Column('destination_link_name', String(250)),
+                    Column('price', Float),
+                    Column('order_strategy_type', String(250)),
+                    Column('cancelable', Boolean),
+                    Column('editable', Boolean),
+                    Column('status', String(250)),
+                    Column('entered_time', DateTime),
+                    Column('close_time', DateTime),
+                    Column('account_id', Integer),
+                    Column('strategy', String(250)),
+                    )
 
-    def read_strategy_by_name(self, name: str) -> Union[list, None]:
-        query = "SELECT * FROM Strategies WHERE StrategyName=?"
+    # def create_strategy_table(self) -> Table:
+    #     return Table(
+    #         'strategies', 
+    #         meta, 
+    #         Column('id', Integer, primary_key=True), 
+    #         Column('name', String)
+    #         )
 
-        try:
-            self.cursor.execute(query, (name,))
-            results = self.cursor.fetchall()
-        except Exception as e:
-            print(e)
-            return None
-
-        return results
-
-    # ORDER FUNCTIONS
-    def create_order(
-        self, request: baseRR.CreateDatabaseOrderRequest
-    ) -> Union[baseRR.CreateDatabaseOrderResponse, None]:
-        query = (
-            "INSERT INTO Orders(StrategyID, BrokerOrderNumber, Status) VALUES (?,?,?)"
-        )
-
-        try:
-            self.cursor.execute(
-                query,
-                (
-                    request.strategy_id,
-                    request.broker_order_number,
-                    request.status,
-                ),
+    def create_order_leg_table(self) -> Table:
+        return Table(
+            'orderlegs', 
+            meta, 
+            Column('id', Integer, primary_key=True), 
+            Column('asset_type', String(250)),
+            Column('cusip', String(250)),
+            Column('symbol', String(250)),
+            Column('description', String(250)),
+            Column('instruction', String(250)),
+            Column('position_effect', String(250)),
+            Column('quantity', Integer),
+            Column('orderid', Integer, ForeignKey("order.id"))
             )
-            self.connection.commit()
-        except Exception as e:
-            print(e)
-            return None
 
-        return baseRR.CreateDatabaseOrderResponse(self.cursor.lastrowid)
-
-    def read_order_by_id(self) -> bool:
-        raise NotImplementedError(
-            "Each strategy must implement the 'read_order' method."
-        )
-
-    def update_order_by_id(self) -> bool:
-        raise NotImplementedError(
-            "Each strategy must implement the 'update_order' method."
-        )
-
-    def delete_order_by_id(self) -> bool:
-        raise NotImplementedError(
-            "Each strategy must implement the 'delete_order' method."
-        )
-
-    def read_open_orders(self) -> bool:
-        raise NotImplementedError(
-            "Each strategy must implement the 'delete_position' method."
-        )
-
-    # POSITION FUNCTIONS
-    def create_position(
-        self, request: baseRR.CreateDatabasePositionRequest
-    ) -> Union[baseRR.CreateDatabasePositionResponse, None]:
-        query = "INSERT INTO Positions(StrategyID, Symbol, Quantity, IsOpen, EntryOrderID, ExitOrderID) VALUES (?,?,?,?,?,?)"
-
-        try:
-            self.cursor.execute(
-                query,
-                (
-                    request.strategy_id,
-                    request.symbol,
-                    request.quantity,
-                    request.is_open,
-                    request.entry_order_id,
-                    request.exit_order_id,
-                ),
+    def create_order_activity_table(self) -> Table:
+        return Table(
+            'orderactivities', 
+            meta, 
+            Column('id', Integer, primary_key=True), 
+            Column('activity_type', String(250)),
+            Column('execution_type', String(250)),
+            Column('quantity', Integer),
+            Column('order_remaining_quantity', Integer),
+            Column('orderid', Integer, ForeignKey("order.id"))
             )
-            self.connection.commit()
-        except Exception as e:
-            print(e)
-            return None
 
-        return baseRR.CreateDatabasePositionResponse(self.cursor.lastrowid)
+    def create_execution_leg_table(self) -> Table:
+        return Table(
+            'executionlegs', 
+            meta, 
+            Column('id', Integer, primary_key=True), 
+            Column('leg_id', Integer),
+            Column('quantity', Integer),
+            Column('mismarked_quantity', Integer),
+            Column('price', Float),
+            Column('time', DateTime),
+            Column('orderactivityid', Integer, ForeignKey("order_activity_table.id"))
+            )
 
-    def read_position_by_id(self) -> bool:
-        raise NotImplementedError(
-            "Each strategy must implement the 'read_position' method."
-        )
-
-    def update_position_by_id(self) -> bool:
-        raise NotImplementedError(
-            "Each strategy must implement the 'update_position' method."
-        )
-
-    def delete_position_by_id(self) -> bool:
-        raise NotImplementedError(
-            "Each strategy must implement the 'delete_position' method."
-        )
-
-    def read_open_positions_by_strategy_id(
-        self, request: baseRR.ReadOpenPositionsByStrategyIDRequest
-    ) -> Union[baseRR.ReadOpenPositionsByStrategyIDResponse, None]:
-        query = "SELECT * FROM Positions WHERE IsOpen = 1 AND StrategyID=?"
-
+    def create_order(self, request: baseRR.CreateDatabaseOrderRequest) -> Union[baseRR.CreateDatabaseOrderResponse, None]:
+        engine = create_engine('sqlite:///looptrader.db')
+        Base.metadata.bind = engine
+        DBSession = sessionmaker(bind=engine)
+        session = DBSession()
+        
         try:
-            self.cursor.execute(query, (request.strategy_id,))
-            results = self.cursor.fetchall()
+            session.add(request.order)
         except Exception as e:
             print(e)
+            session.rollback()
             return None
-
-        response = baseRR.ReadOpenPositionsByStrategyIDResponse()
-        response.positions = []
-
-        for result in results:
-            position = baseRR.AccountPosition()
-            position.symbol = result[2]
-
-            if result[3] > 0:
-                position.longquantity = result[3]
-            else:
-                position.shortquantity = result[3]
-
-            response.positions.append(position)
-
-        return response
-
-    # Class Methods
-    def pre_flight_db_check(self):
-        # Get all the tables
-        self.cursor.execute('''SELECT * FROM sqlite_master WHERE type="table"''')
-
-        # Identify the ones you want to check
-        positionsexist = False
-        ordersexist = False
-        strategiesexist = False
-
-        # Check for the required tables
-        for row in self.cursor.fetchall():
-            if row[1] == "Positions":
-                positionsexist = True
-                continue
-            if row[1] == "Orders":
-                ordersexist = True
-                continue
-            if row[1] == "Strategies":
-                strategiesexist = True
-                continue
-
-        # If the Positions table is missing, create it
-        if not positionsexist:
-            createpositionstable = """CREATE TABLE Positions(PositionID INTEGER PRIMARY KEY, StrategyID INTEGER, Symbol TEXT, Quantity INTEGER, IsOpen INTEGER, EntryOrderID INTEGER, ExitOrderID INTEGER, FOREIGN KEY(EntryOrderID) REFERENCES Orders(OrderID), FOREIGN KEY(ExitOrderID) REFERENCES Orders(OrderID), FOREIGN KEY(StrategyID) REFERENCES Strategies(StrategyID))"""
-            self.cursor.execute(createpositionstable)
-            logger.info("Positions Table Created.")
-
-        # If the Orders table is missing, create it
-        if not ordersexist:
-            createorderstable = """CREATE TABLE Orders(OrderID INTEGER PRIMARY KEY, StrategyID INTEGER, BrokerOrderNumber INTEGER, Status TEXT, FOREIGN KEY(StrategyID) REFERENCES Strategies(StrategyID))"""
-            self.cursor.execute(createorderstable)
-            logger.info("Orders Table Created.")
-
-        # If the Strategy table is missing, create it
-        if not strategiesexist:
-            createstrategiestable = """CREATE TABLE Strategies(StrategyID INTEGER PRIMARY KEY, StrategyName TEXT)"""
-            self.cursor.execute(createstrategiestable)
-            logger.info("Strategies Table Created.")
-
-        # Commit the changes, if they exist, to the db
-        if not positionsexist or not ordersexist or not strategiesexist:
-            self.connection.commit()
-
-        # Log completion
-        logger.info("Pre-Flight Checks Complete.")
+        
+        session.commit()            
+        return None

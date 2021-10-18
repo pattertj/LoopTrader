@@ -10,6 +10,7 @@ td-ameritrade-python-api = "*"
 python-dotenv = "*"
 pyyaml = "*"
 types-pyyaml = "*"
+sqlalchemy = "*"
 
 [dev-packages]
 black = "==21.5b1"

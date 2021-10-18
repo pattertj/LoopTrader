@@ -7,6 +7,7 @@ from typing import Union
 
 import attr
 import basetypes.Mediator.reqRespTypes as baseRR
+import basetypes.Mediator.baseModels as baseModels
 from basetypes.Component.abstractComponent import Component
 from basetypes.Strategy.abstractStrategy import Strategy
 
@@ -17,7 +18,7 @@ logger = logging.getLogger("autotrader")
 class SingleByDeltaStrategy(Strategy, Component):
     """The concrete implementation of the generic LoopTrader Strategy class for trading Cash-Secured Puts by Delta."""
 
-    strategy_name: str = attr.ib(
+    strategy: str = attr.ib(
         default="Sample Strategy", validator=attr.validators.instance_of(str)
     )
     underlying: str = attr.ib(
@@ -339,10 +340,11 @@ class SingleByDeltaStrategy(Strategy, Component):
             baseRR.PlaceOrderRequestMessage: Order request message
         """
         # Build Leg
-        leg = baseRR.PlaceOrderRequestMessage.Leg()
+        leg = baseModels.OrderLeg()
         leg.symbol = strike.symbol
-        leg.assettype = "OPTION"
+        leg.asset_type = "OPTION"
         leg.quantity = qty
+        leg.position_effect = "OPENING"
 
         if self.buy_or_sell == "SELL":
             leg.instruction = "SELL_TO_OPEN"
@@ -351,15 +353,14 @@ class SingleByDeltaStrategy(Strategy, Component):
 
         # Build Order
         orderrequest = baseRR.PlaceOrderRequestMessage()
-        orderrequest.strategy_name = self.strategy_name
-        orderrequest.orderstrategytype = "SINGLE"
-        orderrequest.duration = "GOOD_TILL_CANCEL"
-        orderrequest.ordertype = "LIMIT"
-        orderrequest.ordersession = "NORMAL"
-        orderrequest.positioneffect = "OPENING"
-        orderrequest.price = price
-        orderrequest.legs = list[baseRR.PlaceOrderRequestMessage.Leg]()
-        orderrequest.legs.append(leg)
+        orderrequest.order.strategy = self.strategy_name
+        orderrequest.order.order_strategy_type = "SINGLE"
+        orderrequest.order.duration = "GOOD_TILL_CANCEL"
+        orderrequest.order.order_type = "LIMIT"
+        orderrequest.order.session = "NORMAL"
+        orderrequest.order.price = price
+        orderrequest.order.legs = list[baseModels.OrderLeg]()
+        orderrequest.order.legs.append(leg)
 
         return orderrequest
 
@@ -385,10 +386,10 @@ class SingleByDeltaStrategy(Strategy, Component):
         for order in account.orders:
             if (
                 order.status in ["WORKING", "QUEUED"]
-                and order.legs[0].positioneffect == "CLOSING"
+                and order.legs[0].position_effect == "CLOSING"
             ):
                 orderrequest = baseRR.CancelOrderRequestMessage(
-                    self.strategy_name, int(order.orderid)
+                    self.strategy_name, int(order.order_id)
                 )
                 orderrequests.append(orderrequest)
 
@@ -435,7 +436,7 @@ class SingleByDeltaStrategy(Strategy, Component):
                         else:
                             # Cancel current Order
                             cancelorderrequest = baseRR.CancelOrderRequestMessage(
-                                self.strategy_name, int(order.orderid)
+                                self.strategy_name, int(order.order_id)
                             )
                             self.mediator.cancel_order(cancelorderrequest)
 
@@ -448,10 +449,11 @@ class SingleByDeltaStrategy(Strategy, Component):
 
     def build_closing_order_request(self, position: baseRR.AccountPosition):
         """Builds a closing order request message for a given position."""
-        leg = baseRR.PlaceOrderRequestMessage.Leg()
+        leg = baseModels.OrderLeg()
         leg.symbol = position.symbol
-        leg.assettype = "OPTION"
+        leg.asset_type = "OPTION"
         leg.quantity = position.shortquantity
+        leg.position_effect = "CLOSING"
 
         if self.buy_or_sell == "SELL":
             leg.instruction = "BUY_TO_CLOSE"
@@ -459,20 +461,19 @@ class SingleByDeltaStrategy(Strategy, Component):
             leg.instruction = "SELL_TO_CLOSE"
 
         orderrequest = baseRR.PlaceOrderRequestMessage()
-        orderrequest.strategy_name = self.strategy_name
-        orderrequest.orderstrategytype = "SINGLE"
-        orderrequest.duration = "GOOD_TILL_CANCEL"
-        orderrequest.ordertype = "LIMIT"
-        orderrequest.ordersession = "NORMAL"
-        orderrequest.positioneffect = "CLOSING"
-        orderrequest.price = self.truncate(
+        orderrequest.order.strategy = self.strategy_name
+        orderrequest.order.order_strategy_type = "SINGLE"
+        orderrequest.order.duration = "GOOD_TILL_CANCEL"
+        orderrequest.order.order_type = "LIMIT"
+        orderrequest.order.session = "NORMAL"
+        orderrequest.order.price = self.truncate(
             self.format_order_price(
                 position.averageprice * (1 - float(self.profittargetpercent))
             ),
             2,
         )
-        orderrequest.legs = list[baseRR.PlaceOrderRequestMessage.Leg]()
-        orderrequest.legs.append(leg)
+        orderrequest.order.legs = list[baseModels.OrderLeg]()
+        orderrequest.order.legs.append(leg)
 
         return orderrequest
 
@@ -506,27 +507,26 @@ class SingleByDeltaStrategy(Strategy, Component):
         # If the order placement fails, exit the method.
         if (
             neworderresult is None
-            or neworderresult.orderid is None
-            or neworderresult.orderid == 0
+            or neworderresult.order_id is None
+            or neworderresult.order_id == 0
         ):
             return False
 
         # Add Order to the DB
-        db_order_request = baseRR.CreateDatabaseOrderRequest(
-            int(neworderresult.orderid), int(self.strategy_id), "NEW"
-        )
+        db_order_request = baseRR.CreateDatabaseOrderRequest(orderrequest.order)
         db_order_response = self.mediator.create_db_order(db_order_request)
 
         # If closing order, let the order ride, otherwise continue logic
-        if orderrequest.positioneffect == "CLOSING":
-            return True
+        for leg in orderrequest.order.legs:
+            if leg.position_effect == "CLOSING":
+                return True
 
         # Wait to let the Order process
         time.sleep(self.openingorderloopseconds)
 
         # Re-get the Order
         getorderrequest = baseRR.GetOrderRequestMessage(
-            self.strategy_name, int(neworderresult.orderid)
+            self.strategy_name, int(neworderresult.order_id)
         )
         processedorder = self.mediator.get_order(getorderrequest)
 
@@ -534,13 +534,13 @@ class SingleByDeltaStrategy(Strategy, Component):
             # Log the Error
             logger.error(
                 "Failed to get re-get placed order, ID: {}.".format(
-                    neworderresult.orderid
+                    neworderresult.order_id
                 )
             )
 
             # Cancel it
             cancelorderrequest = baseRR.CancelOrderRequestMessage(
-                self.strategy_name, int(neworderresult.orderid)
+                self.strategy_name, int(neworderresult.order_id)
             )
             self.mediator.cancel_order(cancelorderrequest)
 
@@ -550,7 +550,7 @@ class SingleByDeltaStrategy(Strategy, Component):
         if processedorder.status != "FILLED":
             # Cancel it
             cancelorderrequest = baseRR.CancelOrderRequestMessage(
-                self.strategy_name, int(neworderresult.orderid)
+                self.strategy_name, int(neworderresult.order_id)
             )
             self.mediator.cancel_order(cancelorderrequest)
 
@@ -559,7 +559,7 @@ class SingleByDeltaStrategy(Strategy, Component):
 
         # Otherwise, add Position to the DB
         if db_order_response is not None:
-            for leg in orderrequest.legs:
+            for leg in orderrequest.order.legs:
                 db_position_request = baseRR.CreateDatabasePositionRequest(
                     self.strategy_id,
                     leg.symbol,
@@ -573,9 +573,9 @@ class SingleByDeltaStrategy(Strategy, Component):
         # Send a notification
         message = "Sold:<code>"
 
-        for leg in orderrequest.legs:
+        for leg in orderrequest.order.legs:
             message += "\r\n - {}x {} @ ${}".format(
-                str(leg.quantity), str(leg.symbol), "{:,.2f}".format(orderrequest.price)
+                str(leg.quantity), str(leg.symbol), "{:,.2f}".format(orderrequest.order.price)
             )
 
         message += "</code>"
@@ -612,7 +612,7 @@ class SingleByDeltaStrategy(Strategy, Component):
 
     @staticmethod
     def check_for_closing_orders(
-        symbol: str, orders: list[baseRR.AccountOrder]
+        symbol: str, orders: list[baseModels.Order]
     ) -> bool:
         """Checks a list of Orders for closing orders."""
         logger.debug("check_for_closing_orders")

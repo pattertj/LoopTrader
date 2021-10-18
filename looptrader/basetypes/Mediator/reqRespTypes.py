@@ -1,92 +1,24 @@
 from datetime import date, datetime
 
 import attr
+import basetypes.Mediator.baseModels as base
 
 
 @attr.s(auto_attribs=True, init=False)
 class PlaceOrderRequestMessage:
     """Generic request object for placing an order."""
-
-    # Define Order Request Leg Object
-    @attr.s(auto_attribs=True, init=False)
-    class Leg:
-
-        quantity: int = attr.ib(validator=attr.validators.instance_of(int))
-        symbol: str = attr.ib(validator=attr.validators.instance_of(str))
-        assettype: str = attr.ib(
-            validator=attr.validators.in_(
-                [
-                    "EQUITY",
-                    "OPTION",
-                    "INDEX",
-                    "MUTUAL_FUND",
-                    "CASH_EQUIVALENT",
-                    "FIXED_INCOME",
-                    "CURRENCY",
-                ]
-            )
-        )
-        instruction: str = attr.ib(
-            validator=attr.validators.in_(
-                [
-                    "BUY",
-                    "SELL",
-                    "BUY_TO_COVER",
-                    "SELL_SHORT",
-                    "BUY_TO_OPEN",
-                    "BUY_TO_CLOSE",
-                    "SELL_TO_OPEN",
-                    "SELL_TO_CLOSE",
-                    "EXCHANGE",
-                ]
-            )
-        )
-
-    price: float = attr.ib(validator=attr.validators.instance_of(float))
-    strategy_name: str = attr.ib(validator=attr.validators.instance_of(str))
-    orderstrategytype: str = attr.ib(
-        validator=attr.validators.in_(["SINGLE", "OCO", "TRIGGER"])
-    )
-    duration: str = attr.ib(
-        validator=attr.validators.in_(["DAY", "GOOD_TILL_CANCEL", "FILL_OR_KILL"])
-    )
-    ordertype: str = attr.ib(
-        validator=attr.validators.in_(
-            [
-                "MARKET",
-                "LIMIT",
-                "STOP",
-                "STOP_LIMIT",
-                "TRAILING_STOP",
-                "MARKET_ON_CLOSE",
-                "EXERCISE",
-                "TRAILING_STOP_LIMIT",
-                "NET_DEBIT",
-                "NET_CREDIT",
-                "NET_ZERO",
-            ]
-        )
-    )
-    ordersession: str = attr.ib(
-        validator=attr.validators.in_(["NORMAL", "AM", "PM", "SEAMLESS"])
-    )
-    positioneffect: str = attr.ib(
-        validator=attr.validators.in_(["OPENING", "CLOSING", "AUTOMATIC"])
-    )
-    legs: list[Leg] = attr.ib(validator=attr.validators.instance_of(list[Leg]))
+    order: base.Order  = attr.ib(validator=attr.validators.instance_of(base.Order))
 
 
 @attr.s(auto_attribs=True, init=False)
 class PlaceOrderResponseMessage:
     """Generic response object for placing an order."""
-
-    orderid: int = attr.ib(validator=attr.validators.instance_of(int))
+    order_id: int = attr.ib(validator=attr.validators.instance_of(int))
 
 
 @attr.s(auto_attribs=True)
 class GetOptionChainRequestMessage:
     """Generic request object for retrieving the Option Chain."""
-
     strategy_name: str = attr.ib(validator=attr.validators.instance_of(str))
     symbol: str = attr.ib(validator=attr.validators.instance_of(str))
     contracttype: str = attr.ib(validator=attr.validators.in_(["CALL", "PUT", "ALL"]))
@@ -101,7 +33,6 @@ class GetOptionChainRequestMessage:
 @attr.s(auto_attribs=True, init=False)
 class GetOptionChainResponseMessage:
     """Generic response object for retrieving an Option Chain."""
-
     # Define Expiration Date Object
     @attr.s(auto_attribs=True, init=False)
     class ExpirationDate:
@@ -195,79 +126,6 @@ class AccountPosition:
 
 
 @attr.s(auto_attribs=True, init=False)
-class AccountOrderLeg:
-    """Generic object for retrieving order leg details on an account."""
-
-    legid: int = attr.ib(validator=attr.validators.instance_of(int))
-    orders: bool = attr.ib(validator=attr.validators.instance_of(bool))
-    cusip: str = attr.ib(validator=attr.validators.instance_of(str))
-    symbol: str = attr.ib(validator=attr.validators.instance_of(str))
-    description: str = attr.ib(validator=attr.validators.instance_of(str))
-    instruction: str = attr.ib(
-        validator=attr.validators.in_(
-            [
-                "BUY",
-                "SELL",
-                "BUY_TO_COVER",
-                "SELL_SHORT",
-                "BUY_TO_OPEN",
-                "BUY_TO_CLOSE",
-                "SELL_TO_OPEN",
-                "SELL_TO_CLOSE",
-                "EXCHANGE",
-            ]
-        )
-    )
-    positioneffect: str = attr.ib(
-        validator=attr.validators.in_(["OPENING", "CLOSING", "AUTOMATIC"])
-    )
-    quantity: int = attr.ib(validator=attr.validators.instance_of(int))
-    putcall: str = attr.ib(validator=attr.validators.in_(["CALL", "PUT"]))
-
-
-@attr.s(auto_attribs=True, init=False)
-class AccountOrder:
-    """Generic object to hold order details for an account."""
-
-    duration: str = attr.ib(
-        validator=attr.validators.in_(["DAY", "GOOD_TILL_CANCEL", "FILL_OR_KILL"])
-    )
-    quantity: int = attr.ib(validator=attr.validators.instance_of(int))
-    filledquantity: int = attr.ib(validator=attr.validators.instance_of(int))
-    price: float = attr.ib(validator=attr.validators.instance_of(float))
-    orderid: str = attr.ib(validator=attr.validators.instance_of(str))
-    status: str = attr.ib(
-        validator=attr.validators.in_(
-            [
-                "AWAITING_PARENT_ORDER",
-                "AWAITING_CONDITION",
-                "AWAITING_MANUAL_REVIEW",
-                "ACCEPTED",
-                "AWAITING_UR_OUT",
-                "PENDING_ACTIVATION",
-                "QUEUED",
-                "WORKING",
-                "REJECTED",
-                "PENDING_CANCEL",
-                "CANCELED",
-                "PENDING_REPLACE",
-                "REPLACED",
-                "FILLED",
-                "EXPIRED",
-            ]
-        )
-    )
-    enteredtime: datetime = attr.ib(validator=attr.validators.instance_of(datetime))
-    closetime: datetime = attr.ib(validator=attr.validators.instance_of(datetime))
-    accountid: int = attr.ib(validator=attr.validators.instance_of(int))
-    cancelable: bool = attr.ib(validator=attr.validators.instance_of(bool))
-    editable: bool = attr.ib(validator=attr.validators.instance_of(bool))
-    legs: list[AccountOrderLeg] = attr.ib(
-        validator=attr.validators.instance_of(list[AccountOrderLeg])
-    )
-
-
-@attr.s(auto_attribs=True, init=False)
 class AccountBalance:
     """Generic object to hold balance details for an account."""
 
@@ -286,8 +144,8 @@ class GetAccountResponseMessage:
     positions: list[AccountPosition] = attr.ib(
         validator=attr.validators.instance_of(list[AccountPosition])
     )
-    orders: list[AccountOrder] = attr.ib(
-        validator=attr.validators.instance_of(list[AccountOrder])
+    orders: list[base.Order] = attr.ib(
+        validator=attr.validators.instance_of(list[base.Order])
     )
 
 
@@ -427,9 +285,7 @@ class CreateDatabaseStrategyResponse:
 
 @attr.s(auto_attribs=True)
 class CreateDatabaseOrderRequest:
-    broker_order_number: int = attr.ib(validator=attr.validators.instance_of(int))
-    strategy_id: int = attr.ib(validator=attr.validators.instance_of(int))
-    status: str = attr.ib(validator=attr.validators.instance_of(str))
+    order: base.Order = attr.ib(validator=attr.validators.instance_of(base.Order))
 
 
 @attr.s(auto_attribs=True)

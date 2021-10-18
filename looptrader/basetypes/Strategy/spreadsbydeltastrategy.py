@@ -7,6 +7,7 @@ from typing import Union
 
 import attr
 import basetypes.Mediator.reqRespTypes as baseRR
+import basetypes.Mediator.baseModels as baseModels
 from basetypes.Component.abstractComponent import Component
 from basetypes.Strategy.abstractStrategy import Strategy
 
@@ -224,19 +225,18 @@ class SpreadsByDeltaStrategy(Strategy, Component):
         longleg = self.build_leg(long_strike, qty, "BUY")
 
         orderrequest = baseRR.PlaceOrderRequestMessage()
-        orderrequest.strategy_name = self.strategy_name
-        orderrequest.orderstrategytype = "SINGLE"
-        orderrequest.duration = "GOOD_TILL_CANCEL"
+        orderrequest.order.strategy = self.strategy_name
+        orderrequest.order.order_strategy_type = "SINGLE"
+        orderrequest.order.duration = "GOOD_TILL_CANCEL"
         if self.buy_or_sell == "SELL":
-            orderrequest.ordertype = "NET_CREDIT"
+            orderrequest.order.order_type = "NET_CREDIT"
         else:
-            orderrequest.ordertype = "NET_DEBIT"
-        orderrequest.ordersession = "NORMAL"
-        orderrequest.positioneffect = "OPENING"
-        orderrequest.price = formattedprice
-        orderrequest.legs = list[baseRR.PlaceOrderRequestMessage.Leg]()
-        orderrequest.legs.append(shortleg)
-        orderrequest.legs.append(longleg)
+            orderrequest.order.order_type = "NET_DEBIT"
+        orderrequest.order.session = "NORMAL"
+        orderrequest.order.price = formattedprice
+        orderrequest.order.legs = list[baseModels.OrderLeg]()
+        orderrequest.order.legs.append(shortleg)
+        orderrequest.order.legs.append(longleg)
 
         return orderrequest
 
@@ -245,11 +245,12 @@ class SpreadsByDeltaStrategy(Strategy, Component):
         strike: baseRR.GetOptionChainResponseMessage.ExpirationDate.Strike,
         quantity: int,
         buy_or_sell: str,
-    ) -> baseRR.PlaceOrderRequestMessage.Leg:
-        leg = baseRR.PlaceOrderRequestMessage.Leg()
+    ) -> baseModels.OrderLeg:
+        leg = baseModels.OrderLeg()
         leg.symbol = strike.symbol
-        leg.assettype = "OPTION"
+        leg.asset_type = "OPTION"
         leg.quantity = quantity
+        leg.position_effect = "OPENING"
 
         leg.instruction = "SELL_TO_OPEN" if buy_or_sell == "SELL" else "BUY_TO_OPEN"
         return leg
@@ -305,15 +306,13 @@ class SpreadsByDeltaStrategy(Strategy, Component):
         # If the order placement fails, exit the method.
         if (
             neworderresult is None
-            or neworderresult.orderid is None
-            or neworderresult.orderid == 0
+            or neworderresult.order_id is None
+            or neworderresult.order_id == 0
         ):
             return False
 
         # Add Order to the DB
-        db_order_request = baseRR.CreateDatabaseOrderRequest(
-            int(neworderresult.orderid), self.strategy_id, "NEW"
-        )
+        db_order_request = baseRR.CreateDatabaseOrderRequest(orderrequest.order)
         db_order_response = self.mediator.create_db_order(db_order_request)
 
         # Wait to let the Order process
@@ -321,7 +320,7 @@ class SpreadsByDeltaStrategy(Strategy, Component):
 
         # Fetch the Order status
         getorderrequest = baseRR.GetOrderRequestMessage(
-            self.strategy_name, int(neworderresult.orderid)
+            self.strategy_name, int(neworderresult.order_id)
         )
         processedorder = self.mediator.get_order(getorderrequest)
 
@@ -332,7 +331,7 @@ class SpreadsByDeltaStrategy(Strategy, Component):
         if processedorder.status != "FILLED":
             # Cancel it
             cancelorderrequest = baseRR.CancelOrderRequestMessage(
-                self.strategy_name, int(neworderresult.orderid)
+                self.strategy_name, int(neworderresult.order_id)
             )
             self.mediator.cancel_order(cancelorderrequest)
 
@@ -341,7 +340,7 @@ class SpreadsByDeltaStrategy(Strategy, Component):
 
         # Add the position to the DB
         if db_order_response is not None:
-            for leg in orderrequest.legs:
+            for leg in orderrequest.order.legs:
                 db_position_request = baseRR.CreateDatabasePositionRequest(
                     self.strategy_id,
                     leg.symbol,
@@ -355,9 +354,9 @@ class SpreadsByDeltaStrategy(Strategy, Component):
         # Send a notification
         message = "Sold:<code>"
 
-        for leg in orderrequest.legs:
+        for leg in orderrequest.order.legs:
             message += "\r\n - {}x {} @ ${}".format(
-                str(leg.quantity), str(leg.symbol), "{:,.2f}".format(orderrequest.price)
+                str(leg.quantity), str(leg.symbol), "{:,.2f}".format(orderrequest.order.price)
             )
 
         message += "</code>"
