@@ -7,6 +7,7 @@ from basetypes.Mediator import baseModels, reqRespTypes
 def test_create_and_read_order():
     if os.path.exists("testdb.db"):
         os.remove("testdb.db")
+
     db = SqliteDatabase("testdb.db")
 
     queued_order = baseModels.Order()
