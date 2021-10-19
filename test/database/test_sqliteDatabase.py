@@ -1,21 +1,43 @@
-# import os
+import os
 
-# import basetypes.Mediator.reqRespTypes as baseRR
-# from basetypes.Database.sqliteDatabase import SqliteDatabase
+from basetypes.Database.sqliteDatabase import SqliteDatabase
+from basetypes.Mediator import baseModels, reqRespTypes
 
 
-# def test_create_strategy():
-#     db = SqliteDatabase("testdb.db")
+def test_create_and_read_order():
+    if os.path.exists("testdb.db"):
+        os.remove("testdb.db")
+    db = SqliteDatabase("testdb.db")
 
-#     request = baseRR.CreateDatabaseStrategyRequest("TESTING")
-#     result = db.create_strategy(request)
+    queued_order = baseModels.Order()
+    queued_order.price = 1.1
+    queued_order.status = "QUEUED"
+    queued_order.legs = []
 
-#     assert result is not None
-#     assert result.strategy_id >= 0
+    filled_order = baseModels.Order()
+    filled_order.price = 1.1
+    filled_order.status = "FILLED"
+    filled_order.legs = []
 
-#     db.cursor.close()
-#     db.connection.close()
-#     os.remove("testdb.db")
+    leg = baseModels.OrderLeg()
+    leg.put_call = "PUT"
+    leg.quantity = 4
+    leg.symbol = "SPX"
+
+    queued_order.legs.append(leg)
+    filled_order.legs.append(leg)
+
+    queued_request = reqRespTypes.CreateDatabaseOrderRequest(queued_order)
+    filled_request = reqRespTypes.CreateDatabaseOrderRequest(filled_order)
+
+    db.create_order(queued_request)
+    db.create_order(filled_request)
+
+    orders = db.read_open_orders()
+
+    assert len(orders) == 1
+
+    os.remove("testdb.db")
 
 
 # def test_create_order():

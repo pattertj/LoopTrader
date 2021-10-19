@@ -137,7 +137,7 @@ class Bot(Mediator):
     def place_order(
         self, request: baseRR.PlaceOrderRequestMessage
     ) -> Union[baseRR.PlaceOrderResponseMessage, None]:
-        broker = self.get_broker(request.strategy_name)
+        broker = self.get_broker(request.order.strategy)
 
         if broker is None:
             return None
@@ -229,22 +229,23 @@ class Bot(Mediator):
 
         return strategies
 
-    def create_db_strategy(
-        self, request: baseRR.CreateDatabaseStrategyRequest
-    ) -> Union[baseRR.CreateDatabaseStrategyResponse, None]:
-        return self.database.create_strategy(request)
+    # TODO: Fix these
+    # def create_db_strategy(
+    #     self, request: baseRR.CreateDatabaseStrategyRequest
+    # ) -> Union[baseRR.CreateDatabaseStrategyResponse, None]:
+    #     return self.database.create_strategy(request)
 
     def create_db_order(
         self, request: baseRR.CreateDatabaseOrderRequest
     ) -> Union[baseRR.CreateDatabaseOrderResponse, None]:
         return self.database.create_order(request)
 
-    def create_db_position(
-        self, request: baseRR.CreateDatabasePositionRequest
-    ) -> Union[baseRR.CreateDatabasePositionResponse, None]:
-        return self.database.create_position(request)
+    # def create_db_position(
+    #     self, request: baseRR.CreateDatabasePositionRequest
+    # ) -> Union[baseRR.CreateDatabasePositionResponse, None]:
+    #     return self.database.create_position(request)
 
-    def read_open_db_position_by_strategy_id(
-        self, request: baseRR.ReadOpenPositionsByStrategyIDRequest
-    ) -> Union[baseRR.ReadOpenPositionsByStrategyIDResponse, None]:
-        return self.database.read_open_positions_by_strategy_id(request)
+    # def read_open_db_position_by_strategy_id(
+    #     self, request: baseRR.ReadOpenPositionsByStrategyIDRequest
+    # ) -> Union[baseRR.ReadOpenPositionsByStrategyIDResponse, None]:
+    #     return self.database.read_open_positions_by_strategy_id(request)

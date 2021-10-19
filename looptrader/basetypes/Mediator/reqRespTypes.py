@@ -7,18 +7,21 @@ import basetypes.Mediator.baseModels as base
 @attr.s(auto_attribs=True, init=False)
 class PlaceOrderRequestMessage:
     """Generic request object for placing an order."""
-    order: base.Order  = attr.ib(validator=attr.validators.instance_of(base.Order))
+
+    order: base.Order = attr.ib(validator=attr.validators.instance_of(base.Order))
 
 
 @attr.s(auto_attribs=True, init=False)
 class PlaceOrderResponseMessage:
     """Generic response object for placing an order."""
+
     order_id: int = attr.ib(validator=attr.validators.instance_of(int))
 
 
 @attr.s(auto_attribs=True)
 class GetOptionChainRequestMessage:
     """Generic request object for retrieving the Option Chain."""
+
     strategy_name: str = attr.ib(validator=attr.validators.instance_of(str))
     symbol: str = attr.ib(validator=attr.validators.instance_of(str))
     contracttype: str = attr.ib(validator=attr.validators.in_(["CALL", "PUT", "ALL"]))
@@ -33,6 +36,7 @@ class GetOptionChainRequestMessage:
 @attr.s(auto_attribs=True, init=False)
 class GetOptionChainResponseMessage:
     """Generic response object for retrieving an Option Chain."""
+
     # Define Expiration Date Object
     @attr.s(auto_attribs=True, init=False)
     class ExpirationDate:

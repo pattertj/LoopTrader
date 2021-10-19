@@ -192,8 +192,8 @@ class LongSharesStrategy(Strategy, Component):
             return False
 
         # Add Order to the DB
-        db_order_request = baseRR.CreateDatabaseOrderRequest(orderrequest.order)
-        db_order_response = self.mediator.create_db_order(db_order_request)
+        # db_order_request = baseRR.CreateDatabaseOrderRequest(orderrequest.order)
+        # db_order_response = self.mediator.create_db_order(db_order_request)
 
         # Wait to let the Order process
         time.sleep(self.opening_order_loop_seconds)
@@ -232,17 +232,18 @@ class LongSharesStrategy(Strategy, Component):
             return False
 
         # Otherwise, add Position to the DB
-        if db_order_response is not None:
-            for leg in orderrequest.order.legs:
-                db_position_request = baseRR.CreateDatabasePositionRequest(
-                    self.strategy_id,
-                    leg.symbol,
-                    int(leg.quantity),
-                    True,
-                    db_order_response.order_id,
-                    0,
-                )
-                self.mediator.create_db_position(db_position_request)
+        # if db_order_response is not None:
+        #     for leg in orderrequest.order.legs:
+        #         db_position_request = baseRR.CreateDatabasePositionRequest(
+        #             self.strategy_id,
+        #             leg.symbol,
+        #             int(leg.quantity),
+        #             True,
+        #             db_order_response.order_id,
+        #             0,
+        #         )
+        # TODO
+        # self.mediator.create_db_position(db_position_request)
 
         # Send a notification
         message = "Sold:<code>"

@@ -1,26 +1,40 @@
-from typing import Optional
-import attr
 from datetime import datetime
+from typing import Optional
+
+import attr
 
 
+@attr.s(auto_attribs=True, init=False)
 class ExecutionLeg:
-    id: Optional[int] = attr.ib(default=None)
+    id: Optional[int] = attr.ib(
+        default=None, init=False, validator=attr.validators.instance_of(int)
+    )
     leg_id: int = attr.ib(validator=attr.validators.instance_of(int))
     quantity: int = attr.ib(validator=attr.validators.instance_of(int))
     mismarked_quantity: int = attr.ib(validator=attr.validators.instance_of(int))
     price: float = attr.ib(validator=attr.validators.instance_of(float))
     time: datetime = attr.ib(validator=attr.validators.instance_of(datetime))
 
+
+@attr.s(auto_attribs=True, init=False)
 class OrderActivity:
-    id: Optional[int] = attr.ib(default=None)
+    id: Optional[int] = attr.ib(
+        default=None, init=False, validator=attr.validators.instance_of(int)
+    )
     activity_type: str = attr.ib(validator=attr.validators.instance_of(str))
     execution_type: str = attr.ib(validator=attr.validators.instance_of(str))
     quantity: int = attr.ib(validator=attr.validators.instance_of(int))
     order_remaining_quantity: int = attr.ib(validator=attr.validators.instance_of(int))
-    execution_legs: list[ExecutionLeg] = attr.ib(validator=attr.validators.instance_of(list[ExecutionLeg]))
-    
+    execution_legs: list[ExecutionLeg] = attr.ib(
+        validator=attr.validators.instance_of(list[ExecutionLeg])
+    )
+
+
+@attr.s(auto_attribs=True, init=False)
 class OrderLeg:
-    id: Optional[int] = attr.ib(default=None)
+    id: Optional[int] = attr.ib(
+        default=None, init=False, validator=attr.validators.instance_of(int)
+    )
     asset_type: str = attr.ib(validator=attr.validators.instance_of(str))
     cusip: str = attr.ib(validator=attr.validators.instance_of(str))
     symbol: str = attr.ib(validator=attr.validators.instance_of(str))
@@ -30,13 +44,18 @@ class OrderLeg:
     put_call: str = attr.ib(validator=attr.validators.instance_of(str))
     quantity: int = attr.ib(validator=attr.validators.instance_of(int))
     leg_id: int = attr.ib(validator=attr.validators.instance_of(int))
-    
+
+
 # class Strategy:
 #     id: Optional[int] = attr.ib(default=None)
 #     name: str = attr.ib(validator=attr.validators.instance_of(str))
 
+
+@attr.s(auto_attribs=True, init=False)
 class Order:
-    id: Optional[int] = attr.ib(default=None)
+    id: Optional[int] = attr.ib(
+        default=None, init=False, validator=attr.validators.instance_of(int)
+    )
     session: str = attr.ib(validator=attr.validators.instance_of(str))
     duration: str = attr.ib(validator=attr.validators.instance_of(str))
     order_type: str = attr.ib(validator=attr.validators.instance_of(str))
@@ -54,6 +73,10 @@ class Order:
     close_time: datetime = attr.ib(validator=attr.validators.instance_of(datetime))
     account_id: int = attr.ib(validator=attr.validators.instance_of(int))
     order_id: int = attr.ib(validator=attr.validators.instance_of(int))
-    legs: list[OrderLeg] = attr.ib(validator=attr.validators.instance_of(list[OrderLeg]))
-    activities: list[OrderActivity] = attr.ib(validator=attr.validators.instance_of(list[OrderActivity]))
     strategy: str = attr.ib(validator=attr.validators.instance_of(str))
+    legs: list[OrderLeg] = attr.ib(
+        validator=attr.validators.instance_of(list[OrderLeg])
+    )
+    activities: list[OrderActivity] = attr.ib(
+        validator=attr.validators.instance_of(list[OrderActivity])
+    )

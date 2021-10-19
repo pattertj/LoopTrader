@@ -6,8 +6,8 @@ import time
 from typing import Union
 
 import attr
-import basetypes.Mediator.reqRespTypes as baseRR
 import basetypes.Mediator.baseModels as baseModels
+import basetypes.Mediator.reqRespTypes as baseRR
 from basetypes.Component.abstractComponent import Component
 from basetypes.Strategy.abstractStrategy import Strategy
 
@@ -513,8 +513,8 @@ class SingleByDeltaStrategy(Strategy, Component):
             return False
 
         # Add Order to the DB
-        db_order_request = baseRR.CreateDatabaseOrderRequest(orderrequest.order)
-        db_order_response = self.mediator.create_db_order(db_order_request)
+        # db_order_request = baseRR.CreateDatabaseOrderRequest(orderrequest.order)
+        # db_order_response = self.mediator.create_db_order(db_order_request)
 
         # If closing order, let the order ride, otherwise continue logic
         for leg in orderrequest.order.legs:
@@ -558,24 +558,27 @@ class SingleByDeltaStrategy(Strategy, Component):
             return False
 
         # Otherwise, add Position to the DB
-        if db_order_response is not None:
-            for leg in orderrequest.order.legs:
-                db_position_request = baseRR.CreateDatabasePositionRequest(
-                    self.strategy_id,
-                    leg.symbol,
-                    leg.quantity,
-                    True,
-                    db_order_response.order_id,
-                    0,
-                )
-                self.mediator.create_db_position(db_position_request)
+        # if db_order_response is not None:
+        #     for leg in orderrequest.order.legs:
+        #         db_position_request = baseRR.CreateDatabasePositionRequest(
+        #             self.strategy_id,
+        #             leg.symbol,
+        #             leg.quantity,
+        #             True,
+        #             db_order_response.order_id,
+        #             0,
+        #         )
+        # TODO
+        # self.mediator.create_db_position(db_position_request)
 
         # Send a notification
         message = "Sold:<code>"
 
         for leg in orderrequest.order.legs:
             message += "\r\n - {}x {} @ ${}".format(
-                str(leg.quantity), str(leg.symbol), "{:,.2f}".format(orderrequest.order.price)
+                str(leg.quantity),
+                str(leg.symbol),
+                "{:,.2f}".format(orderrequest.order.price),
             )
 
         message += "</code>"
@@ -611,9 +614,7 @@ class SingleByDeltaStrategy(Strategy, Component):
         return hours
 
     @staticmethod
-    def check_for_closing_orders(
-        symbol: str, orders: list[baseModels.Order]
-    ) -> bool:
+    def check_for_closing_orders(symbol: str, orders: list[baseModels.Order]) -> bool:
         """Checks a list of Orders for closing orders."""
         logger.debug("check_for_closing_orders")
 

@@ -6,8 +6,8 @@ import time
 from typing import Union
 
 import attr
-import basetypes.Mediator.reqRespTypes as baseRR
 import basetypes.Mediator.baseModels as baseModels
+import basetypes.Mediator.reqRespTypes as baseRR
 from basetypes.Component.abstractComponent import Component
 from basetypes.Strategy.abstractStrategy import Strategy
 
@@ -312,8 +312,8 @@ class SpreadsByDeltaStrategy(Strategy, Component):
             return False
 
         # Add Order to the DB
-        db_order_request = baseRR.CreateDatabaseOrderRequest(orderrequest.order)
-        db_order_response = self.mediator.create_db_order(db_order_request)
+        # db_order_request = baseRR.CreateDatabaseOrderRequest(orderrequest.order)
+        # db_order_response = self.mediator.create_db_order(db_order_request)
 
         # Wait to let the Order process
         time.sleep(self.openingorderloopseconds)
@@ -339,24 +339,27 @@ class SpreadsByDeltaStrategy(Strategy, Component):
             return False
 
         # Add the position to the DB
-        if db_order_response is not None:
-            for leg in orderrequest.order.legs:
-                db_position_request = baseRR.CreateDatabasePositionRequest(
-                    self.strategy_id,
-                    leg.symbol,
-                    leg.quantity,
-                    True,
-                    db_order_response.order_id,
-                    0,
-                )
-                self.mediator.create_db_position(db_position_request)
+        # if db_order_response is not None:
+        #     for leg in orderrequest.order.legs:
+        #         db_position_request = baseRR.CreateDatabasePositionRequest(
+        #             self.strategy_id,
+        #             leg.symbol,
+        #             leg.quantity,
+        #             True,
+        #             db_order_response.order_id,
+        #             0,
+        #         )
+        # TODO
+        # self.mediator.create_db_position(db_position_request)
 
         # Send a notification
         message = "Sold:<code>"
 
         for leg in orderrequest.order.legs:
             message += "\r\n - {}x {} @ ${}".format(
-                str(leg.quantity), str(leg.symbol), "{:,.2f}".format(orderrequest.order.price)
+                str(leg.quantity),
+                str(leg.symbol),
+                "{:,.2f}".format(orderrequest.order.price),
             )
 
         message += "</code>"
