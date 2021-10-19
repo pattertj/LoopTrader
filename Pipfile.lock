@@ -402,11 +402,11 @@
         },
         "types-pyyaml": {
             "hashes": [
-                "sha256:09b7e488b8057677b7cdf348d2ba5fdcf0952d2f468e86834631db56e5125058",
-                "sha256:802566879aa630b3199f33f3523d4ba069d248d04cea1a12cfa35ecd0dd86622"
+                "sha256:3f4daa754357491625ae8c3a39c9e1b0d7cd5632bc4e1c35e7a7f75a64aa124b",
+                "sha256:e06083f85375a5678e4c19452ed6467ce2167b71db222313e1792cb8fc76859a"
             ],
             "index": "pypi",
-            "version": "==5.4.11"
+            "version": "==5.4.12"
         },
         "tzlocal": {
             "hashes": [
