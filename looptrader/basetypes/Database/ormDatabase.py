@@ -27,12 +27,8 @@ meta = MetaData()
 mapper_registry = registry()
 
 
-class Order:
-    pass
-
-
 @attr.s(auto_attribs=True)
-class SqliteDatabase(Database):
+class ormDatabase(Database):
     db_filename: str = attr.ib(validator=attr.validators.instance_of(str))
     connection_string: str = attr.ib(
         validator=attr.validators.instance_of(str), init=False
@@ -42,15 +38,14 @@ class SqliteDatabase(Database):
         self.connection_string = "sqlite:///" + self.db_filename
         self.pre_flight_db_check()
 
-    # Abstract Methods
+    # Setup Database
     def pre_flight_db_check(self) -> None:
         try:
             # Create Tables
-            execution_leg_table = self.create_execution_leg_table()
-            order_activity_table = self.create_order_activity_table()
-            order_leg_table = self.create_order_leg_table()
-            # strat_table = self.create_strategy_table()
-            order_table = self.create_order_table()
+            execution_leg_table = self.build_execution_leg_table()
+            order_activity_table = self.build_order_activity_table()
+            order_leg_table = self.build_order_leg_table()
+            order_table = self.build_order_table()
 
             # Map Tables
             mapper_registry.map_imperatively(
@@ -77,8 +72,6 @@ class SqliteDatabase(Database):
                 baseModels.ExecutionLeg, execution_leg_table
             )
 
-            # mapper_registry.map_imperatively(baseModels.Strategy, strat_table)
-
             # Create an engine that stores data in the local directory's db file
             engine = create_engine(self.connection_string)
 
@@ -91,7 +84,7 @@ class SqliteDatabase(Database):
             print(e)
             return None
 
-    def create_order_table(self) -> Table:
+    def build_order_table(self) -> Table:
         return Table(
             "orders",
             meta,
@@ -116,15 +109,7 @@ class SqliteDatabase(Database):
             Column("strategy", String(250)),
         )
 
-    # def create_strategy_table(self) -> Table:
-    #     return Table(
-    #         'strategies',
-    #         meta,
-    #         Column('id', Integer, primary_key=True),
-    #         Column('name', String)
-    #         )
-
-    def create_order_leg_table(self) -> Table:
+    def build_order_leg_table(self) -> Table:
         return Table(
             "orderlegs",
             meta,
@@ -139,7 +124,7 @@ class SqliteDatabase(Database):
             Column("order_id", Integer, ForeignKey("orders.id")),
         )
 
-    def create_order_activity_table(self) -> Table:
+    def build_order_activity_table(self) -> Table:
         return Table(
             "orderactivities",
             meta,
@@ -151,7 +136,7 @@ class SqliteDatabase(Database):
             Column("order_id", Integer, ForeignKey("orders.id")),
         )
 
-    def create_execution_leg_table(self) -> Table:
+    def build_execution_leg_table(self) -> Table:
         return Table(
             "executionlegs",
             meta,
@@ -164,38 +149,61 @@ class SqliteDatabase(Database):
             Column("order_activity_id", Integer, ForeignKey("orderactivities.id")),
         )
 
+    ###########
+    # Creates #
+    ###########
     def create_order(
         self, request: baseRR.CreateDatabaseOrderRequest
     ) -> Union[baseRR.CreateDatabaseOrderResponse, None]:
         engine = create_engine(self.connection_string)
         Base.metadata.bind = engine
         DBSession = sessionmaker(bind=engine)
-        session = DBSession()
+        session = DBSession(expire_on_commit=False)
+        response = baseRR.CreateDatabaseOrderResponse()
 
         try:
             session.add(request.order)
+            session.commit()
+
+            if request.order.id is not None:
+                id: int = request.order.id
+                response.id = id
+
         except Exception as e:
             print(e)
             session.rollback()
             return None
+        finally:
+            session.close()
+            engine.dispose()
 
-        session.commit()
-        engine.dispose()
-        return None
+        return response
 
-    def read_open_orders(self) -> Union[None, list[baseModels.Order]]:
+    #########
+    # Reads #
+    #########
+    def read_order_by_status(
+        self, request: baseRR.ReadDatabaseOrdersByStatusRequest
+    ) -> baseRR.ReadDatabaseOrdersByStatusResponse:
         engine = create_engine(self.connection_string)
         Base.metadata.bind = engine
         DBSession = sessionmaker(bind=engine)
-        session = DBSession()
-        result = None
+        session = DBSession(expire_on_commit=False)
+        response = baseRR.ReadDatabaseOrdersByStatusResponse()
 
         try:
             result = (
                 session.query(baseModels.Order)
-                .filter(baseModels.Order.status == "QUEUED")
+                .filter(
+                    baseModels.Order.status == request.status
+                    and baseModels.Order.strategy == request.strategy_id
+                )
                 .all()
             )
+
+            session.commit()
+
+            response.orders = result
         except Exception as e:
             print(e)
             session.rollback()
@@ -203,4 +211,37 @@ class SqliteDatabase(Database):
             session.close()
             engine.dispose()
 
-        return result
+        return response
+
+    ###########
+    # Updates #
+    ###########
+    def update_order(self, request: baseRR.UpdateDatabaseOrderRequest):
+        engine = create_engine(self.connection_string)
+        Base.metadata.bind = engine
+        DBSession = sessionmaker(bind=engine)
+        session = DBSession(expire_on_commit=False)
+        response = baseRR.CreateDatabaseOrderResponse()
+
+        # Validate Request
+        if not isinstance(request.order.id, int):
+            raise ValueError("Invalid Order ID.")
+
+        response.id = request.order.id
+
+        try:
+            session.add(request.order)
+            session.commit()
+        except Exception as e:
+            print(e)
+            session.rollback()
+            return None
+        finally:
+            session.close()
+            engine.dispose()
+
+        return response
+
+    ###########
+    # Deletes #
+    ###########

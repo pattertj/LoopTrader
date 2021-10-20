@@ -2,7 +2,7 @@ import logging
 import logging.config
 
 from basetypes.Broker.tdaBroker import TdaBroker
-from basetypes.Database.sqliteDatabase import SqliteDatabase
+from basetypes.Database.ormDatabase import ormDatabase
 from basetypes.Mediator.botMediator import Bot
 from basetypes.Notifier.telegramnotifier import TelegramNotifier
 from basetypes.Strategy.longsharesstrategy import LongSharesStrategy
@@ -42,7 +42,7 @@ if __name__ == "__main__":
     irabroker = TdaBroker(id="ira")
 
     # Create our local DB
-    sqlitedb = SqliteDatabase("looptrader.db")
+    sqlitedb = ormDatabase("looptrader.db")
 
     # Create our notifier
     telegram_bot = TelegramNotifier()

@@ -277,50 +277,78 @@ class SetKillSwitchRequestMessage:
     kill_switch: bool = attr.ib(validator=attr.validators.instance_of(bool))
 
 
+###################
+# Create Strategy #
+###################
 @attr.s(auto_attribs=True)
 class CreateDatabaseStrategyRequest:
     strategy_name: str = attr.ib(validator=attr.validators.instance_of(str))
 
 
-@attr.s(auto_attribs=True)
+@attr.s(auto_attribs=True, init=False)
 class CreateDatabaseStrategyResponse:
-    strategy_id: int = attr.ib(validator=attr.validators.instance_of(int))
+    id: int = attr.ib(validator=attr.validators.instance_of(int))
 
 
+################
+# Create Order #
+################
 @attr.s(auto_attribs=True)
 class CreateDatabaseOrderRequest:
     order: base.Order = attr.ib(validator=attr.validators.instance_of(base.Order))
 
 
-@attr.s(auto_attribs=True)
+@attr.s(auto_attribs=True, init=False)
 class CreateDatabaseOrderResponse:
-    order_id: int = attr.ib(validator=attr.validators.instance_of(int))
+    id: int = attr.ib(validator=attr.validators.instance_of(int))
 
 
+################
+# Update Order #
+################
 @attr.s(auto_attribs=True)
-class CreateDatabasePositionRequest:
-    strategy_id: int = attr.ib(validator=attr.validators.instance_of(int))
-    symbol: str = attr.ib(validator=attr.validators.instance_of(str))
-    quantity: int = attr.ib(validator=attr.validators.instance_of(int))
-    is_open: bool = attr.ib(validator=attr.validators.instance_of(bool))
-    entry_order_id: int = attr.ib(validator=attr.validators.instance_of(int))
-    exit_order_id: int = attr.ib(validator=attr.validators.instance_of(int))
-
-
-@attr.s(auto_attribs=True)
-class CreateDatabasePositionResponse:
-    position_id: int = attr.ib(validator=attr.validators.instance_of(int))
-
-
-@attr.s(auto_attribs=True)
-class ReadOpenPositionsByStrategyIDRequest:
-    strategy_id: int = attr.ib(validator=attr.validators.instance_of(int))
+class UpdateDatabaseOrderRequest:
+    order: base.Order = attr.ib(validator=attr.validators.instance_of(base.Order))
 
 
 @attr.s(auto_attribs=True, init=False)
-class ReadOpenPositionsByStrategyIDResponse:
-    positions: list[AccountPosition] = attr.ib(
-        validator=attr.validators.instance_of(list[AccountPosition])
+class UpdateDatabaseOrderResponse:
+    id: int = attr.ib(validator=attr.validators.instance_of(int))
+
+
+##################
+# Read by Status #
+##################
+@attr.s(auto_attribs=True)
+class ReadDatabaseOrdersByStatusRequest:
+    strategy_id: int = attr.ib(validator=attr.validators.instance_of(int))
+    status: str = attr.ib(
+        validator=attr.validators.in_(
+            [
+                "AWAITING_PARENT_ORDER",
+                "AWAITING_CONDITION",
+                "AWAITING_MANUAL_REVIEW",
+                "ACCEPTED",
+                "AWAITING_UR_OUT",
+                "PENDING_ACTIVATION",
+                "QUEUED",
+                "WORKING",
+                "REJECTED",
+                "PENDING_CANCEL",
+                "CANCELED",
+                "PENDING_REPLACE",
+                "REPLACED",
+                "FILLED",
+                "EXPIRED",
+            ]
+        )
+    )
+
+
+@attr.s(auto_attribs=True, init=False)
+class ReadDatabaseOrdersByStatusResponse:
+    orders: list[base.Order] = attr.ib(
+        validator=attr.validators.instance_of(list[base.Order])
     )
 
 
