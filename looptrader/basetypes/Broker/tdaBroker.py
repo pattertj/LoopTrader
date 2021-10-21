@@ -22,8 +22,8 @@ from collections import OrderedDict
 from typing import Any, Union
 
 import attr
-import basetypes.Mediator.reqRespTypes as baseRR
 import basetypes.Mediator.baseModels as baseModels
+import basetypes.Mediator.reqRespTypes as baseRR
 import yaml
 from basetypes.Broker.abstractBroker import Broker
 from basetypes.Component.abstractComponent import Component
@@ -245,9 +245,7 @@ class TdaBroker(Broker, Component):
 
         return accountposition
 
-    def build_account_orders(
-        self, securitiesaccount: dict
-    ) -> list[baseModels.Order]:
+    def build_account_orders(self, securitiesaccount: dict) -> list[baseModels.Order]:
         """Builds a list of Account Orders from a raw list of orders."""
         response: list[baseModels.Order] = []
 
