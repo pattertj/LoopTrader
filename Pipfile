@@ -20,6 +20,7 @@ mypy = "*"
 pytest = "*"
 pytest-cov = "*"
 pre-commit = "*"
+pylint = "*"
 
 [requires]
 python_version = "3.9"
