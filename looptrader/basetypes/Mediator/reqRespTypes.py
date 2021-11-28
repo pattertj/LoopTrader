@@ -189,51 +189,7 @@ class GetOrderRequestMessage:
 class GetOrderResponseMessage:
     """Generic response object for reading an order."""
 
-    orderid: int = attr.ib(validator=attr.validators.instance_of(int))
-    status: str = attr.ib(
-        validator=attr.validators.in_(
-            [
-                "AWAITING_PARENT_ORDER",
-                "AWAITING_CONDITION",
-                "AWAITING_MANUAL_REVIEW",
-                "ACCEPTED",
-                "AWAITING_UR_OUT",
-                "PENDING_ACTIVATION",
-                "QUEUED",
-                "WORKING",
-                "REJECTED",
-                "PENDING_CANCEL",
-                "CANCELED",
-                "PENDING_REPLACE",
-                "REPLACED",
-                "FILLED",
-                "EXPIRED",
-            ]
-        )
-    )
-    accountid: int = attr.ib(validator=attr.validators.instance_of(int))
-    enteredtime: datetime = attr.ib(validator=attr.validators.instance_of(datetime))
-    closetime: datetime = attr.ib(validator=attr.validators.instance_of(datetime))
-    instruction: str = attr.ib(
-        validator=attr.validators.in_(
-            [
-                "BUY",
-                "SELL",
-                "BUY_TO_COVER",
-                "SELL_SHORT",
-                "BUY_TO_OPEN",
-                "BUY_TO_CLOSE",
-                "SELL_TO_OPEN",
-                "SELL_TO_CLOSE",
-                "EXCHANGE",
-            ]
-        )
-    )
-    symbol: str = attr.ib(validator=attr.validators.instance_of(str))
-    description: str = attr.ib(validator=attr.validators.instance_of(str))
-    positioneffect: str = attr.ib(
-        validator=attr.validators.in_(["OPENING", "CLOSING", "AUTOMATIC"])
-    )
+    order: base.Order = attr.ib(validator=attr.validators.instance_of(base.Order))
 
 
 @attr.s(auto_attribs=True)

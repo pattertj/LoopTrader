@@ -155,6 +155,7 @@ class ormDatabase(Database):
     def create_order(
         self, request: baseRR.CreateDatabaseOrderRequest
     ) -> Union[baseRR.CreateDatabaseOrderResponse, None]:
+        # sourcery skip: class-extract-method
         engine = create_engine(self.connection_string)
         Base.metadata.bind = engine
         DBSession = sessionmaker(bind=engine)
@@ -227,11 +228,14 @@ class ormDatabase(Database):
         if not isinstance(request.order.id, int):
             raise ValueError("Invalid Order ID.")
 
-        response.id = request.order.id
-
         try:
             session.add(request.order)
             session.commit()
+
+            if request.order.id is not None:
+                id: int = request.order.id
+                response.id = id
+
         except Exception as e:
             print(e)
             session.rollback()

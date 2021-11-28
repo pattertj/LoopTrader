@@ -547,7 +547,7 @@ class SingleByDeltaStrategy(Strategy, Component):
             return False
 
         # If the order isn't filled
-        if processedorder.status != "FILLED":
+        if processedorder.order.status != "FILLED":
             # Cancel it
             cancelorderrequest = baseRR.CancelOrderRequestMessage(
                 self.strategy_name, int(neworderresult.order_id)
