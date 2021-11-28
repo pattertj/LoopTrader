@@ -229,7 +229,7 @@ class Bot(Mediator):
 
         return strategies
 
-    # TODO: Fix these
+    # TODO: Fix Strategy
     # def create_db_strategy(
     #     self, request: baseRR.CreateDatabaseStrategyRequest
     # ) -> Union[baseRR.CreateDatabaseStrategyResponse, None]:
@@ -239,13 +239,3 @@ class Bot(Mediator):
         self, request: baseRR.CreateDatabaseOrderRequest
     ) -> Union[baseRR.CreateDatabaseOrderResponse, None]:
         return self.database.create_order(request)
-
-    # def create_db_position(
-    #     self, request: baseRR.CreateDatabasePositionRequest
-    # ) -> Union[baseRR.CreateDatabasePositionResponse, None]:
-    #     return self.database.create_position(request)
-
-    # def read_open_db_position_by_strategy_id(
-    #     self, request: baseRR.ReadOpenPositionsByStrategyIDRequest
-    # ) -> Union[baseRR.ReadOpenPositionsByStrategyIDResponse, None]:
-    #     return self.database.read_open_positions_by_strategy_id(request)

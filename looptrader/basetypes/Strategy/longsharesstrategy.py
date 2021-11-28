@@ -191,10 +191,6 @@ class LongSharesStrategy(Strategy, Component):
         ):
             return False
 
-        # Add Order to the DB
-        # db_order_request = baseRR.CreateDatabaseOrderRequest(orderrequest.order)
-        # db_order_response = self.mediator.create_db_order(db_order_request)
-
         # Wait to let the Order process
         time.sleep(self.opening_order_loop_seconds)
 

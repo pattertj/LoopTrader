@@ -558,18 +558,11 @@ class SingleByDeltaStrategy(Strategy, Component):
             return False
 
         # Otherwise, add Position to the DB
-        # if db_order_response is not None:
-        #     for leg in orderrequest.order.legs:
-        #         db_position_request = baseRR.CreateDatabasePositionRequest(
-        #             self.strategy_id,
-        #             leg.symbol,
-        #             leg.quantity,
-        #             True,
-        #             db_order_response.order_id,
-        #             0,
-        #         )
-        # TODO
-        # self.mediator.create_db_position(db_position_request)
+        for leg in orderrequest.order.legs:
+            db_position_request = baseRR.CreateDatabaseOrderRequest(
+                processedorder.order
+            )
+        self.mediator.create_db_order(db_position_request)
 
         # Send a notification
         message = "Sold:<code>"
