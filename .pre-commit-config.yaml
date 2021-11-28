@@ -46,3 +46,9 @@ repos:
     entry: pipenv run pytest --cov --cov-fail-under=10
     types: [python]
     pass_filenames: false
+  
+  - id: pylint
+    name: pylint
+    entry: pylint
+    language: system
+    types: [python]
