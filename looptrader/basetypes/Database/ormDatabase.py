@@ -180,6 +180,34 @@ class ormDatabase(Database):
 
         return response
 
+    def create_strategy(
+        self, request: baseRR.CreateDatabaseStrategyRequest
+    ) -> Union[baseRR.CreateDatabaseStrategyResponse, None]:
+        # sourcery skip: class-extract-method
+        engine = create_engine(self.connection_string)
+        Base.metadata.bind = engine
+        DBSession = sessionmaker(bind=engine)
+        session = DBSession(expire_on_commit=False)
+        response = baseRR.CreateDatabaseStrategyResponse()
+
+        try:
+            session.add(request.strategy)
+            session.commit()
+
+            if request.strategy.id is not None:
+                id: int = request.strategy.id
+                response.id = id
+
+        except Exception as e:
+            print(e)
+            session.rollback()
+            return None
+        finally:
+            session.close()
+            engine.dispose()
+
+        return response
+
     #########
     # Reads #
     #########

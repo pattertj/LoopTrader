@@ -238,7 +238,9 @@ class SetKillSwitchRequestMessage:
 ###################
 @attr.s(auto_attribs=True)
 class CreateDatabaseStrategyRequest:
-    strategy_name: str = attr.ib(validator=attr.validators.instance_of(str))
+    strategy: base.Strategy = attr.ib(
+        validator=attr.validators.instance_of(base.Strategy)
+    )
 
 
 @attr.s(auto_attribs=True, init=False)

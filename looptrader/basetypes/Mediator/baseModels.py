@@ -46,9 +46,12 @@ class OrderLeg:
     leg_id: int = attr.ib(validator=attr.validators.instance_of(int))
 
 
-# class Strategy:
-#     id: Optional[int] = attr.ib(default=None)
-#     name: str = attr.ib(validator=attr.validators.instance_of(str))
+@attr.s(auto_attribs=True, init=False)
+class Strategy:
+    id: Optional[int] = attr.ib(
+        default=None, init=False, validator=attr.validators.instance_of(int)
+    )
+    name: str = attr.ib(validator=attr.validators.instance_of(str))
 
 
 @attr.s(auto_attribs=True, init=False)

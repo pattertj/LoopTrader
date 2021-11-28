@@ -328,7 +328,7 @@ class SingleByDeltaStrategy(Strategy, Component):
         strike: baseRR.GetOptionChainResponseMessage.ExpirationDate.Strike,
         qty: int,
         price: float,
-    ) -> baseRR.PlaceOrderRequestMessage:
+    ) -> baseRR.PlaceOrderRequestMessage:  # sourcery skip: class-extract-method
         """Builds an order request to open a new postion
 
         Args:

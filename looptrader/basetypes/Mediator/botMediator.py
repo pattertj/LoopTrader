@@ -229,11 +229,10 @@ class Bot(Mediator):
 
         return strategies
 
-    # TODO: Fix Strategy
-    # def create_db_strategy(
-    #     self, request: baseRR.CreateDatabaseStrategyRequest
-    # ) -> Union[baseRR.CreateDatabaseStrategyResponse, None]:
-    #     return self.database.create_strategy(request)
+    def create_db_strategy(
+        self, request: baseRR.CreateDatabaseStrategyRequest
+    ) -> Union[baseRR.CreateDatabaseStrategyResponse, None]:
+        return self.database.create_strategy(request)
 
     def create_db_order(
         self, request: baseRR.CreateDatabaseOrderRequest
