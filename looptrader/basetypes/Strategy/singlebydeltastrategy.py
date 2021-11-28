@@ -58,81 +58,99 @@ class SingleByDeltaStrategy(Strategy, Component):
     minutesafteropendelay: int = attr.ib(
         default=3, validator=attr.validators.instance_of(int)
     )
+    early_market_offset: dt.timedelta = attr.ib(
+        default=dt.timedelta(minutes=5),
+        validator=attr.validators.instance_of(dt.timedelta),
+    )
+    late_market_offset: dt.timedelta = attr.ib(
+        default=dt.timedelta(minutes=30),
+        validator=attr.validators.instance_of(dt.timedelta),
+    )
+    after_hours_offset: dt.timedelta = attr.ib(
+        default=dt.timedelta(minutes=5),
+        validator=attr.validators.instance_of(dt.timedelta),
+    )
 
     # Core Strategy Process
     def process_strategy(self):
         """Main entry point to the strategy."""
         logger.debug("processstrategy")
 
-        # Get current datetime
+        # Now
         now = dt.datetime.now().astimezone(dt.timezone.utc)
 
-        # Check if should be sleeping
-        if now < self.sleepuntil:
-            logger.debug("Markets Closed. Sleeping until {}".format(self.sleepuntil))
+        # Check if we should be sleeping
+        if now < self.sleep_until:
             return
 
-        # Check market hours
-        hours = self.get_market_session_loop(dt.datetime.now())
+        # Get Market Hours
+        market = self.get_next_market_hours(date=now, strategy_name=self.strategy_name)
 
-        if hours is None:
-            logger.error("Failed to get market hours, exiting and retrying.")
+        if market is None:
             return
 
-        # If the next market session is not today, wait for it
-        if hours.start.day != now.day:
-            self.sleepuntil = (
-                hours.start
-                + dt.timedelta(minutes=self.minutesafteropendelay)
-                - dt.timedelta(minutes=5)
-            )
-            logger.info(
-                "Markets are closed until {}. Sleeping until {}".format(
-                    hours.start, self.sleepuntil
-                )
-            )
+        # Calculate Market Boundaries
+        core_market_open = market.start + self.early_market_offset
+        core_market_close = market.end - self.late_market_offset
+        # early_after_hours_close = market.end + self.after_hours_offset
+
+        # If the next market open is not today, go to sleep until 60 minutes before market open to allow pre-market logic a chance.
+        if market.start.day != now.day:
+            self.process_closed_market(market.start - dt.timedelta(minutes=60))
             return
 
-        # If Pre-Market
-        if now < hours.start + dt.timedelta(minutes=self.minutesafteropendelay):
-            self.process_pre_market()
-
-        # If In-Market
-        elif (
-            hours.start + dt.timedelta(minutes=self.minutesafteropendelay)
-            < now
-            < hours.end
-        ):
-            self.process_open_market(hours.end, now)
-
+        # Check where we are
+        if now < market.start:
+            # Process Pre-Market
+            self.process_pre_market(market.start)
+        elif market.start < now < core_market_open:
+            # Process Early Open Market
+            self.process_early_open_market()
+        elif core_market_open < now < core_market_close:
+            # Process Core Open Market
+            self.process_core_open_market(market.end, now)
+        # elif core_market_close < now < market.end:
+        #     # Process Late Open Market
+        #     self.process_late_open_market()
+        # elif market.end < now < early_after_hours_close:
+        #     # Process After-Hours
+        #     self.process_early_after_hours()
+        # elif early_after_hours_close < now:
+        #     # Process After-Hours
+        #     self.process_late_after_hours()
         # If After-Hours
-        elif hours.end < now:
-            self.process_after_hours(hours.end, now)
+        elif market.end < now:
+            self.process_after_hours(market.end, now)
 
-    # Process Market
-    def process_pre_market(self):
-        """Pre-Market Trading Logic"""
-        logger.debug("Processing Pre-Market.")
+        return
 
-        # Get Next Open
-        nextmarketsession = self.get_market_session_loop(dt.datetime.now())
+    ###############################
+    ### Closed Market Functions ###
+    ###############################
+    def process_closed_market(self, market_open: dt.datetime):
+        # Sleep until market opens
+        self.sleep_until_market_open(market_open)
+        return
 
-        # Set sleepuntil
-        self.sleepuntil = (
-            nextmarketsession.start
-            + dt.timedelta(minutes=self.minutesafteropendelay)
-            - dt.timedelta(minutes=5)
-        )
+    ############################
+    ### Pre-Market Functions ###
+    ############################
+    def process_pre_market(self, market_open: dt.datetime):
+        # Sleep until market opens
+        self.sleep_until_market_open(market_open)
+        return
 
-        logger.info(
-            "Markets are closed until {}. Sleeping until {}".format(
-                nextmarketsession.start
-                + dt.timedelta(minutes=self.minutesafteropendelay),
-                self.sleepuntil,
-            )
-        )
+    ############################
+    ### Early Open Functions ###
+    ############################
+    def process_early_open_market(self):
+        # Nothing to do.
+        pass
 
-    def process_open_market(self, close: dt.datetime, now: dt.datetime):
+    #################################
+    ### Core Open Hours Functions ###
+    #################################
+    def process_core_open_market(self, close: dt.datetime, now: dt.datetime):
         """Open Market Trading Logic"""
         logger.debug("Processing Open-Market")
 
@@ -157,18 +175,15 @@ class SingleByDeltaStrategy(Strategy, Component):
 
         # If beyond 5 min after close, exit
         if minutesafterclose > 5:
-            # Get Next Open
-            nextmarketsession = self.get_market_session_loop(
-                dt.datetime.now() + dt.timedelta(days=1)
+            # Sleep until market opens
+            market = self.get_next_market_hours(
+                date=now, strategy_name=self.strategy_name
             )
-            # Set sleepuntil
-            self.sleepuntil = nextmarketsession.start - dt.timedelta(minutes=5)
 
-            logger.info(
-                "Markets are closed until {}. Sleeping until {}".format(
-                    nextmarketsession.start, self.sleepuntil
-                )
-            )
+            if market is None:
+                return
+
+            self.sleep_until_market_open(market.start)
             return
 
         # Build closing orders
@@ -576,34 +591,52 @@ class SingleByDeltaStrategy(Strategy, Component):
 
         message += "</code>"
 
-        notification = baseRR.SendNotificationRequestMessage(message)
-
-        self.mediator.send_notification(notification)
+        self.send_notification(message)
 
         # If we got here, return success
         return True
 
-    # Helpers
-    def get_market_session_loop(
-        self, date: dt.datetime
-    ) -> baseRR.GetMarketHoursResponseMessage:
-        """Looping Logic for getting the next open session start and end times"""
+    ########################
+    ### Shared Functions ###
+    ########################
+    def sleep_until_market_open(self, datetime: dt.datetime):
+        # Populate sleep-until variable
+        self.sleep_until = datetime
 
-        logger.debug("get_market_session_loop")
-
-        request = baseRR.GetMarketHoursRequestMessage(
-            self.strategy_name, market="OPTION", product="EQO", datetime=date
+        # Build Message
+        message = (
+            f"Markets are closed until {datetime}. Sleeping until {self.sleep_until}"
         )
 
-        # Get the market hours
-        hours = self.mediator.get_market_hours(request)
+        # Log our sleep
+        logger.info(message)
 
-        # If we didn't get hours, i.e. Weekend or if we are more than 15 minutes past market close, check tomorrow.
-        # The 15 minute check is to allow the after-hours market logic to run
-        if hours is None or hours.end + dt.timedelta(
-            minutes=15
-        ) < dt.datetime.now().astimezone(dt.timezone.utc):
-            return self.get_market_session_loop(date + dt.timedelta(days=1))
+        # Send a notification that we are sleeping
+        self.send_notification(message)
+
+    def get_market_hours(
+        self, date: dt.datetime, strategy_name: str
+    ) -> Union[baseRR.GetMarketHoursResponseMessage, None]:
+        # Build Request
+        request = baseRR.GetMarketHoursRequestMessage(
+            strategy_name, market="OPTION", product="IND", datetime=date
+        )
+
+        # Get Market Hours
+        return self.mediator.get_market_hours(request)
+
+    def get_next_market_hours(
+        self,
+        strategy_name: str,
+        date: dt.datetime = dt.datetime.now().astimezone(dt.timezone.utc),
+    ) -> Union[baseRR.GetMarketHoursResponseMessage, None]:
+        hours = self.get_market_hours(date, strategy_name)
+
+        if hours is None or hours.end < dt.datetime.now().astimezone(dt.timezone.utc):
+            return self.get_next_market_hours(
+                strategy_name, date + dt.timedelta(days=1)
+            )
+
         return hours
 
     @staticmethod
@@ -765,3 +798,13 @@ class SingleByDeltaStrategy(Strategy, Component):
         logger.debug("truncate")
         stepper = 10.0 ** digits
         return math.trunc(stepper * number) / stepper
+
+    ##############################
+    ### Notification Functions ###
+    ##############################
+    def send_notification(self, message: str):
+        # Build Request
+        notification = baseRR.SendNotificationRequestMessage(message)
+
+        # Send notification
+        self.mediator.send_notification(notification)
