@@ -1,5 +1,10 @@
 # See https://pre-commit.com/ for usage and config
 repos:
+- repo: https://github.com/Lucas-C/pre-commit-hooks-bandit
+  rev: v1.0.5
+  hooks:
+  - id: python-bandit-vulnerability-check
+    args: [--skip, "B101", --recursive, clumper]
 - repo: https://github.com/pycqa/isort
   rev: 5.8.0
   hooks:
