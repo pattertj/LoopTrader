@@ -5,12 +5,14 @@ repos:
   hooks:
   - id: python-bandit-vulnerability-check
     args: [--skip, "B101", --recursive, clumper]
+
 - repo: https://github.com/pycqa/isort
   rev: 5.8.0
   hooks:
   - id: isort
     name: isort (python)
     args: ["--profile", "black", "--filter-files"]
+
 - repo: local
   hooks:
   - id: black
