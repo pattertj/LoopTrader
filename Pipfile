@@ -13,7 +13,7 @@ types-pyyaml = "*"
 sqlalchemy = "*"
 
 [dev-packages]
-black = "==21.5b1"
+black = "==21.11b1"
 isort = "*"
 flake8 = "*"
 mypy = "*"
