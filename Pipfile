@@ -21,7 +21,6 @@ mypy = "*"
 pytest = "*"
 pytest-cov = "*"
 pre-commit = "*"
-wemake-python-styleguide = "*"
 
 [requires]
 python_version = "3.9"
