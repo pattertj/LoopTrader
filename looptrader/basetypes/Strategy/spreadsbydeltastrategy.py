@@ -139,7 +139,7 @@ class SpreadsByDeltaStrategy(Strategy, Component):
         logger.debug("build_new_order")
 
         # Get account balance
-        accountrequest = baseRR.GetAccountRequestMessage(self.strategy_name, True, True)
+        accountrequest = baseRR.GetAccountRequestMessage(self.strategy_id, True, True)
         account = self.mediator.get_account(accountrequest)
 
         if account is None:
@@ -157,7 +157,7 @@ class SpreadsByDeltaStrategy(Strategy, Component):
 
         # Get option chain
         chainrequest = baseRR.GetOptionChainRequestMessage(
-            self.strategy_name,
+            self.strategy_id,
             contracttype=self.put_or_call,
             fromdate=startdate,
             todate=enddate,
@@ -225,7 +225,7 @@ class SpreadsByDeltaStrategy(Strategy, Component):
         longleg = self.build_leg(long_strike, qty, "BUY")
 
         orderrequest = baseRR.PlaceOrderRequestMessage()
-        orderrequest.order.strategy = self.strategy_name
+        orderrequest.order.strategy_id = self.strategy_id
         orderrequest.order.order_strategy_type = "SINGLE"
         orderrequest.order.duration = "GOOD_TILL_CANCEL"
         if self.buy_or_sell == "SELL":
@@ -320,7 +320,7 @@ class SpreadsByDeltaStrategy(Strategy, Component):
 
         # Fetch the Order status
         getorderrequest = baseRR.GetOrderRequestMessage(
-            self.strategy_name, int(neworderresult.order_id)
+            self.strategy_id, int(neworderresult.order_id)
         )
         processedorder = self.mediator.get_order(getorderrequest)
 
@@ -331,7 +331,7 @@ class SpreadsByDeltaStrategy(Strategy, Component):
         if processedorder.order.status != "FILLED":
             # Cancel it
             cancelorderrequest = baseRR.CancelOrderRequestMessage(
-                self.strategy_name, int(neworderresult.order_id)
+                self.strategy_id, int(neworderresult.order_id)
             )
             self.mediator.cancel_order(cancelorderrequest)
 
@@ -372,7 +372,7 @@ class SpreadsByDeltaStrategy(Strategy, Component):
         logger.debug("get_market_session_loop")
 
         request = baseRR.GetMarketHoursRequestMessage(
-            self.strategy_name, market="OPTION", product="EQO", datetime=date
+            self.strategy_id, market="OPTION", product="EQO", datetime=date
         )
 
         hours = self.mediator.get_market_hours(request)

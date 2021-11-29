@@ -85,7 +85,7 @@ class SingleByDeltaStrategy(Strategy, Component):
 
         # Get Market Hours
         market_hours = self.get_next_market_hours(
-            date=now, strategy_name=self.strategy_name
+            date=now
         )
 
         if market_hours is None:
@@ -184,7 +184,7 @@ class SingleByDeltaStrategy(Strategy, Component):
         if minutesafterclose > 5:
             # Sleep until market opens
             market = self.get_next_market_hours(
-                date=now, strategy_name=self.strategy_name
+                date=now
             )
 
             if market is None:
@@ -280,7 +280,7 @@ class SingleByDeltaStrategy(Strategy, Component):
 
         # Get account balance
         account = self.mediator.get_account(
-            baseRR.GetAccountRequestMessage(self.strategy_name, False, True)
+            baseRR.GetAccountRequestMessage(self.strategy_id, False, True)
         )
 
         if account is None or not hasattr(account, "positions"):
@@ -336,7 +336,7 @@ class SingleByDeltaStrategy(Strategy, Component):
             baseRR.GetOptionChainRequestMessage: Option chain request message
         """
         return baseRR.GetOptionChainRequestMessage(
-            self.strategy_name,
+            self.strategy_id,
             contracttype=self.put_or_call,
             fromdate=dt.date.today() + dt.timedelta(days=self.minimum_dte),
             todate=dt.date.today() + dt.timedelta(days=self.maximum_dte),
@@ -375,6 +375,7 @@ class SingleByDeltaStrategy(Strategy, Component):
 
         # Build Order
         orderrequest = baseRR.PlaceOrderRequestMessage()
+        orderrequest.order = baseModels.Order()
         orderrequest.order.strategy_id = self.strategy_id
         orderrequest.order.order_strategy_type = "SINGLE"
         orderrequest.order.duration = "GOOD_TILL_CANCEL"
@@ -396,7 +397,7 @@ class SingleByDeltaStrategy(Strategy, Component):
 
         # Get account balance
         accountrequest = baseRR.GetAccountRequestMessage(
-            self.strategy_name, True, False
+            self.strategy_id, True, False
         )
         account = self.mediator.get_account(accountrequest)
 
@@ -411,7 +412,7 @@ class SingleByDeltaStrategy(Strategy, Component):
                 and order.legs[0].position_effect == "CLOSING"
             ):
                 orderrequest = baseRR.CancelOrderRequestMessage(
-                    self.strategy_name, int(order.order_id)
+                    self.strategy_id, int(order.order_id)
                 )
                 orderrequests.append(orderrequest)
 
@@ -426,7 +427,7 @@ class SingleByDeltaStrategy(Strategy, Component):
         orderrequests = []
 
         # Get account balance
-        accountrequest = baseRR.GetAccountRequestMessage(self.strategy_name, True, True)
+        accountrequest = baseRR.GetAccountRequestMessage(self.strategy_id, True, True)
         account = self.mediator.get_account(accountrequest)
 
         if account is None:
@@ -458,7 +459,7 @@ class SingleByDeltaStrategy(Strategy, Component):
                         else:
                             # Cancel current Order
                             cancelorderrequest = baseRR.CancelOrderRequestMessage(
-                                self.strategy_name, int(order.order_id)
+                                self.strategy_id, int(order.order_id)
                             )
                             self.mediator.cancel_order(cancelorderrequest)
 
@@ -483,6 +484,7 @@ class SingleByDeltaStrategy(Strategy, Component):
             leg.instruction = "SELL_TO_CLOSE"
 
         orderrequest = baseRR.PlaceOrderRequestMessage()
+        orderrequest.order = baseModels.Order()
         orderrequest.order.strategy_id = self.strategy_id
         orderrequest.order.order_strategy_type = "SINGLE"
         orderrequest.order.duration = "GOOD_TILL_CANCEL"
@@ -548,7 +550,7 @@ class SingleByDeltaStrategy(Strategy, Component):
 
         # Re-get the Order
         getorderrequest = baseRR.GetOrderRequestMessage(
-            self.strategy_name, int(neworderresult.order_id)
+            self.strategy_id, int(neworderresult.order_id)
         )
         processedorder = self.mediator.get_order(getorderrequest)
 
@@ -562,7 +564,7 @@ class SingleByDeltaStrategy(Strategy, Component):
 
             # Cancel it
             cancelorderrequest = baseRR.CancelOrderRequestMessage(
-                self.strategy_name, int(neworderresult.order_id)
+                self.strategy_id, int(neworderresult.order_id)
             )
             self.mediator.cancel_order(cancelorderrequest)
 
@@ -572,7 +574,7 @@ class SingleByDeltaStrategy(Strategy, Component):
         if processedorder.order.status != "FILLED":
             # Cancel it
             cancelorderrequest = baseRR.CancelOrderRequestMessage(
-                self.strategy_name, int(neworderresult.order_id)
+                self.strategy_id, int(neworderresult.order_id)
             )
             self.mediator.cancel_order(cancelorderrequest)
 
@@ -622,11 +624,11 @@ class SingleByDeltaStrategy(Strategy, Component):
         self.send_notification(message)
 
     def get_market_hours(
-        self, date: dt.datetime, strategy_name: str
+        self, date: dt.datetime
     ) -> Union[baseRR.GetMarketHoursResponseMessage, None]:
         # Build Request
         request = baseRR.GetMarketHoursRequestMessage(
-            strategy_name, market="OPTION", product="IND", datetime=date
+            self.strategy_id, market="OPTION", product="IND", datetime=date
         )
 
         # Get Market Hours
@@ -634,14 +636,12 @@ class SingleByDeltaStrategy(Strategy, Component):
 
     def get_next_market_hours(
         self,
-        strategy_name: str,
         date: dt.datetime = dt.datetime.now().astimezone(dt.timezone.utc),
     ) -> Union[baseRR.GetMarketHoursResponseMessage, None]:
-        hours = self.get_market_hours(date, strategy_name)
+        hours = self.get_market_hours(date)
 
         if hours is None or hours.end < dt.datetime.now().astimezone(dt.timezone.utc):
-            return self.get_next_market_hours(
-                strategy_name, date + dt.timedelta(days=1)
+            return self.get_next_market_hours(date + dt.timedelta(days=1)
             )
 
         return hours

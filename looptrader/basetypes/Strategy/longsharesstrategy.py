@@ -6,6 +6,7 @@ import time
 
 import attr
 import basetypes.Mediator.reqRespTypes as baseRR
+import basetypes.Mediator.baseModels as baseModels
 from basetypes.Component.abstractComponent import Component
 from basetypes.Strategy.abstractStrategy import Strategy
 
@@ -89,7 +90,7 @@ class LongSharesStrategy(Strategy, Component):
         logger.debug("Processing Open-Market")
 
         # Check Current position and account size
-        request = baseRR.GetAccountRequestMessage(self.strategy_name, False, True)
+        request = baseRR.GetAccountRequestMessage(self.strategy_id, False, True)
         account = self.mediator.get_account(request)
 
         if account is None:
@@ -98,7 +99,7 @@ class LongSharesStrategy(Strategy, Component):
 
         # Get Share Price
         quoteRequest = baseRR.GetQuoteRequestMessage(
-            self.strategy_name, [self.underlying]
+            self.strategy_id, [self.underlying]
         )
         share_price = self.mediator.get_quote(quoteRequest)
 
@@ -160,23 +161,24 @@ class LongSharesStrategy(Strategy, Component):
         self.go_to_sleep(now)
 
     def build_order(self, share_delta):
-        order = baseRR.PlaceOrderRequestMessage()
-        order.strategy_name = self.strategy_name
-        order.ordertype = "MARKET"
-        order.orderstrategytype = "SINGLE"
-        order.ordersession = "NORMAL"
-        order.duration = "DAY"
-        order.price = None
+        request = baseRR.PlaceOrderRequestMessage()
+        request.order = baseModels.Order()
+        request.order.strategy_id = self.strategy_id
+        request.order.order_type = "MARKET"
+        request.order.order_strategy_type = "SINGLE"
+        request.order.session = "NORMAL"
+        request.order.duration = "DAY"
+        request.order.price = None
 
-        leg = baseRR.PlaceOrderRequestMessage.Leg()
+        leg = baseModels.OrderLeg()
         leg.instruction = "Buy" if share_delta < 0 else "Sell"
-        leg.assettype = "EQUITY"
+        leg.asset_type = "EQUITY"
         leg.quantity = abs(share_delta)
         leg.symbol = self.underlying
 
-        order.legs = []
-        order.legs.append(leg)
-        return order
+        request.order.legs = []
+        request.order.legs.append(leg)
+        return request
 
     def place_order(self, orderrequest: baseRR.PlaceOrderRequestMessage) -> bool:
         """Method for placing new Orders and handling fills"""
@@ -196,7 +198,7 @@ class LongSharesStrategy(Strategy, Component):
 
         # Re-get the Order
         getorderrequest = baseRR.GetOrderRequestMessage(
-            self.strategy_name, int(neworderresult.order_id)
+            self.strategy_id, int(neworderresult.order_id)
         )
         processedorder = self.mediator.get_order(getorderrequest)
 
@@ -210,7 +212,7 @@ class LongSharesStrategy(Strategy, Component):
 
             # Cancel it
             cancelorderrequest = baseRR.CancelOrderRequestMessage(
-                self.strategy_name, int(neworderresult.order_id)
+                self.strategy_id, int(neworderresult.order_id)
             )
             self.mediator.cancel_order(cancelorderrequest)
 
@@ -220,7 +222,7 @@ class LongSharesStrategy(Strategy, Component):
         if processedorder.order.status != "FILLED":
             # Cancel it
             cancelorderrequest = baseRR.CancelOrderRequestMessage(
-                self.strategy_name, int(neworderresult.order_id)
+                self.strategy_id, int(neworderresult.order_id)
             )
             self.mediator.cancel_order(cancelorderrequest)
 
@@ -271,7 +273,7 @@ class LongSharesStrategy(Strategy, Component):
         logger.debug("get_market_session_loop")
 
         request = baseRR.GetMarketHoursRequestMessage(
-            self.strategy_name, market="OPTION", product="EQO", datetime=date
+            self.strategy_id, market="OPTION", product="EQO", datetime=date
         )
 
         # Get the market hours

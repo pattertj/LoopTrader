@@ -22,7 +22,7 @@ class PlaceOrderResponseMessage:
 class GetOptionChainRequestMessage:
     """Generic request object for retrieving the Option Chain."""
 
-    strategy_name: str = attr.ib(validator=attr.validators.instance_of(str))
+    strategy_id: int = attr.ib(validator=attr.validators.instance_of(int))
     symbol: str = attr.ib(validator=attr.validators.instance_of(str))
     contracttype: str = attr.ib(validator=attr.validators.in_(["CALL", "PUT", "ALL"]))
     includequotes: bool = attr.ib(validator=attr.validators.instance_of(bool))
@@ -83,7 +83,7 @@ class GetOptionChainResponseMessage:
 class GetAccountRequestMessage:
     """Generic request object for retrieving account details."""
 
-    strategy_name: str = attr.ib(validator=attr.validators.instance_of(str))
+    strategy_id: int = attr.ib(validator=attr.validators.instance_of(int))
     orders: bool = attr.ib(validator=attr.validators.instance_of(bool))
     positions: bool = attr.ib(validator=attr.validators.instance_of(bool))
 
@@ -166,7 +166,7 @@ class GetAllAccountsResponseMessage:
 class CancelOrderRequestMessage:
     """Generic request object for cancelling an order."""
 
-    strategy_name: str = attr.ib(validator=attr.validators.instance_of(str))
+    strategy_id: int = attr.ib(validator=attr.validators.instance_of(int))
     orderid: int = attr.ib(validator=attr.validators.instance_of(int))
 
 
@@ -181,7 +181,7 @@ class CancelOrderResponseMessage:
 class GetOrderRequestMessage:
     """Generic request object for reading an order."""
 
-    strategy_name: str = attr.ib(validator=attr.validators.instance_of(str))
+    strategy_id: int = attr.ib(validator=attr.validators.instance_of(int))
     orderid: int = attr.ib(validator=attr.validators.instance_of(int))
 
 
@@ -196,7 +196,7 @@ class GetOrderResponseMessage:
 class GetMarketHoursRequestMessage:
     """Generic request object for getting Market Hours."""
 
-    strategy_name: str = attr.ib(validator=attr.validators.instance_of(str))
+    strategy_id: int = attr.ib(validator=attr.validators.instance_of(int))
     market: str = attr.ib(
         validator=attr.validators.in_(["OPTION", "EQUITY", "FUTURE", "FOREX", "BOND"])
     )
@@ -324,7 +324,7 @@ class ReadDatabaseOrdersByStatusResponse:
 
 @attr.s(auto_attribs=True)
 class GetQuoteRequestMessage:
-    strategy_name: str = attr.ib(validator=attr.validators.instance_of(str))
+    strategy_id: int = attr.ib(validator=attr.validators.instance_of(int))
     instruments: list[str] = attr.ib(validator=attr.validators.instance_of(list))
 
 

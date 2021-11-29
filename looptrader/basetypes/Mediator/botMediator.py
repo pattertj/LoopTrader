@@ -109,7 +109,7 @@ class Bot(Mediator):
     def get_account(
         self, request: baseRR.GetAccountRequestMessage
     ) -> Union[baseRR.GetAccountResponseMessage, None]:
-        broker = self.get_broker(request.strategy_name)
+        broker = self.get_broker(request.strategy_id)
 
         if broker is None:
             return None
@@ -126,13 +126,13 @@ class Bot(Mediator):
         distinct_brokers = list(set(self.brokerstrategy.keys()))
 
         for strategy in distinct_brokers:
-            broker = self.get_broker(strategy.strategy_name)
+            broker = self.get_broker(strategy.strategy_id)
 
             if broker is None:
                 continue
 
             acct_request = baseRR.GetAccountRequestMessage(
-                strategy.strategy_name, request.orders, request.positions
+                strategy.strategy_id, request.orders, request.positions
             )
 
             account = broker.get_account(acct_request)
@@ -145,7 +145,7 @@ class Bot(Mediator):
     def place_order(
         self, request: baseRR.PlaceOrderRequestMessage
     ) -> Union[baseRR.PlaceOrderResponseMessage, None]:
-        broker = self.get_broker(request.order.strategy)
+        broker = self.get_broker(request.order.strategy_id)
 
         if broker is None:
             return None
@@ -155,7 +155,7 @@ class Bot(Mediator):
     def cancel_order(
         self, request: baseRR.CancelOrderRequestMessage
     ) -> Union[baseRR.CancelOrderResponseMessage, None]:
-        broker = self.get_broker(request.strategy_name)
+        broker = self.get_broker(request.strategy_id)
 
         if broker is None:
             return None
@@ -165,7 +165,7 @@ class Bot(Mediator):
     def get_order(
         self, request: baseRR.GetOrderRequestMessage
     ) -> Union[baseRR.GetOrderResponseMessage, None]:
-        broker = self.get_broker(request.strategy_name)
+        broker = self.get_broker(request.strategy_id)
 
         if broker is None:
             return None
@@ -175,7 +175,7 @@ class Bot(Mediator):
     def get_market_hours(
         self, request: baseRR.GetMarketHoursRequestMessage
     ) -> Union[baseRR.GetMarketHoursResponseMessage, None]:
-        broker = self.get_broker(request.strategy_name)
+        broker = self.get_broker(request.strategy_id)
 
         if broker is None:
             return None
@@ -185,7 +185,7 @@ class Bot(Mediator):
     def get_quote(
         self, request: baseRR.GetQuoteRequestMessage
     ) -> Union[baseRR.GetQuoteResponseMessage, None]:
-        broker = self.get_broker(request.strategy_name)
+        broker = self.get_broker(request.strategy_id)
 
         if broker is None:
             return None
@@ -195,7 +195,7 @@ class Bot(Mediator):
     def get_option_chain(
         self, request: baseRR.GetOptionChainRequestMessage
     ) -> Union[baseRR.GetOptionChainResponseMessage, None]:
-        broker = self.get_broker(request.strategy_name)
+        broker = self.get_broker(request.strategy_id)
 
         if broker is None:
             return None
@@ -214,17 +214,17 @@ class Bot(Mediator):
     def resume_bot(self) -> None:
         self.pause = False
 
-    def get_broker(self, strategy_name: str) -> Union[Broker, None]:
+    def get_broker(self, strategy_id: int) -> Union[Broker, None]:
         """Returns the broker object associated to a given strategy
 
         Args:
-            strategy_name (str): Name of the Strategy to search
+            strategy_id (int): Name of the Strategy to search
 
         Returns:
             Broker: Associated Broker object
         """
         for strategy, broker in self.brokerstrategy.items():
-            if strategy.strategy_name == strategy_name:
+            if strategy.strategy_id == strategy_id:
                 return broker
 
         return None
