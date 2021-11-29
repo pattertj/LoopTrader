@@ -24,16 +24,16 @@ if __name__ == "__main__":
     cspstrat = SingleByDeltaStrategy(
         strategy_name="Puts",
         put_or_call="PUT",
-        targetdelta=0.07,
-        mindelta=0.03,
-        profittargetpercent=0.7,
+        target_delta=0.07,
+        min_delta=0.03,
+        profit_target_percent=0.7,
     )
     nakedcalls = SingleByDeltaStrategy(
         strategy_name="Calls",
         put_or_call="CALL",
-        targetdelta=0.02,
-        mindelta=0.01,
-        profittargetpercent=0.78,
+        target_delta=0.02,
+        min_delta=0.01,
+        profit_target_percent=0.78,
     )
     spreadstrat = SpreadsByDeltaStrategy(strategy_name="spreads")
 

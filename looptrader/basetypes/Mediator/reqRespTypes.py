@@ -278,6 +278,18 @@ class UpdateDatabaseOrderResponse:
 # Read by Status #
 ##################
 @attr.s(auto_attribs=True)
+class ReadDatabaseStrategyByNameRequest:
+    name: str = attr.ib(validator=attr.validators.instance_of(str))
+
+
+@attr.s(auto_attribs=True, init=False)
+class ReadDatabaseStrategyByNameResponse:
+    strategy: base.Strategy = attr.ib(
+        validator=attr.validators.instance_of(base.Strategy)
+    )
+
+
+@attr.s(auto_attribs=True)
 class ReadDatabaseOrdersByStatusRequest:
     strategy_id: int = attr.ib(validator=attr.validators.instance_of(int))
     status: str = attr.ib(

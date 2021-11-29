@@ -53,7 +53,7 @@ def test_create_and_update_order():
     queued_order = baseModels.Order()
     queued_order.price = 1.1
     queued_order.status = "QUEUED"
-    queued_order.strategy = 1
+    queued_order.strategy_id = 1
     queued_order.legs = []
 
     leg = baseModels.OrderLeg()

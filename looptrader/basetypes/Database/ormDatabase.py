@@ -46,6 +46,7 @@ class ormDatabase(Database):
             order_activity_table = self.build_order_activity_table()
             order_leg_table = self.build_order_leg_table()
             order_table = self.build_order_table()
+            strategy_table = self.build_strategy_table()
 
             # Map Tables
             mapper_registry.map_imperatively(
@@ -55,6 +56,9 @@ class ormDatabase(Database):
                     "legs": relationship(baseModels.OrderLeg, backref="orders"),
                     "activities": relationship(
                         baseModels.OrderActivity, backref="orders"
+                    ),
+                    "strategy": relationship(
+                        baseModels.Strategy, backref="orders", uselist=False
                     ),
                 },
             )
@@ -71,6 +75,7 @@ class ormDatabase(Database):
             mapper_registry.map_imperatively(
                 baseModels.ExecutionLeg, execution_leg_table
             )
+            mapper_registry.map_imperatively(baseModels.Strategy, strategy_table)
 
             # Create an engine that stores data in the local directory's db file
             engine = create_engine(self.connection_string)
@@ -83,6 +88,14 @@ class ormDatabase(Database):
         except Exception as e:
             print(e)
             return None
+
+    def build_strategy_table(self) -> Table:
+        return Table(
+            "strategies",
+            meta,
+            Column("id", Integer, primary_key=True),
+            Column("name", String(250)),
+        )
 
     def build_order_table(self) -> Table:
         return Table(
@@ -106,7 +119,7 @@ class ormDatabase(Database):
             Column("close_time", DateTime),
             Column("order_id", Integer),
             Column("account_id", Integer),
-            Column("strategy", String(250)),
+            Column("strategy_id", Integer, ForeignKey("strategies.id")),
         )
 
     def build_order_leg_table(self) -> Table:
@@ -233,6 +246,34 @@ class ormDatabase(Database):
             session.commit()
 
             response.orders = result
+        except Exception as e:
+            print(e)
+            session.rollback()
+        finally:
+            session.close()
+            engine.dispose()
+
+        return response
+
+    def read_first_strategy_by_name(
+        self, request: baseRR.ReadDatabaseStrategyByNameRequest
+    ) -> Union[baseRR.ReadDatabaseStrategyByNameResponse, None]:
+        engine = create_engine(self.connection_string)
+        Base.metadata.bind = engine
+        DBSession = sessionmaker(bind=engine)
+        session = DBSession(expire_on_commit=False)
+        response = baseRR.ReadDatabaseStrategyByNameResponse()
+
+        try:
+            result = (
+                session.query(baseModels.Strategy)
+                .filter(baseModels.Strategy.name == request.name)
+                .first()
+            )
+
+            session.commit()
+
+            response.strategy = result
         except Exception as e:
             print(e)
             session.rollback()

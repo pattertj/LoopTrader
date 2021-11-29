@@ -4,6 +4,7 @@ import time
 from typing import Union
 
 import attr
+import basetypes.Mediator.baseModels as baseModels
 import basetypes.Mediator.reqRespTypes as baseRR
 from basetypes.Broker.abstractBroker import Broker
 from basetypes.Database.abstractDatabase import Database
@@ -47,25 +48,32 @@ class Bot(Mediator):
         names = []
 
         for strategy, broker in self.brokerstrategy.items():
+            # Check for Duplicates
             if strategy.strategy_name in names:
                 raise Exception("Duplicate Strategy Name")
 
+            # Assign Strategy and Mediators
             names.append(strategy.strategy_name)
             broker.mediator = self
             strategy.mediator = self
 
             # Check if Strat exists, create it if needed, store the ID
-            result = self.database.read_strategy_by_name(strategy.strategy_name)
+            read_strat_request = baseRR.ReadDatabaseStrategyByNameRequest(
+                strategy.strategy_name
+            )
+            result = self.database.read_first_strategy_by_name(read_strat_request)
 
-            if result == []:
-                request = baseRR.CreateDatabaseStrategyRequest(
-                    strategy_name=strategy.strategy_name
+            if result.strategy is None:
+                base_strategy = baseModels.Strategy()
+                base_strategy.name = strategy.strategy_name
+                create_strat_request = baseRR.CreateDatabaseStrategyRequest(
+                    base_strategy
                 )
                 strategy.strategy_id = self.database.create_strategy(
-                    request
-                ).strategy_id
+                    create_strat_request
+                ).id
             else:
-                strategy.strategy_id = result[0][0]
+                strategy.strategy_id = result.strategy.id
 
     def process_strategies(self):
         # Get the current timestamp

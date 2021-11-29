@@ -23,3 +23,11 @@ class Database(abc.ABC, Component):
         raise NotImplementedError(
             "Each database must implement the 'create_strategy' method."
         )
+
+    @abc.abstractmethod
+    def read_first_strategy_by_name(
+        self, request: baseRR.ReadDatabaseStrategyByNameRequest
+    ) -> Union[baseRR.ReadDatabaseStrategyByNameResponse, None]:
+        raise NotImplementedError(
+            "Each database must implement the 'read_strategy_by_name' method."
+        )

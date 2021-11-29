@@ -24,7 +24,7 @@ class SingleByDeltaStrategy(Strategy, Component):
     underlying: str = attr.ib(
         default="$SPX.X", validator=attr.validators.instance_of(str)
     )
-    portfolioallocationpercent: float = attr.ib(
+    portfolio_allocation_percent: float = attr.ib(
         default=1.0, validator=attr.validators.instance_of(float)
     )
     buy_or_sell: str = attr.ib(
@@ -33,29 +33,29 @@ class SingleByDeltaStrategy(Strategy, Component):
     put_or_call: str = attr.ib(
         default="PUT", validator=attr.validators.in_(["PUT", "CALL"])
     )
-    targetdelta: float = attr.ib(
+    target_delta: float = attr.ib(
         default=-0.07, validator=attr.validators.instance_of(float)
     )
-    mindelta: float = attr.ib(
+    min_delta: float = attr.ib(
         default=-0.03, validator=attr.validators.instance_of(float)
     )
-    minimumdte: int = attr.ib(default=1, validator=attr.validators.instance_of(int))
-    maximumdte: int = attr.ib(default=4, validator=attr.validators.instance_of(int))
-    profittargetpercent: float = attr.ib(
+    minimum_dte: int = attr.ib(default=1, validator=attr.validators.instance_of(int))
+    maximum_dte: int = attr.ib(default=4, validator=attr.validators.instance_of(int))
+    profit_target_percent: float = attr.ib(
         default=0.7, validator=attr.validators.instance_of(float)
     )
-    maxlosscalcpercent: float = attr.ib(
+    max_loss_calc_percent: float = attr.ib(
         default=0.2, validator=attr.validators.instance_of(float)
     )
-    openingorderloopseconds: int = attr.ib(
+    opening_order_loop_seconds: int = attr.ib(
         default=20, validator=attr.validators.instance_of(int)
     )
-    sleepuntil: dt.datetime = attr.ib(
+    sleep_until: dt.datetime = attr.ib(
         init=False,
         default=dt.datetime.now().astimezone(dt.timezone.utc),
         validator=attr.validators.instance_of(dt.datetime),
     )
-    minutesafteropendelay: int = attr.ib(
+    minutes_after_open_delay: int = attr.ib(
         default=3, validator=attr.validators.instance_of(int)
     )
     early_market_offset: dt.timedelta = attr.ib(
@@ -84,31 +84,35 @@ class SingleByDeltaStrategy(Strategy, Component):
             return
 
         # Get Market Hours
-        market = self.get_next_market_hours(date=now, strategy_name=self.strategy_name)
+        next_market_hours = self.get_next_market_hours(
+            date=now, strategy_name=self.strategy_name
+        )
 
-        if market is None:
+        if next_market_hours is None:
             return
 
         # Calculate Market Boundaries
-        core_market_open = market.start + self.early_market_offset
-        core_market_close = market.end - self.late_market_offset
+        next_core_market_open = next_market_hours.start + self.early_market_offset
+        next_core_market_close = next_market_hours.end - self.late_market_offset
         # early_after_hours_close = market.end + self.after_hours_offset
 
         # If the next market open is not today, go to sleep until 60 minutes before market open to allow pre-market logic a chance.
-        if market.start.day != now.day:
-            self.process_closed_market(market.start - dt.timedelta(minutes=60))
+        if next_market_hours.start.day != now.day:
+            self.process_closed_market(
+                next_market_hours.start - dt.timedelta(minutes=60)
+            )
             return
 
         # Check where we are
-        if now < market.start:
+        if now < next_market_hours.start:
             # Process Pre-Market
-            self.process_pre_market(market.start)
-        elif market.start < now < core_market_open:
+            self.process_pre_market(next_market_hours.start)
+        elif next_market_hours.start < now < next_core_market_open:
             # Process Early Open Market
             self.process_early_open_market()
-        elif core_market_open < now < core_market_close:
+        elif next_core_market_open < now < next_core_market_close:
             # Process Core Open Market
-            self.process_core_open_market(market.end, now)
+            self.process_core_open_market(next_market_hours.end, now)
         # elif core_market_close < now < market.end:
         #     # Process Late Open Market
         #     self.process_late_open_market()
@@ -119,8 +123,8 @@ class SingleByDeltaStrategy(Strategy, Component):
         #     # Process After-Hours
         #     self.process_late_after_hours()
         # If After-Hours
-        elif market.end < now:
-            self.process_after_hours(market.end, now)
+        elif next_market_hours.end < now:
+            self.process_after_hours(next_market_hours.end, now)
 
         return
 
@@ -331,8 +335,8 @@ class SingleByDeltaStrategy(Strategy, Component):
         return baseRR.GetOptionChainRequestMessage(
             self.strategy_name,
             contracttype=self.put_or_call,
-            fromdate=dt.date.today() + dt.timedelta(days=self.minimumdte),
-            todate=dt.date.today() + dt.timedelta(days=self.maximumdte),
+            fromdate=dt.date.today() + dt.timedelta(days=self.minimum_dte),
+            todate=dt.date.today() + dt.timedelta(days=self.maximum_dte),
             symbol=self.underlying,
             includequotes=False,
             optionrange="OTM",
@@ -483,7 +487,7 @@ class SingleByDeltaStrategy(Strategy, Component):
         orderrequest.order.session = "NORMAL"
         orderrequest.order.price = self.truncate(
             self.format_order_price(
-                position.averageprice * (1 - float(self.profittargetpercent))
+                position.averageprice * (1 - float(self.profit_target_percent))
             ),
             2,
         )
@@ -537,7 +541,7 @@ class SingleByDeltaStrategy(Strategy, Component):
                 return True
 
         # Wait to let the Order process
-        time.sleep(self.openingorderloopseconds)
+        time.sleep(self.opening_order_loop_seconds)
 
         # Re-get the Order
         getorderrequest = baseRR.GetOrderRequestMessage(
@@ -695,8 +699,8 @@ class SingleByDeltaStrategy(Strategy, Component):
         # Iterate through strikes
         for strike, details in strikes.items():
             # Make sure strike delta is less then our target delta
-            if (abs(details.delta) <= abs(self.targetdelta)) and (
-                abs(details.delta) >= abs(self.mindelta)
+            if (abs(details.delta) <= abs(self.target_delta)) and (
+                abs(details.delta) >= abs(self.min_delta)
             ):
                 # Calculate the total premium for the strike based on our buying power
                 qty = self.calculate_order_quantity(
@@ -749,7 +753,7 @@ class SingleByDeltaStrategy(Strategy, Component):
             position.strikeprice
             * 100
             * position.shortquantity
-            * self.maxlosscalcpercent
+            * self.max_loss_calc_percent
         )
 
     def calculate_order_quantity(
@@ -759,10 +763,10 @@ class SingleByDeltaStrategy(Strategy, Component):
         logger.debug("calculate_order_quantity")
 
         # Calculate max loss per contract
-        max_loss = strike * 100 * float(self.maxlosscalcpercent)
+        max_loss = strike * 100 * float(self.max_loss_calc_percent)
 
         # Calculate max buying power to use
-        balance_to_risk = liquidationvalue * float(self.portfolioallocationpercent)
+        balance_to_risk = liquidationvalue * float(self.portfolio_allocation_percent)
 
         remainingbalance = buyingpower - (liquidationvalue - balance_to_risk)
 
@@ -803,6 +807,9 @@ class SingleByDeltaStrategy(Strategy, Component):
     ### Notification Functions ###
     ##############################
     def send_notification(self, message: str):
+        # Append Strategy Prefix
+        message = f"Strategy {self.strategy_name}({self.strategy_id}): {message}"
+
         # Build Request
         notification = baseRR.SendNotificationRequestMessage(message)
 

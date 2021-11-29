@@ -76,7 +76,7 @@ class Order:
     close_time: datetime = attr.ib(validator=attr.validators.instance_of(datetime))
     account_id: int = attr.ib(validator=attr.validators.instance_of(int))
     order_id: int = attr.ib(validator=attr.validators.instance_of(int))
-    strategy: str = attr.ib(validator=attr.validators.instance_of(str))
+    strategy_id: int = attr.ib(validator=attr.validators.instance_of(int))
     legs: list[OrderLeg] = attr.ib(
         validator=attr.validators.instance_of(list[OrderLeg])
     )
