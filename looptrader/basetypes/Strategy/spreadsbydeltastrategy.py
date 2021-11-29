@@ -225,6 +225,7 @@ class SpreadsByDeltaStrategy(Strategy, Component):
         longleg = self.build_leg(long_strike, qty, "BUY")
 
         orderrequest = baseRR.PlaceOrderRequestMessage()
+        orderrequest.order = baseModels.Order()
         orderrequest.order.strategy_id = self.strategy_id
         orderrequest.order.order_strategy_type = "SINGLE"
         orderrequest.order.duration = "GOOD_TILL_CANCEL"
