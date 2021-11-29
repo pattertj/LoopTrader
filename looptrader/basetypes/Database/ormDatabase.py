@@ -238,7 +238,7 @@ class ormDatabase(Database):
                 session.query(baseModels.Order)
                 .filter(
                     baseModels.Order.status == request.status
-                    and baseModels.Order.strategy == request.strategy_id
+                    and baseModels.Order.strategy_id == request.strategy_id
                 )
                 .all()
             )
@@ -263,6 +263,7 @@ class ormDatabase(Database):
         DBSession = sessionmaker(bind=engine)
         session = DBSession(expire_on_commit=False)
         response = baseRR.ReadDatabaseStrategyByNameResponse()
+        response.strategy = baseModels.Strategy()
 
         try:
             result = (

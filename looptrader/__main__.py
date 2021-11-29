@@ -31,7 +31,7 @@ if __name__ == "__main__":
     nakedcalls = SingleByDeltaStrategy(
         strategy_name="Calls",
         put_or_call="CALL",
-        target_delta=0.02,
+        target_delta=0.03,
         min_delta=0.01,
         profit_target_percent=0.78,
     )
