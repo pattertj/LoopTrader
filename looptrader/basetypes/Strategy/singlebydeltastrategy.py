@@ -84,47 +84,47 @@ class SingleByDeltaStrategy(Strategy, Component):
             return
 
         # Get Market Hours
-        next_market_hours = self.get_next_market_hours(
+        market_hours = self.get_next_market_hours(
             date=now, strategy_name=self.strategy_name
         )
 
-        if next_market_hours is None:
+        if market_hours is None:
             return
 
         # Calculate Market Boundaries
-        next_core_market_open = next_market_hours.start + self.early_market_offset
-        next_core_market_close = next_market_hours.end - self.late_market_offset
-        # early_after_hours_close = market.end + self.after_hours_offset
+        core_market_open = market_hours.start + self.early_market_offset
+        core_market_close = market_hours.end - self.late_market_offset
+        after_hours_close = market_hours.end + self.after_hours_offset
 
         # If the next market open is not today, go to sleep until 60 minutes before market open to allow pre-market logic a chance.
-        if next_market_hours.start.day != now.day:
-            self.process_closed_market(
-                next_market_hours.start - dt.timedelta(minutes=60)
-            )
+        if market_hours.start.day != now.day:
+            self.process_closed_market(market_hours.start - dt.timedelta(minutes=60))
             return
 
         # Check where we are
-        if now < next_market_hours.start:
+        if now < market_hours.start:
             # Process Pre-Market
-            self.process_pre_market(next_market_hours.start)
-        elif next_market_hours.start < now < next_core_market_open:
-            # Process Early Open Market
-            self.process_early_open_market()
-        elif next_core_market_open < now < next_core_market_close:
-            # Process Core Open Market
-            self.process_core_open_market(next_market_hours.end, now)
-        # elif core_market_close < now < market.end:
-        #     # Process Late Open Market
-        #     self.process_late_open_market()
-        # elif market.end < now < early_after_hours_close:
-        #     # Process After-Hours
-        #     self.process_early_after_hours()
-        # elif early_after_hours_close < now:
-        #     # Process After-Hours
-        #     self.process_late_after_hours()
-        # If After-Hours
-        elif next_market_hours.end < now:
-            self.process_after_hours(next_market_hours.end, now)
+            self.process_pre_market(market_hours.start)
+
+        elif market_hours.start < now < core_market_open:
+            # Process Pre-Core Market
+            self.process_pre_core_market()
+
+        elif core_market_open < now < core_market_close:
+            # Process Core Market
+            self.process_core_open_market(market_hours.end, now)
+
+        elif core_market_close < now < market_hours.end:
+            # Process After-Core Market
+            self.process_core_open_market(market_hours.end, now)
+
+        elif market_hours.end < now < after_hours_close:
+            # Process After-Hours
+            self.process_after_hours(market_hours.end, now)
+
+        elif after_hours_close < now:
+            # Process After-Market
+            self.process_after_hours(market_hours.end, now)
 
         return
 
@@ -147,7 +147,7 @@ class SingleByDeltaStrategy(Strategy, Component):
     ############################
     ### Early Open Functions ###
     ############################
-    def process_early_open_market(self):
+    def process_pre_core_market(self):
         # Nothing to do.
         pass
 
@@ -170,6 +170,9 @@ class SingleByDeltaStrategy(Strategy, Component):
         # Process Closing Orders
         self.process_closing_orders(minutestoclose)
 
+    #############################
+    ### After Hours Functions ###
+    #############################
     def process_after_hours(self, close: dt.datetime, now: dt.datetime):
         """After-Hours Trading Logic"""
         logger.debug("Processing After-Hours")
@@ -372,7 +375,7 @@ class SingleByDeltaStrategy(Strategy, Component):
 
         # Build Order
         orderrequest = baseRR.PlaceOrderRequestMessage()
-        orderrequest.order.strategy = self.strategy_name
+        orderrequest.order.strategy_id = self.strategy_id
         orderrequest.order.order_strategy_type = "SINGLE"
         orderrequest.order.duration = "GOOD_TILL_CANCEL"
         orderrequest.order.order_type = "LIMIT"
@@ -480,7 +483,7 @@ class SingleByDeltaStrategy(Strategy, Component):
             leg.instruction = "SELL_TO_CLOSE"
 
         orderrequest = baseRR.PlaceOrderRequestMessage()
-        orderrequest.order.strategy = self.strategy_name
+        orderrequest.order.strategy_id = self.strategy_id
         orderrequest.order.order_strategy_type = "SINGLE"
         orderrequest.order.duration = "GOOD_TILL_CANCEL"
         orderrequest.order.order_type = "LIMIT"
