@@ -550,25 +550,25 @@ class TdaBroker(Broker, Component):
         """Transforms a TDA order dictionary into a LoopTrader order"""
 
         accountorder = baseModels.Order()
-        accountorder.order_strategy_type = order.get("complexOrderStrategyType", None)
-        accountorder.order_type = order.get("orderType", None)
-        accountorder.remaining_quantity = order.get("remainingQuantity", None)
-        accountorder.requested_destination = order.get("requestedDestination", None)
-        accountorder.session = order.get("session", None)
-        accountorder.duration = order.get("duration", None)
-        accountorder.quantity = order.get("quantity", None)
-        accountorder.filled_quantity = order.get("filledQuantity", None)
-        accountorder.price = order.get("price", None)
-        accountorder.order_id = order.get("orderId", None)
-        accountorder.status = order.get("status", None)
+        accountorder.order_strategy_type = order.get("complexOrderStrategyType")
+        accountorder.order_type = order.get("orderType")
+        accountorder.remaining_quantity = order.get("remainingQuantity")
+        accountorder.requested_destination = order.get("requestedDestination")
+        accountorder.session = order.get("session")
+        accountorder.duration = order.get("duration")
+        accountorder.quantity = order.get("quantity")
+        accountorder.filled_quantity = order.get("filledQuantity")
+        accountorder.price = order.get("price")
+        accountorder.order_id = order.get("orderId")
+        accountorder.status = order.get("status")
         accountorder.entered_time = dtime.datetime.strptime(order.get("enteredTime", dtime.datetime), "%Y-%m-%dT%H:%M:%S%z")
-        
-        close = order.get("closeTime", None)
+
+        close = order.get("closeTime")
         if close is not None:
             accountorder.close_time = dtime.datetime.strptime(close, "%Y-%m-%dT%H:%M:%S%z")
-        accountorder.account_id = order.get("accountId", None)
-        accountorder.cancelable = order.get("cancelable", None)
-        accountorder.editable = order.get("editable", None)
+        accountorder.account_id = order.get("accountId")
+        accountorder.cancelable = order.get("cancelable")
+        accountorder.editable = order.get("editable")
         accountorder.legs = []
         return accountorder
 
