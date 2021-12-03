@@ -38,7 +38,9 @@ class ormDatabase(Database):
         self.connection_string = "sqlite:///" + self.db_filename
         self.pre_flight_db_check()
 
-    # Setup Database
+    ##################
+    # Setup Database #
+    ##################
     def pre_flight_db_check(self) -> None:
         try:
             # Create Tables
@@ -132,7 +134,9 @@ class ormDatabase(Database):
             Column("symbol", String(250)),
             Column("description", String(250)),
             Column("instruction", String(250)),
+            Column("leg_id", Integer),
             Column("position_effect", String(250)),
+            Column("put_call", String(250)),
             Column("quantity", Integer),
             Column("order_id", Integer, ForeignKey("orders.id")),
         )
@@ -159,7 +163,7 @@ class ormDatabase(Database):
             Column("mismarked_quantity", Integer),
             Column("price", Float),
             Column("time", DateTime),
-            Column("order_activity_id", Integer, ForeignKey("orderactivities.id")),
+            Column("orderactivity_id", Integer, ForeignKey("orderactivities.id")),
         )
 
     ###########
@@ -176,7 +180,18 @@ class ormDatabase(Database):
         response = baseRR.CreateDatabaseOrderResponse()
 
         try:
+            # Add Order
             session.add(request.order)
+
+            # Add Legs
+            for leg in request.order.legs:
+                session.add(leg)
+
+            # Add Activities
+            for activity in request.order.activities:
+                session.add(activity)
+
+            # Commit Inserts
             session.commit()
 
             if request.order.id is not None:
@@ -241,6 +256,41 @@ class ormDatabase(Database):
                     and baseModels.Order.strategy_id == request.strategy_id
                 )
                 .all()
+            )
+
+            session.commit()
+
+            response.orders = result
+        except Exception as e:
+            print(e)
+            session.rollback()
+        finally:
+            session.close()
+            engine.dispose()
+
+        return response
+
+    def read_active_orders(
+        self, request: baseRR.ReadOpenDatabaseOrdersRequest
+    ) -> baseRR.ReadOpenDatabaseOrdersResponse:
+        engine = create_engine(self.connection_string)
+        Base.metadata.bind = engine
+        DBSession = sessionmaker(bind=engine)
+        session = DBSession(expire_on_commit=False)
+        response = baseRR.ReadOpenDatabaseOrdersResponse()
+        response.orders = []
+
+        try:
+            result = session.query(baseModels.Order).filter(
+                baseModels.Order.status
+                not in [
+                    "REJECTED",
+                    "CANCELED",
+                    "FILLED",
+                    "EXPIRED",
+                    "REPLACED",
+                ]
+                and baseModels.Order.strategy_id == request.strategy_id
             )
 
             session.commit()

@@ -68,9 +68,9 @@ class SpreadsByDeltaStrategy(Strategy, Component):
             logger.error("Failed to get market hours, exiting and retrying.")
             return
 
-        # If the next market session is not today, wait until 30minutes before close
+        # If the next market session is not today, wait until 10 minutes before close
         if hours.start.day != now.day:
-            self.sleepuntil = hours.end - dt.timedelta(minutes=30)
+            self.sleepuntil = hours.end - dt.timedelta(minutes=10)
             logger.info(
                 "Markets are closed until {}. Sleeping until {}".format(
                     hours.start, self.sleepuntil
@@ -79,11 +79,11 @@ class SpreadsByDeltaStrategy(Strategy, Component):
             return
 
         # If Pre-Market
-        if now < (hours.end - dt.timedelta(minutes=30)):
+        if now < (hours.end - dt.timedelta(minutes=10)):
             self.process_pre_market()
 
         # If In-Market
-        elif (hours.end - dt.timedelta(minutes=30)) < now < hours.end:
+        elif (hours.end - dt.timedelta(minutes=10)) < now < hours.end:
             self.process_open_market()
 
     def process_pre_market(self):
@@ -95,7 +95,7 @@ class SpreadsByDeltaStrategy(Strategy, Component):
 
         # Set sleepuntil
         self.sleepuntil = (
-            nextmarketsession.end - dt.timedelta(minutes=30) - dt.timedelta(minutes=5)
+            nextmarketsession.end - dt.timedelta(minutes=10) - dt.timedelta(minutes=5)
         )
 
         logger.info(

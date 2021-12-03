@@ -323,6 +323,18 @@ class ReadDatabaseOrdersByStatusResponse:
 
 
 @attr.s(auto_attribs=True)
+class ReadOpenDatabaseOrdersRequest:
+    strategy_id: int = attr.ib(validator=attr.validators.instance_of(int))
+
+
+@attr.s(auto_attribs=True, init=False)
+class ReadOpenDatabaseOrdersResponse:
+    orders: list[base.Order] = attr.ib(
+        validator=attr.validators.instance_of(list[base.Order])
+    )
+
+
+@attr.s(auto_attribs=True)
 class GetQuoteRequestMessage:
     strategy_id: int = attr.ib(validator=attr.validators.instance_of(int))
     instruments: list[str] = attr.ib(validator=attr.validators.instance_of(list))

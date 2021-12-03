@@ -84,9 +84,7 @@ class SingleByDeltaStrategy(Strategy, Component):
             return
 
         # Get Market Hours
-        market_hours = self.get_next_market_hours(
-            date=now
-        )
+        market_hours = self.get_next_market_hours(date=now)
 
         if market_hours is None:
             return
@@ -154,6 +152,37 @@ class SingleByDeltaStrategy(Strategy, Component):
     #################################
     ### Core Open Hours Functions ###
     #################################
+    def new_core_logic_stub(self):
+        has_open_orders = False
+
+        # Read DB Orders
+        open_orders_request = baseRR.ReadOpenDatabaseOrdersRequest(self.strategy_id)
+        open_orders = self.mediator.read_active_orders(open_orders_request)
+
+        if open_orders is None:
+            logger.error("Read_Open_Orders failed. Please check the logs.")
+            return
+
+        # Iterate through any open Orders
+        for order in open_orders.orders:
+            # Get latest status
+            get_order_req = baseRR.GetOrderRequestMessage(
+                self.strategy_id, order.order_id
+            )
+            latest_order = self.mediator.get_order(get_order_req)
+
+            # Update the DB record
+            create_order_req = baseRR.CreateDatabaseOrderRequest(latest_order)
+            self.mediator.create_db_order(create_order_req)
+
+            # If the Order's status is still open, update our flag
+            if latest_order.order.isActive():
+                has_open_orders = True
+
+        # If this strategy has all orders closed/filled, go place a new Order
+        if not has_open_orders:
+            self.place_new_orders_loop()
+
     def process_core_open_market(self, close: dt.datetime, now: dt.datetime):
         """Open Market Trading Logic"""
         logger.debug("Processing Open-Market")
@@ -183,9 +212,7 @@ class SingleByDeltaStrategy(Strategy, Component):
         # If beyond 5 min after close, exit
         if minutesafterclose > 5:
             # Sleep until market opens
-            market = self.get_next_market_hours(
-                date=now
-            )
+            market = self.get_next_market_hours(date=now)
 
             if market is None:
                 return
@@ -396,9 +423,7 @@ class SingleByDeltaStrategy(Strategy, Component):
         orderrequests = []
 
         # Get account balance
-        accountrequest = baseRR.GetAccountRequestMessage(
-            self.strategy_id, True, False
-        )
+        accountrequest = baseRR.GetAccountRequestMessage(self.strategy_id, True, False)
         account = self.mediator.get_account(accountrequest)
 
         if account is None:
@@ -536,19 +561,10 @@ class SingleByDeltaStrategy(Strategy, Component):
         ):
             return False
 
-        # Add Order to the DB
-        # db_order_request = baseRR.CreateDatabaseOrderRequest(orderrequest.order)
-        # db_order_response = self.mediator.create_db_order(db_order_request)
-
-        # If closing order, let the order ride, otherwise continue logic
-        for leg in orderrequest.order.legs:
-            if leg.position_effect == "CLOSING":
-                return True
-
         # Wait to let the Order process
         time.sleep(self.opening_order_loop_seconds)
 
-        # Re-get the Order
+        # Re-get the Order and append
         getorderrequest = baseRR.GetOrderRequestMessage(
             self.strategy_id, int(neworderresult.order_id)
         )
@@ -570,6 +586,17 @@ class SingleByDeltaStrategy(Strategy, Component):
 
             return False
 
+        # If closing order, add Order to DB and let the order ride, otherwise continue logic
+        for leg in processedorder.order.legs:
+            if leg.position_effect == "CLOSING":
+                # Add Position to the DB
+                db_position_request = baseRR.CreateDatabaseOrderRequest(
+                    processedorder.order
+                )
+                self.mediator.create_db_order(db_position_request)
+                # Return Success
+                return True
+
         # If the order isn't filled
         if processedorder.order.status != "FILLED":
             # Cancel it
@@ -582,10 +609,7 @@ class SingleByDeltaStrategy(Strategy, Component):
             return False
 
         # Otherwise, add Position to the DB
-        for leg in orderrequest.order.legs:
-            db_position_request = baseRR.CreateDatabaseOrderRequest(
-                processedorder.order
-            )
+        db_position_request = baseRR.CreateDatabaseOrderRequest(processedorder.order)
         self.mediator.create_db_order(db_position_request)
 
         # Send a notification
@@ -641,8 +665,7 @@ class SingleByDeltaStrategy(Strategy, Component):
         hours = self.get_market_hours(date)
 
         if hours is None or hours.end < dt.datetime.now().astimezone(dt.timezone.utc):
-            return self.get_next_market_hours(date + dt.timedelta(days=1)
-            )
+            return self.get_next_market_hours(date + dt.timedelta(days=1))
 
         return hours
 

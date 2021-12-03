@@ -134,6 +134,9 @@ class TdaBroker(Broker, Component):
 
         response.order = self.translate_account_order(order)
 
+        # Append StrategyID
+        response.order.strategy_id = request.strategy_id
+
         return response
 
     def get_option_chain(
@@ -329,17 +332,10 @@ class TdaBroker(Broker, Component):
 
         if orders is None:
             return response
-        # tpodo: error catch em
         order: dict
         for order in orders:
             accountorder = self.translate_account_order(order)
-            legs = order.get("orderLegCollection")
-            if legs is not None:
-                for leg in legs:
-                    # Build Leg
-                    accountorderleg = self.translate_account_order_leg(leg)
-                    # Append Leg
-                    accountorder.legs.append(accountorderleg)
+
             # Append Order
             response.append(accountorder)
 
@@ -527,49 +523,112 @@ class TdaBroker(Broker, Component):
 
         return response
 
+    def translate_account_order_activity(
+        self, orderActivity: dict
+    ) -> baseModels.OrderActivity:
+        """Transforms a TDA order activity dictionary into a LoopTrader order leg"""
+        account_order_activity = baseModels.OrderActivity()
+
+        account_order_activity.id = None
+        account_order_activity.activity_type = orderActivity.get("activityType", "")
+        account_order_activity.execution_type = orderActivity.get("executionType", "")
+        account_order_activity.quantity = orderActivity.get("quantity", 0)
+        account_order_activity.order_remaining_quantity = orderActivity.get(
+            "orderRemainingQuantity", 0
+        )
+
+        legs = orderActivity.get("executionLegs")
+        if legs is not None:
+            for leg in legs:
+                # Build Leg
+                accountorderleg = self.translate_account_order_execution_leg(leg)
+                # Append Leg
+                account_order_activity.execution_legs.append(accountorderleg)
+
+        return account_order_activity
+
     @staticmethod
-    def translate_account_order_leg(leg: dict):
+    def translate_account_order_execution_leg(leg: dict) -> baseModels.ExecutionLeg:
+        """Transforms a TDA order execution leg dictionary into a LoopTrader order leg"""
+        account_order_activity = baseModels.ExecutionLeg()
+
+        account_order_activity.id = None
+        account_order_activity.leg_id = leg.get("legId", 0)
+        account_order_activity.mismarked_quantity = leg.get("mismarkedQuantity", 0)
+        account_order_activity.price = leg.get("price", 0.0)
+        account_order_activity.quantity = leg.get("quantity", 0)
+        account_order_activity.time = dtime.datetime.strptime(
+            leg.get("time", dtime.datetime), "%Y-%m-%dT%H:%M:%S%z"
+        )
+
+        return account_order_activity
+
+    @staticmethod
+    def translate_account_order_leg(leg: dict) -> baseModels.OrderLeg:
         """Transforms a TDA order leg dictionary into a LoopTrader order leg"""
         accountorderleg = baseModels.OrderLeg()
-        accountorderleg.leg_id = leg.get("legId", int)
-        accountorderleg.instruction = leg.get("instruction", str)
-        accountorderleg.position_effect = leg.get("positionEffect", str)
-        accountorderleg.quantity = leg.get("quantity", int)
+        accountorderleg.leg_id = leg.get("legId", 0)
+        accountorderleg.instruction = leg.get("instruction", "")
+        accountorderleg.position_effect = leg.get("positionEffect", "")
+        accountorderleg.quantity = leg.get("quantity", 0)
 
-        instrument = leg.get("instrument", dict)
+        instrument = leg.get("instrument")
 
         if instrument is not None:
-            accountorderleg.cusip = instrument.get("cusip")
-            accountorderleg.symbol = instrument.get("symbol")
-            accountorderleg.description = instrument.get("description")
-            accountorderleg.put_call = instrument.get("putCall")
+            accountorderleg.cusip = instrument.get("cusip", None)
+            accountorderleg.symbol = instrument.get("symbol", None)
+            accountorderleg.description = instrument.get("description", None)
+            accountorderleg.put_call = instrument.get("putCall", None)
         return accountorderleg
 
-    @staticmethod
-    def translate_account_order(order: dict):
+    def translate_account_order(self, order: dict) -> baseModels.Order:
         """Transforms a TDA order dictionary into a LoopTrader order"""
 
         accountorder = baseModels.Order()
-        accountorder.order_strategy_type = order.get("complexOrderStrategyType", None)
-        accountorder.order_type = order.get("orderType", None)
-        accountorder.remaining_quantity = order.get("remainingQuantity", None)
-        accountorder.requested_destination = order.get("requestedDestination", None)
-        accountorder.session = order.get("session", None)
-        accountorder.duration = order.get("duration", None)
-        accountorder.quantity = order.get("quantity", None)
-        accountorder.filled_quantity = order.get("filledQuantity", None)
-        accountorder.price = order.get("price", None)
-        accountorder.order_id = order.get("orderId", None)
-        accountorder.status = order.get("status", None)
-        accountorder.entered_time = dtime.datetime.strptime(order.get("enteredTime", dtime.datetime), "%Y-%m-%dT%H:%M:%S%z")
-        
-        close = order.get("closeTime", None)
+        accountorder.order_strategy_type = order.get("complexOrderStrategyType", "")
+        accountorder.order_type = order.get("orderType", "")
+        accountorder.remaining_quantity = order.get("remainingQuantity", 0)
+        accountorder.requested_destination = order.get("requestedDestination", "")
+        accountorder.session = order.get("session", "")
+        accountorder.duration = order.get("duration", "")
+        accountorder.quantity = order.get("quantity", 0)
+        accountorder.filled_quantity = order.get("filledQuantity", 0)
+        accountorder.price = order.get("price", 0.0)
+        accountorder.order_id = order.get("orderId", 0)
+        accountorder.status = order.get("status", "")
+        accountorder.entered_time = dtime.datetime.strptime(
+            order.get("enteredTime", dtime.datetime), "%Y-%m-%dT%H:%M:%S%z"
+        )
+
+        close = order.get("closeTime")
         if close is not None:
-            accountorder.close_time = dtime.datetime.strptime(close, "%Y-%m-%dT%H:%M:%S%z")
-        accountorder.account_id = order.get("accountId", None)
-        accountorder.cancelable = order.get("cancelable", None)
-        accountorder.editable = order.get("editable", None)
+            accountorder.close_time = dtime.datetime.strptime(
+                close, "%Y-%m-%dT%H:%M:%S%z"
+            )
+        accountorder.account_id = order.get("accountId", 0)
+        accountorder.cancelable = order.get("cancelable", False)
+        accountorder.editable = order.get("editable", False)
         accountorder.legs = []
+
+        legs = order.get("orderLegCollection")
+        if legs is not None:
+            for leg in legs:
+                # Build Leg
+                accountorderleg = self.translate_account_order_leg(leg)
+                accountorderleg.order_id = accountorder.order_id
+                # Append Leg
+                accountorder.legs.append(accountorderleg)
+
+        activities = order.get("orderActivityCollection")
+        if activities is not None:
+            for activity in activities:
+                # Build Leg
+                accountorderactivity = self.translate_account_order_activity(activity)
+                accountorderactivity.order_id = accountorder.order_id
+
+                # Append Leg
+                accountorder.activities.append(accountorderactivity)
+
         return accountorder
 
     @staticmethod

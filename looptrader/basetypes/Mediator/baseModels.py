@@ -14,6 +14,7 @@ class ExecutionLeg:
     mismarked_quantity: int = attr.ib(validator=attr.validators.instance_of(int))
     price: float = attr.ib(validator=attr.validators.instance_of(float))
     time: datetime = attr.ib(validator=attr.validators.instance_of(datetime))
+    orderactivity_id: int = attr.ib(validator=attr.validators.instance_of(int))
 
 
 @attr.s(auto_attribs=True, init=False)
@@ -25,6 +26,7 @@ class OrderActivity:
     execution_type: str = attr.ib(validator=attr.validators.instance_of(str))
     quantity: int = attr.ib(validator=attr.validators.instance_of(int))
     order_remaining_quantity: int = attr.ib(validator=attr.validators.instance_of(int))
+    order_id: int = attr.ib(validator=attr.validators.instance_of(int))
     execution_legs: list[ExecutionLeg] = attr.ib(
         validator=attr.validators.instance_of(list[ExecutionLeg])
     )
@@ -44,6 +46,7 @@ class OrderLeg:
     put_call: str = attr.ib(validator=attr.validators.instance_of(str))
     quantity: int = attr.ib(validator=attr.validators.instance_of(int))
     leg_id: int = attr.ib(validator=attr.validators.instance_of(int))
+    order_id: int = attr.ib(validator=attr.validators.instance_of(int))
 
 
 @attr.s(auto_attribs=True, init=False)
@@ -83,3 +86,12 @@ class Order:
     activities: list[OrderActivity] = attr.ib(
         validator=attr.validators.instance_of(list[OrderActivity])
     )
+
+    def isActive(self):
+        return self.status not in [
+            "REJECTED",
+            "CANCELED",
+            "FILLED",
+            "EXPIRED",
+            "REPLACED",
+        ]
