@@ -578,6 +578,15 @@ class TdaBroker(Broker, Component):
             accountorderleg.cusip = instrument.get("cusip", None)
             accountorderleg.symbol = instrument.get("symbol", None)
             accountorderleg.description = instrument.get("description", None)
+
+            if accountorderleg.description is not None:
+                match = re.search(
+                    r"([A-Z]{1}[a-z]{2} \d{2} \d{4})", accountorderleg.description
+                )
+                if match is not None:
+                    dt = dtime.datetime.strptime(match.group(), "%b %d %Y")
+                accountorderleg.expirationdate = dt.date()
+
             accountorderleg.put_call = instrument.get("putCall", None)
         return accountorderleg
 
