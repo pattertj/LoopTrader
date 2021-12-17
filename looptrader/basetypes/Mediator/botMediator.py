@@ -247,6 +247,11 @@ class Bot(Mediator):
     ) -> Union[baseRR.CreateDatabaseOrderResponse, None]:
         return self.database.create_order(request)
 
+    def update_db_order(
+        self, request: baseRR.UpdateDatabaseOrderRequest
+    ) -> Union[baseRR.UpdateDatabaseOrderResponse, None]:
+        return self.database.update_order(request)
+
     def read_active_orders(
         self, request: baseRR.ReadOpenDatabaseOrdersRequest
     ) -> Union[baseRR.ReadOpenDatabaseOrdersResponse, None]:

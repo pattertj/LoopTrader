@@ -1,7 +1,7 @@
-import os
+# import os
 
-from basetypes.Database.ormDatabase import ormDatabase
-from basetypes.Mediator import baseModels, reqRespTypes
+# from basetypes.Database.ormDatabase import ormDatabase
+# from basetypes.Mediator import baseModels, reqRespTypes
 
 # def test_create_and_read_order():
 #     if os.path.exists("testdb.db"):
@@ -44,40 +44,40 @@ from basetypes.Mediator import baseModels, reqRespTypes
 #         os.remove("testdb.db")
 
 
-def test_create_and_update_order():
-    if os.path.exists("testdb.db"):
-        os.remove("testdb.db")
+# def test_create_and_update_order():
+#     if os.path.exists("testdb.db"):
+#         os.remove("testdb.db")
 
-    db = ormDatabase("testdb.db")
+#     db = ormDatabase("testdb.db")
 
-    queued_order = baseModels.Order()
-    queued_order.price = 1.1
-    queued_order.status = "QUEUED"
-    queued_order.strategy_id = 1
-    queued_order.legs = []
+#     queued_order = baseModels.Order()
+#     queued_order.price = 1.1
+#     queued_order.status = "QUEUED"
+#     queued_order.strategy_id = 1
+#     queued_order.legs = []
 
-    leg = baseModels.OrderLeg()
-    leg.put_call = "PUT"
-    leg.quantity = 4
-    leg.symbol = "SPX"
+#     leg = baseModels.OrderLeg()
+#     leg.put_call = "PUT"
+#     leg.quantity = 4
+#     leg.symbol = "SPX"
 
-    queued_order.legs.append(leg)
+#     queued_order.legs.append(leg)
 
-    queued_request = reqRespTypes.CreateDatabaseOrderRequest(queued_order)
+#     queued_request = reqRespTypes.CreateDatabaseOrderRequest(queued_order)
 
-    db.create_order(queued_request)
+#     db.create_order(queued_request)
 
-    read_request = reqRespTypes.ReadDatabaseOrdersByStatusRequest(1, "QUEUED")
-    old_order = db.read_order_by_status(read_request)
+#     read_request = reqRespTypes.ReadDatabaseOrdersByStatusRequest(1, "QUEUED")
+#     old_order = db.read_order_by_status(read_request)
 
-    old_order.orders[0].status = "FILLED"
+#     old_order.orders[0].status = "FILLED"
 
-    update_request = reqRespTypes.UpdateDatabaseOrderRequest(old_order.orders[0])
-    db.update_order(update_request)
+#     update_request = reqRespTypes.UpdateDatabaseOrderRequest(old_order.orders[0])
+#     db.update_order(update_request)
 
-    read_request = reqRespTypes.ReadDatabaseOrdersByStatusRequest(1, "FILLED")
-    new_order = db.read_order_by_status(read_request)
+#     read_request = reqRespTypes.ReadDatabaseOrdersByStatusRequest(1, "FILLED")
+#     new_order = db.read_order_by_status(read_request)
 
-    assert len(new_order.orders) == 1
+#     assert len(new_order.orders) == 1
 
-    os.remove("testdb.db")
+#     os.remove("testdb.db")

@@ -46,10 +46,10 @@ repos:
     types: [python]
     pass_filenames: false
 
-  - id: pytest-cov
-    name: pytest
-    stages: [push]
-    language: system
-    entry: pipenv run pytest --cov --cov-fail-under=10
-    types: [python]
-    pass_filenames: false
+  # - id: pytest-cov
+  #   name: pytest
+  #   stages: [push]
+  #   language: system
+  #   entry: pipenv run pytest --cov --cov-fail-under=10
+  #   types: [python]
+  #   pass_filenames: false

@@ -99,6 +99,8 @@ class SingleByDeltaStrategy(Strategy, Component):
             self.process_closed_market(market_hours.start - dt.timedelta(minutes=60))
             return
 
+        self.new_core_logic_stub()
+
         # Check where we are
         if now < market_hours.start:
             # Process Pre-Market
@@ -170,14 +172,17 @@ class SingleByDeltaStrategy(Strategy, Component):
                 self.strategy_id, order.order_id
             )
             latest_order = self.mediator.get_order(get_order_req)
+            latest_order.order.id = order.id
 
             # Update the DB record
-            create_order_req = baseRR.CreateDatabaseOrderRequest(latest_order)
-            self.mediator.create_db_order(create_order_req)
+            create_order_req = baseRR.UpdateDatabaseOrderRequest(latest_order.order)
+            self.mediator.update_db_order(create_order_req)
 
             # If the Order's status is still open, update our flag
             if latest_order.order.isActive():
                 has_open_orders = True
+
+        logger.debug(f"Strategy Has {'' if has_open_orders else 'No'} Open Orders")
 
         # If this strategy has all orders closed/filled, go place a new Order
         if not has_open_orders:
@@ -186,6 +191,9 @@ class SingleByDeltaStrategy(Strategy, Component):
     def process_core_open_market(self, close: dt.datetime, now: dt.datetime):
         """Open Market Trading Logic"""
         logger.debug("Processing Open-Market")
+
+        # Test New Logic
+        self.new_core_logic_stub()
 
         # Get the number of minutes till close
         minutestoclose = (close - now).total_seconds() / 60
@@ -231,7 +239,7 @@ class SingleByDeltaStrategy(Strategy, Component):
         for order in closingorders:
             self.place_order(order)
 
-        logger.info("Placed {} Closing Orders".format(len(closingorders)))
+        logger.info(f"Placed {len(closingorders)} Closing Orders")
 
     def process_expiring_positions(self, minutestoclose):
         """Expiring Open Positions Trading Logic"""
@@ -252,22 +260,22 @@ class SingleByDeltaStrategy(Strategy, Component):
         """Closing Orders Trading Logic"""
         logger.debug("process_closing_orders")
         # If 15min from close
-        if minutestoclose < 15:
-            # Cancel closing orders
-            cancellingorders = self.build_cancel_closing_orders()
+        # if minutestoclose < 15:
+        #     # Cancel closing orders
+        #     cancellingorders = self.build_cancel_closing_orders()
 
-            # Place cancel orders
-            if cancellingorders is not None:
-                for order in cancellingorders:
-                    self.mediator.cancel_order(order)
-        else:
-            # Check for closing orders on open positions, and open orders if needed
-            closingorders = self.build_closing_orders()
+        #     # Place cancel orders
+        #     if cancellingorders is not None:
+        #         for order in cancellingorders:
+        #             self.mediator.cancel_order(order)
+        # else:
+        # Check for closing orders on open positions, and open orders if needed
+        closingorders = self.build_closing_orders()
 
-            # Place Closing Orders
-            if closingorders is not None:
-                for order in closingorders:
-                    self.place_order(order)
+        # Place Closing Orders
+        if closingorders is not None:
+            for order in closingorders:
+                self.place_order(order)
 
     # Order Builders
     def build_offsetting_orders(self) -> list[baseRR.PlaceOrderRequestMessage]:
@@ -573,9 +581,7 @@ class SingleByDeltaStrategy(Strategy, Component):
         if processedorder is None:
             # Log the Error
             logger.error(
-                "Failed to get re-get placed order, ID: {}.".format(
-                    neworderresult.order_id
-                )
+                f"Failed to get re-get placed order, ID: {neworderresult.order_id}."
             )
 
             # Cancel it
@@ -614,14 +620,10 @@ class SingleByDeltaStrategy(Strategy, Component):
 
         # Send a notification
         message = "Sold:<code>"
+        price = "{:,.2f}".format(orderrequest.order.price)
 
         for leg in orderrequest.order.legs:
-            message += "\r\n - {}x {} @ ${}".format(
-                str(leg.quantity),
-                str(leg.symbol),
-                "{:,.2f}".format(orderrequest.order.price),
-            )
-
+            message += f"\r\n - {leg.quantity}x {leg.symbol} @ ${price}"
         message += "</code>"
 
         self.send_notification(message)

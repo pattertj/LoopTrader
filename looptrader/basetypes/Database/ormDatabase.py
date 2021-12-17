@@ -281,16 +281,15 @@ class ormDatabase(Database):
         response.orders = []
 
         try:
-            result = session.query(baseModels.Order).filter(
-                baseModels.Order.status
-                not in [
-                    "REJECTED",
-                    "CANCELED",
-                    "FILLED",
-                    "EXPIRED",
-                    "REPLACED",
-                ]
-                and baseModels.Order.strategy_id == request.strategy_id
+            result = (
+                session.query(baseModels.Order)
+                .filter(baseModels.Order.strategy_id == request.strategy_id)
+                .filter(baseModels.Order.status != "REJECTED")
+                .filter(baseModels.Order.status != "CANCELED")
+                .filter(baseModels.Order.status != "FILLED")
+                .filter(baseModels.Order.status != "EXPIRED")
+                .filter(baseModels.Order.status != "REPLACED")
+                .all()
             )
 
             session.commit()
@@ -337,19 +336,29 @@ class ormDatabase(Database):
     ###########
     # Updates #
     ###########
-    def update_order(self, request: baseRR.UpdateDatabaseOrderRequest):
+    def update_order(
+        self, request: baseRR.UpdateDatabaseOrderRequest
+    ) -> Union[baseRR.UpdateDatabaseOrderResponse, None]:
+        # sourcery skip: class-extract-method
         engine = create_engine(self.connection_string)
         Base.metadata.bind = engine
         DBSession = sessionmaker(bind=engine)
         session = DBSession(expire_on_commit=False)
-        response = baseRR.CreateDatabaseOrderResponse()
-
-        # Validate Request
-        if not isinstance(request.order.id, int):
-            raise ValueError("Invalid Order ID.")
+        response = baseRR.UpdateDatabaseOrderResponse()
 
         try:
-            session.add(request.order)
+            # Add Order
+            session.merge(request.order)
+
+            # Add Legs
+            for leg in request.order.legs:
+                session.merge(leg)
+
+            # Add Activities
+            for activity in request.order.activities:
+                session.merge(activity)
+
+            # Commit Inserts
             session.commit()
 
             if request.order.id is not None:

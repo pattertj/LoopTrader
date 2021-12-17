@@ -17,6 +17,14 @@ class Database(abc.ABC, Component):
         )
 
     @abc.abstractmethod
+    def update_order(
+        self, request: baseRR.UpdateDatabaseOrderRequest
+    ) -> Union[baseRR.UpdateDatabaseOrderResponse, None]:
+        raise NotImplementedError(
+            "Each database must implement the 'update_order' method."
+        )
+
+    @abc.abstractmethod
     def create_strategy(
         self, request: baseRR.CreateDatabaseStrategyRequest
     ) -> Union[baseRR.CreateDatabaseStrategyResponse, None]:

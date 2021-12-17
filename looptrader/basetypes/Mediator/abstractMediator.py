@@ -110,6 +110,14 @@ class Mediator(abc.ABC):
             "Each mediator must implement the 'create_db_order' method."
         )
 
+    @abc.abstractmethod
+    def update_db_order(
+        self, request: baseRR.UpdateDatabaseOrderRequest
+    ) -> Union[baseRR.UpdateDatabaseOrderResponse, None]:
+        raise NotImplementedError(
+            "Each mediator must implement the 'update_db_order' method."
+        )
+
     def get_quote(
         self, request: baseRR.GetQuoteRequestMessage
     ) -> Union[baseRR.GetQuoteResponseMessage, None]:
