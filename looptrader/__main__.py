@@ -33,7 +33,7 @@ if __name__ == "__main__":
         put_or_call="CALL",
         target_delta=0.03,
         min_delta=0.01,
-        profit_target_percent=0.78,
+        profit_target_percent=0.83,
     )
     spreadstrat = SpreadsByDeltaStrategy(strategy_name="spreads")
 

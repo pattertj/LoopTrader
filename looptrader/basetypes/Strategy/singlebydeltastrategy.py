@@ -185,14 +185,16 @@ class SingleByDeltaStrategy(Strategy, Component):
         if not has_open_orders:
             self.place_new_orders_loop()
 
-        # # Else, check expirations
-        # else:
-        #     for order in current_orders:
-        #         # Check if the position expires today
-        #         if order.legs[0].expirationdate == dt.date.today():
-        #             # Offset
-        #             # Open a new position
-        #             self.place_new_orders_loop()
+        # Else, check expirations
+        else:
+            for order in current_orders:
+                # Check if the position expires today
+                if order.legs[0].expiration_date == dt.date.today():
+                    # Offset
+                    self.place_offsetting_order_loop(order.quantity)
+
+                    # Open a new position
+                    self.place_new_orders_loop()
 
     #############################
     ### After Hours Functions ###
@@ -239,7 +241,9 @@ class SingleByDeltaStrategy(Strategy, Component):
             return None
 
         # Get option chain
-        chainrequest = self.build_option_chain_request()
+        min_date = dt.date.today() + dt.timedelta(days=self.minimum_dte)
+        max_date = dt.date.today() + dt.timedelta(days=self.maximum_dte)
+        chainrequest = self.build_option_chain_request(min_date, max_date)
 
         chain = self.mediator.get_option_chain(chainrequest)
 
@@ -280,11 +284,44 @@ class SingleByDeltaStrategy(Strategy, Component):
         # Return Order
         return self.build_opening_order_request(strike, qty, formattedprice)
 
+    def build_offsetting_order(
+        self, qty: int
+    ) -> Union[baseRR.PlaceOrderRequestMessage, None]:
+        """Trading Logic for building Offsetting Order Request Messages"""
+        logger.debug("build_offsetting_order")
+
+        # Get option chain
+        chainrequest = self.build_option_chain_request(dt.date.today(), dt.date.today())
+        chain = self.mediator.get_option_chain(chainrequest)
+
+        if chain is None:
+            logger.error("Failed to get Option Chain.")
+            return None
+
+        # Find next expiration
+        if self.put_or_call == "CALL":
+            expiration = chain.callexpdatemap[0]
+        elif self.put_or_call == "PUT":
+            expiration = chain.putexpdatemap[0]
+
+        # Find best strike to trade
+        strike = self.get_offsetting_strike(expiration.strikes)
+
+        if strike is None:
+            logger.error("Failed to get Offsetting Strike.")
+            return None
+
+        # Return Order
+        return self.build_opening_order_request(
+            strike, qty, strike.ask, offsetting=True
+        )
+
     def build_opening_order_request(
         self,
         strike: baseRR.GetOptionChainResponseMessage.ExpirationDate.Strike,
         qty: int,
         price: float,
+        offsetting: bool = False,
     ) -> baseRR.PlaceOrderRequestMessage:  # sourcery skip: class-extract-method
         """Builds an order request to open a new postion
 
@@ -303,10 +340,15 @@ class SingleByDeltaStrategy(Strategy, Component):
         leg.quantity = qty
         leg.position_effect = "OPENING"
 
-        if self.buy_or_sell == "SELL":
-            leg.instruction = "SELL_TO_OPEN"
-        else:
+        if (
+            offsetting
+            and self.buy_or_sell == "SELL"
+            or not offsetting
+            and self.buy_or_sell != "SELL"
+        ):
             leg.instruction = "BUY_TO_OPEN"
+        else:
+            leg.instruction = "SELL_TO_OPEN"
 
         # Build Order
         orderrequest = baseRR.PlaceOrderRequestMessage()
@@ -365,6 +407,26 @@ class SingleByDeltaStrategy(Strategy, Component):
         )
         # Send Request
         self.mediator.cancel_order(cancelorderrequest)
+
+    def place_offsetting_order_loop(self, qty: int) -> None:
+        # Build Order
+        offsetting_order_request = self.build_offsetting_order(qty)
+
+        # If neworder is None, exit.
+        if offsetting_order_request is None:
+            return
+
+        # Place the order and check the result
+        result = self.place_order(offsetting_order_request)
+
+        # If successful, return
+        if result:
+            return
+
+        # Otherwise, try again
+        self.place_offsetting_order_loop(qty)
+
+        return
 
     def place_new_orders_loop(self) -> None:
         """Looping Logic for placing new orders"""
@@ -497,15 +559,14 @@ class SingleByDeltaStrategy(Strategy, Component):
     ####################
     ### Option Chain ###
     ####################
-    def build_option_chain_request(self) -> baseRR.GetOptionChainRequestMessage:
+    def build_option_chain_request(
+        self, min_date, max_date
+    ) -> baseRR.GetOptionChainRequestMessage:
         """Builds the option chain request message.
 
         Returns:
             baseRR.GetOptionChainRequestMessage: Option chain request message
         """
-        min_date = dt.date.today() + dt.timedelta(days=self.minimum_dte)
-        max_date = dt.date.today() + dt.timedelta(days=self.maximum_dte)
-
         return baseRR.GetOptionChainRequestMessage(
             self.strategy_id,
             contracttype=self.put_or_call,
@@ -573,6 +634,29 @@ class SingleByDeltaStrategy(Strategy, Component):
 
         # Return the strike with the highest premium
         return beststrike
+
+    def get_offsetting_strike(
+        self,
+        strikes: dict[
+            float, baseRR.GetOptionChainResponseMessage.ExpirationDate.Strike
+        ],
+    ) -> Union[baseRR.GetOptionChainResponseMessage.ExpirationDate.Strike, None]:
+        """Searches an option chain for the optimal strike."""
+        logger.debug("get_offsetting_strike")
+        # Set Variables
+        max_strike = strikes[0].strike
+        best_strike = strikes[0]
+
+        # Iterate through strikes, select the largest strike with a minimum ask price over 0
+        for strike, details in strikes.items():
+            if 0 < details.ask < best_strike.ask or (
+                details.ask == best_strike.ask and strike > max_strike
+            ):
+                max_strike = strike
+                best_strike = details
+
+        # Return the strike with the highest premium
+        return best_strike
 
     ####################
     ### Market Hours ###

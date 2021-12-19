@@ -47,7 +47,7 @@ class OrderLeg:
     quantity: int = attr.ib(validator=attr.validators.instance_of(int))
     leg_id: int = attr.ib(validator=attr.validators.instance_of(int))
     order_id: int = attr.ib(validator=attr.validators.instance_of(int))
-    expirationdate: date = attr.ib(validator=attr.validators.instance_of(date))
+    expiration_date: date = attr.ib(validator=attr.validators.instance_of(date))
 
 
 @attr.s(auto_attribs=True, init=False)

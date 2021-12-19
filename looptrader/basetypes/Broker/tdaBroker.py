@@ -585,7 +585,7 @@ class TdaBroker(Broker, Component):
                 )
                 if match is not None:
                     dt = dtime.datetime.strptime(match.group(), "%b %d %Y")
-                accountorderleg.expirationdate = dt.date()
+                    accountorderleg.expiration_date = dt.date()
 
             accountorderleg.put_call = instrument.get("putCall", None)
         return accountorderleg
