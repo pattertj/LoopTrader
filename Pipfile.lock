@@ -101,11 +101,11 @@
         },
         "charset-normalizer": {
             "hashes": [
-                "sha256:735e240d9a8506778cd7a453d97e817e536bb1fc29f4f6961ce297b9c7a917b0",
-                "sha256:83fcdeb225499d6344c8f7f34684c2981270beacc32ede2e669e94f7fa544405"
+                "sha256:1eecaa09422db5be9e29d7fc65664e6c33bd06f9ced7838578ba40d58bdf3721",
+                "sha256:b0b883e8e874edfdece9c28f314e3dd5badf067342e42fb162203335ae61aa2c"
             ],
             "markers": "python_version >= '3'",
-            "version": "==2.0.8"
+            "version": "==2.0.9"
         },
         "click": {
             "hashes": [
@@ -346,11 +346,11 @@
         },
         "python-telegram-bot": {
             "hashes": [
-                "sha256:44603dad5182f366c576d8c4a1a8f1e45d294621d712ff34ef1ae1b1b14de05d",
-                "sha256:b06691e55c35943267ee636d9aa702b3579155d2f32e0e2d6d7f11f0b5e727f0"
+                "sha256:512d7a84f4bf4e59b7acaf87a38e29c60f65a2717ebf6455b4d66fd058326b1b",
+                "sha256:a0018979585054f9c8da70198701053705ff1cd2839cc74b2da5371e3ada9ada"
             ],
             "index": "pypi",
-            "version": "==13.8.1"
+            "version": "==13.9"
         },
         "pytz": {
             "hashes": [
@@ -424,11 +424,11 @@
         },
         "setuptools": {
             "hashes": [
-                "sha256:b4c634615a0cf5b02cf83c7bedffc8da0ca439f00e79452699454da6fbd4153d",
-                "sha256:feb5ff19b354cde9efd2344ef6d5e79880ce4be643037641b49508bbb850d060"
+                "sha256:22c7348c6d2976a52632c67f7ab0cdf40147db7789f9aed18734643fe9cf3373",
+                "sha256:4ce92f1e1f8f01233ee9952c04f6b81d1e02939d6e1b488428154974a4d0783e"
             ],
             "markers": "python_version >= '3.6'",
-            "version": "==59.4.0"
+            "version": "==59.6.0"
         },
         "six": {
             "hashes": [
@@ -753,10 +753,10 @@
         },
         "distlib": {
             "hashes": [
-                "sha256:c8b54e8454e5bf6237cc84c20e8264c3e991e824ef27e8f1e81049867d861e31",
-                "sha256:d982d0751ff6eaaab5e2ec8e691d949ee80eddf01a62eaa96ddb11531fe16b05"
+                "sha256:6564fe0a8f51e734df6333d08b8b94d4ea8ee6b99b5ed50613f731fd4089f34b",
+                "sha256:e4b58818180336dc9c529bfb9a0b58728ffc09ad92027a3f30b7cd91e3458579"
             ],
-            "version": "==0.3.3"
+            "version": "==0.3.4"
         },
         "filelock": {
             "hashes": [
