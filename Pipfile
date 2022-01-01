@@ -14,7 +14,7 @@ sqlalchemy = "*"
 
 [dev-packages]
 bandit = "*"
-black = "==21.11b1"
+black = "==21.12b0"
 isort = "*"
 flake8 = "*"
 mypy = "*"
