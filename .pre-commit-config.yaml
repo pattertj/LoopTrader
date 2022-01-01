@@ -1,11 +1,18 @@
 # See https://pre-commit.com/ for usage and config
 repos:
+- repo: https://github.com/Lucas-C/pre-commit-hooks-bandit
+  rev: v1.0.5
+  hooks:
+  - id: python-bandit-vulnerability-check
+    args: [--skip, "B101", --recursive, clumper]
+
 - repo: https://github.com/pycqa/isort
   rev: 5.8.0
   hooks:
   - id: isort
     name: isort (python)
     args: ["--profile", "black", "--filter-files"]
+
 - repo: local
   hooks:
   - id: black
@@ -31,18 +38,18 @@ repos:
     types: [python]
     require_serial: true
 
-  - id: pytest
-    name: pytest
-    stages: [commit]
-    language: system
-    entry: pipenv run pytest
-    types: [python]
-    pass_filenames: false
+  # - id: pytest
+  #   name: pytest
+  #   stages: [commit]
+  #   language: system
+  #   entry: pipenv run pytest
+  #   types: [python]
+  #   pass_filenames: false
 
-  - id: pytest-cov
-    name: pytest
-    stages: [push]
-    language: system
-    entry: pipenv run pytest --cov --cov-fail-under=10
-    types: [python]
-    pass_filenames: false
+  # - id: pytest-cov
+  #   name: pytest
+  #   stages: [push]
+  #   language: system
+  #   entry: pipenv run pytest --cov --cov-fail-under=10
+  #   types: [python]
+  #   pass_filenames: false

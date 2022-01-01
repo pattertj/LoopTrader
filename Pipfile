@@ -10,8 +10,10 @@ td-ameritrade-python-api = "*"
 python-dotenv = "*"
 pyyaml = "*"
 types-pyyaml = "*"
+sqlalchemy = "*"
 
 [dev-packages]
+bandit = "*"
 black = "==21.11b1"
 isort = "*"
 flake8 = "*"
@@ -19,6 +21,3 @@ mypy = "*"
 pytest = "*"
 pytest-cov = "*"
 pre-commit = "*"
-
-[requires]
-python_version = "3.9"

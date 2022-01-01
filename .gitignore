@@ -136,6 +136,6 @@ pyvenv.cfg
 .vscode/settings.json
 
 # Project Specific Ignore
-LoopTrader.db
+*.db
 config.yaml
 td_state.json

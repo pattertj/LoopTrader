@@ -6,6 +6,7 @@ import time
 from typing import Union
 
 import attr
+import basetypes.Mediator.baseModels as baseModels
 import basetypes.Mediator.reqRespTypes as baseRR
 from basetypes.Component.abstractComponent import Component
 from basetypes.Strategy.abstractStrategy import Strategy
@@ -67,9 +68,9 @@ class SpreadsByDeltaStrategy(Strategy, Component):
             logger.error("Failed to get market hours, exiting and retrying.")
             return
 
-        # If the next market session is not today, wait until 30minutes before close
+        # If the next market session is not today, wait until 10 minutes before close
         if hours.start.day != now.day:
-            self.sleepuntil = hours.end - dt.timedelta(minutes=30)
+            self.sleepuntil = hours.end - dt.timedelta(minutes=10)
             logger.info(
                 "Markets are closed until {}. Sleeping until {}".format(
                     hours.start, self.sleepuntil
@@ -78,11 +79,11 @@ class SpreadsByDeltaStrategy(Strategy, Component):
             return
 
         # If Pre-Market
-        if now < (hours.end - dt.timedelta(minutes=30)):
+        if now < (hours.end - dt.timedelta(minutes=10)):
             self.process_pre_market()
 
         # If In-Market
-        elif (hours.end - dt.timedelta(minutes=30)) < now < hours.end:
+        elif (hours.end - dt.timedelta(minutes=10)) < now < hours.end:
             self.process_open_market()
 
     def process_pre_market(self):
@@ -94,7 +95,7 @@ class SpreadsByDeltaStrategy(Strategy, Component):
 
         # Set sleepuntil
         self.sleepuntil = (
-            nextmarketsession.end - dt.timedelta(minutes=30) - dt.timedelta(minutes=5)
+            nextmarketsession.end - dt.timedelta(minutes=10) - dt.timedelta(minutes=5)
         )
 
         logger.info(
@@ -138,7 +139,7 @@ class SpreadsByDeltaStrategy(Strategy, Component):
         logger.debug("build_new_order")
 
         # Get account balance
-        accountrequest = baseRR.GetAccountRequestMessage(self.strategy_name, True, True)
+        accountrequest = baseRR.GetAccountRequestMessage(self.strategy_id, True, True)
         account = self.mediator.get_account(accountrequest)
 
         if account is None:
@@ -156,7 +157,7 @@ class SpreadsByDeltaStrategy(Strategy, Component):
 
         # Get option chain
         chainrequest = baseRR.GetOptionChainRequestMessage(
-            self.strategy_name,
+            self.strategy_id,
             contracttype=self.put_or_call,
             fromdate=startdate,
             todate=enddate,
@@ -224,19 +225,19 @@ class SpreadsByDeltaStrategy(Strategy, Component):
         longleg = self.build_leg(long_strike, qty, "BUY")
 
         orderrequest = baseRR.PlaceOrderRequestMessage()
-        orderrequest.strategy_name = self.strategy_name
-        orderrequest.orderstrategytype = "SINGLE"
-        orderrequest.duration = "GOOD_TILL_CANCEL"
+        orderrequest.order = baseModels.Order()
+        orderrequest.order.strategy_id = self.strategy_id
+        orderrequest.order.order_strategy_type = "SINGLE"
+        orderrequest.order.duration = "GOOD_TILL_CANCEL"
         if self.buy_or_sell == "SELL":
-            orderrequest.ordertype = "NET_CREDIT"
+            orderrequest.order.order_type = "NET_CREDIT"
         else:
-            orderrequest.ordertype = "NET_DEBIT"
-        orderrequest.ordersession = "NORMAL"
-        orderrequest.positioneffect = "OPENING"
-        orderrequest.price = formattedprice
-        orderrequest.legs = list[baseRR.PlaceOrderRequestMessage.Leg]()
-        orderrequest.legs.append(shortleg)
-        orderrequest.legs.append(longleg)
+            orderrequest.order.order_type = "NET_DEBIT"
+        orderrequest.order.session = "NORMAL"
+        orderrequest.order.price = formattedprice
+        orderrequest.order.legs = list[baseModels.OrderLeg]()
+        orderrequest.order.legs.append(shortleg)
+        orderrequest.order.legs.append(longleg)
 
         return orderrequest
 
@@ -245,11 +246,12 @@ class SpreadsByDeltaStrategy(Strategy, Component):
         strike: baseRR.GetOptionChainResponseMessage.ExpirationDate.Strike,
         quantity: int,
         buy_or_sell: str,
-    ) -> baseRR.PlaceOrderRequestMessage.Leg:
-        leg = baseRR.PlaceOrderRequestMessage.Leg()
+    ) -> baseModels.OrderLeg:
+        leg = baseModels.OrderLeg()
         leg.symbol = strike.symbol
-        leg.assettype = "OPTION"
+        leg.asset_type = "OPTION"
         leg.quantity = quantity
+        leg.position_effect = "OPENING"
 
         leg.instruction = "SELL_TO_OPEN" if buy_or_sell == "SELL" else "BUY_TO_OPEN"
         return leg
@@ -305,23 +307,21 @@ class SpreadsByDeltaStrategy(Strategy, Component):
         # If the order placement fails, exit the method.
         if (
             neworderresult is None
-            or neworderresult.orderid is None
-            or neworderresult.orderid == 0
+            or neworderresult.order_id is None
+            or neworderresult.order_id == 0
         ):
             return False
 
         # Add Order to the DB
-        db_order_request = baseRR.CreateDatabaseOrderRequest(
-            int(neworderresult.orderid), self.strategy_id, "NEW"
-        )
-        db_order_response = self.mediator.create_db_order(db_order_request)
+        # db_order_request = baseRR.CreateDatabaseOrderRequest(orderrequest.order)
+        # db_order_response = self.mediator.create_db_order(db_order_request)
 
         # Wait to let the Order process
         time.sleep(self.openingorderloopseconds)
 
         # Fetch the Order status
         getorderrequest = baseRR.GetOrderRequestMessage(
-            self.strategy_name, int(neworderresult.orderid)
+            self.strategy_id, int(neworderresult.order_id)
         )
         processedorder = self.mediator.get_order(getorderrequest)
 
@@ -329,35 +329,31 @@ class SpreadsByDeltaStrategy(Strategy, Component):
             return False
 
         # If the order isn't filled
-        if processedorder.status != "FILLED":
+        if processedorder.order.status != "FILLED":
             # Cancel it
             cancelorderrequest = baseRR.CancelOrderRequestMessage(
-                self.strategy_name, int(neworderresult.orderid)
+                self.strategy_id, int(neworderresult.order_id)
             )
             self.mediator.cancel_order(cancelorderrequest)
 
             # Return failure to fill order
             return False
 
-        # Add the position to the DB
-        if db_order_response is not None:
-            for leg in orderrequest.legs:
-                db_position_request = baseRR.CreateDatabasePositionRequest(
-                    self.strategy_id,
-                    leg.symbol,
-                    leg.quantity,
-                    True,
-                    db_order_response.order_id,
-                    0,
-                )
-                self.mediator.create_db_position(db_position_request)
+        # Otherwise, add Position to the DB
+        for leg in orderrequest.order.legs:
+            db_position_request = baseRR.CreateDatabaseOrderRequest(
+                processedorder.order
+            )
+        self.mediator.create_db_order(db_position_request)
 
         # Send a notification
         message = "Sold:<code>"
 
-        for leg in orderrequest.legs:
+        for leg in orderrequest.order.legs:
             message += "\r\n - {}x {} @ ${}".format(
-                str(leg.quantity), str(leg.symbol), "{:,.2f}".format(orderrequest.price)
+                str(leg.quantity),
+                str(leg.symbol),
+                "{:,.2f}".format(orderrequest.order.price),
             )
 
         message += "</code>"
@@ -377,7 +373,7 @@ class SpreadsByDeltaStrategy(Strategy, Component):
         logger.debug("get_market_session_loop")
 
         request = baseRR.GetMarketHoursRequestMessage(
-            self.strategy_name, market="OPTION", product="EQO", datetime=date
+            self.strategy_id, market="OPTION", product="EQO", datetime=date
         )
 
         hours = self.mediator.get_market_hours(request)

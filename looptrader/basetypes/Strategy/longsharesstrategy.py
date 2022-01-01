@@ -5,6 +5,7 @@ import math
 import time
 
 import attr
+import basetypes.Mediator.baseModels as baseModels
 import basetypes.Mediator.reqRespTypes as baseRR
 from basetypes.Component.abstractComponent import Component
 from basetypes.Strategy.abstractStrategy import Strategy
@@ -89,7 +90,7 @@ class LongSharesStrategy(Strategy, Component):
         logger.debug("Processing Open-Market")
 
         # Check Current position and account size
-        request = baseRR.GetAccountRequestMessage(self.strategy_name, False, True)
+        request = baseRR.GetAccountRequestMessage(self.strategy_id, False, True)
         account = self.mediator.get_account(request)
 
         if account is None:
@@ -98,7 +99,7 @@ class LongSharesStrategy(Strategy, Component):
 
         # Get Share Price
         quoteRequest = baseRR.GetQuoteRequestMessage(
-            self.strategy_name, [self.underlying]
+            self.strategy_id, [self.underlying]
         )
         share_price = self.mediator.get_quote(quoteRequest)
 
@@ -160,23 +161,24 @@ class LongSharesStrategy(Strategy, Component):
         self.go_to_sleep(now)
 
     def build_order(self, share_delta):
-        order = baseRR.PlaceOrderRequestMessage()
-        order.strategy_name = self.strategy_name
-        order.ordertype = "MARKET"
-        order.orderstrategytype = "SINGLE"
-        order.ordersession = "NORMAL"
-        order.duration = "DAY"
-        order.price = None
+        request = baseRR.PlaceOrderRequestMessage()
+        request.order = baseModels.Order()
+        request.order.strategy_id = self.strategy_id
+        request.order.order_type = "MARKET"
+        request.order.order_strategy_type = "SINGLE"
+        request.order.session = "NORMAL"
+        request.order.duration = "DAY"
+        request.order.price = None
 
-        leg = baseRR.PlaceOrderRequestMessage.Leg()
+        leg = baseModels.OrderLeg()
         leg.instruction = "Buy" if share_delta < 0 else "Sell"
-        leg.assettype = "EQUITY"
+        leg.asset_type = "EQUITY"
         leg.quantity = abs(share_delta)
         leg.symbol = self.underlying
 
-        order.legs = []
-        order.legs.append(leg)
-        return order
+        request.order.legs = []
+        request.order.legs.append(leg)
+        return request
 
     def place_order(self, orderrequest: baseRR.PlaceOrderRequestMessage) -> bool:
         """Method for placing new Orders and handling fills"""
@@ -186,23 +188,17 @@ class LongSharesStrategy(Strategy, Component):
         # If the order placement fails, exit the method.
         if (
             neworderresult is None
-            or neworderresult.orderid is None
-            or neworderresult.orderid == 0
+            or neworderresult.order_id is None
+            or neworderresult.order_id == 0
         ):
             return False
-
-        # Add Order to the DB
-        db_order_request = baseRR.CreateDatabaseOrderRequest(
-            int(neworderresult.orderid), int(self.strategy_id), "NEW"
-        )
-        db_order_response = self.mediator.create_db_order(db_order_request)
 
         # Wait to let the Order process
         time.sleep(self.opening_order_loop_seconds)
 
         # Re-get the Order
         getorderrequest = baseRR.GetOrderRequestMessage(
-            self.strategy_name, int(neworderresult.orderid)
+            self.strategy_id, int(neworderresult.order_id)
         )
         processedorder = self.mediator.get_order(getorderrequest)
 
@@ -210,23 +206,23 @@ class LongSharesStrategy(Strategy, Component):
             # Log the Error
             logger.error(
                 "Failed to get re-get placed order, ID: {}.".format(
-                    neworderresult.orderid
+                    neworderresult.order_id
                 )
             )
 
             # Cancel it
             cancelorderrequest = baseRR.CancelOrderRequestMessage(
-                self.strategy_name, int(neworderresult.orderid)
+                self.strategy_id, int(neworderresult.order_id)
             )
             self.mediator.cancel_order(cancelorderrequest)
 
             return False
 
         # If the order isn't filled
-        if processedorder.status != "FILLED":
+        if processedorder.order.status != "FILLED":
             # Cancel it
             cancelorderrequest = baseRR.CancelOrderRequestMessage(
-                self.strategy_name, int(neworderresult.orderid)
+                self.strategy_id, int(neworderresult.order_id)
             )
             self.mediator.cancel_order(cancelorderrequest)
 
@@ -234,26 +230,20 @@ class LongSharesStrategy(Strategy, Component):
             return False
 
         # Otherwise, add Position to the DB
-        if db_order_response is not None:
-            for leg in orderrequest.legs:
-                db_position_request = baseRR.CreateDatabasePositionRequest(
-                    self.strategy_id,
-                    leg.symbol,
-                    int(leg.quantity),
-                    True,
-                    db_order_response.order_id,
-                    0,
-                )
-                self.mediator.create_db_position(db_position_request)
+        for leg in orderrequest.order.legs:
+            db_position_request = baseRR.CreateDatabaseOrderRequest(
+                processedorder.order
+            )
+        self.mediator.create_db_order(db_position_request)
 
         # Send a notification
         message = "Sold:<code>"
 
-        for leg in orderrequest.legs:
+        for leg in orderrequest.order.legs:
             price = (
                 "Market"
-                if orderrequest.price is None
-                else "{:,.2f}".format(orderrequest.price)
+                if orderrequest.order.price is None
+                else "{:,.2f}".format(orderrequest.order.price)
             )
             message += "\r\n - {}x {} @ ${}".format(
                 str(leg.quantity), str(leg.symbol), price
@@ -283,7 +273,7 @@ class LongSharesStrategy(Strategy, Component):
         logger.debug("get_market_session_loop")
 
         request = baseRR.GetMarketHoursRequestMessage(
-            self.strategy_name, market="OPTION", product="EQO", datetime=date
+            self.strategy_id, market="OPTION", product="EQO", datetime=date
         )
 
         # Get the market hours
