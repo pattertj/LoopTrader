@@ -581,7 +581,7 @@ class TdaBroker(Broker, Component):
 
             if accountorderleg.description is not None:
                 match = re.search(
-                    r"([A-Z]{1}[a-z]{2} \d{2} \d{4})", accountorderleg.description
+                    r"([A-Z]{1}[a-z]{2} \d{1,2} \d{4})", accountorderleg.description
                 )
                 if match is not None:
                     dt = dtime.datetime.strptime(match.group(), "%b %d %Y")
