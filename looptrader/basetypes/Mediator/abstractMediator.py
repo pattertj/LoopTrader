@@ -103,14 +103,6 @@ class Mediator(abc.ABC):
         )
 
     @abc.abstractmethod
-    def create_db_strategy(
-        self, request: baseRR.CreateDatabaseStrategyRequest
-    ) -> Union[baseRR.CreateDatabaseStrategyResponse, None]:
-        raise NotImplementedError(
-            "Each mediator must implement the 'create_db_strategy' method."
-        )
-
-    @abc.abstractmethod
     def create_db_order(
         self, request: baseRR.CreateDatabaseOrderRequest
     ) -> Union[baseRR.CreateDatabaseOrderResponse, None]:
@@ -119,18 +111,11 @@ class Mediator(abc.ABC):
         )
 
     @abc.abstractmethod
-    def create_db_position(
-        self, request: baseRR.CreateDatabasePositionRequest
-    ) -> Union[baseRR.CreateDatabasePositionResponse, None]:
+    def update_db_order(
+        self, request: baseRR.UpdateDatabaseOrderRequest
+    ) -> Union[baseRR.UpdateDatabaseOrderResponse, None]:
         raise NotImplementedError(
-            "Each mediator must implement the 'create_db_position' method."
-        )
-
-    def read_open_db_position_by_strategy_id(
-        self, request: baseRR.ReadOpenPositionsByStrategyIDRequest
-    ) -> Union[baseRR.ReadOpenPositionsByStrategyIDResponse, None]:
-        raise NotImplementedError(
-            "Each mediator must implement the 'create_db_position' method."
+            "Each mediator must implement the 'update_db_order' method."
         )
 
     def get_quote(
@@ -138,4 +123,11 @@ class Mediator(abc.ABC):
     ) -> Union[baseRR.GetQuoteResponseMessage, None]:
         raise NotImplementedError(
             "Each mediator must implement the 'get_quote' method."
+        )
+
+    def read_active_orders(
+        self, request: baseRR.ReadOpenDatabaseOrdersRequest
+    ) -> Union[baseRR.ReadOpenDatabaseOrdersResponse, None]:
+        raise NotImplementedError(
+            "Each mediator must implement the 'read_open_orders' method."
         )

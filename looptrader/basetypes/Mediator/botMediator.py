@@ -4,6 +4,7 @@ import time
 from typing import Union
 
 import attr
+import basetypes.Mediator.baseModels as baseModels
 import basetypes.Mediator.reqRespTypes as baseRR
 from basetypes.Broker.abstractBroker import Broker
 from basetypes.Database.abstractDatabase import Database
@@ -47,25 +48,32 @@ class Bot(Mediator):
         names = []
 
         for strategy, broker in self.brokerstrategy.items():
+            # Check for Duplicates
             if strategy.strategy_name in names:
                 raise Exception("Duplicate Strategy Name")
 
+            # Assign Strategy and Mediators
             names.append(strategy.strategy_name)
             broker.mediator = self
             strategy.mediator = self
 
             # Check if Strat exists, create it if needed, store the ID
-            result = self.database.read_strategy_by_name(strategy.strategy_name)
+            read_strat_request = baseRR.ReadDatabaseStrategyByNameRequest(
+                strategy.strategy_name
+            )
+            result = self.database.read_first_strategy_by_name(read_strat_request)
 
-            if result == []:
-                request = baseRR.CreateDatabaseStrategyRequest(
-                    strategy_name=strategy.strategy_name
+            if result.strategy is None:
+                base_strategy = baseModels.Strategy()
+                base_strategy.name = strategy.strategy_name
+                create_strat_request = baseRR.CreateDatabaseStrategyRequest(
+                    base_strategy
                 )
                 strategy.strategy_id = self.database.create_strategy(
-                    request
-                ).strategy_id
+                    create_strat_request
+                ).id
             else:
-                strategy.strategy_id = result[0][0]
+                strategy.strategy_id = result.strategy.id
 
     def process_strategies(self):
         # Get the current timestamp
@@ -101,7 +109,7 @@ class Bot(Mediator):
     def get_account(
         self, request: baseRR.GetAccountRequestMessage
     ) -> Union[baseRR.GetAccountResponseMessage, None]:
-        broker = self.get_broker(request.strategy_name)
+        broker = self.get_broker(request.strategy_id)
 
         if broker is None:
             return None
@@ -118,13 +126,13 @@ class Bot(Mediator):
         distinct_brokers = list(set(self.brokerstrategy.keys()))
 
         for strategy in distinct_brokers:
-            broker = self.get_broker(strategy.strategy_name)
+            broker = self.get_broker(strategy.strategy_id)
 
             if broker is None:
                 continue
 
             acct_request = baseRR.GetAccountRequestMessage(
-                strategy.strategy_name, request.orders, request.positions
+                strategy.strategy_id, request.orders, request.positions
             )
 
             account = broker.get_account(acct_request)
@@ -137,7 +145,7 @@ class Bot(Mediator):
     def place_order(
         self, request: baseRR.PlaceOrderRequestMessage
     ) -> Union[baseRR.PlaceOrderResponseMessage, None]:
-        broker = self.get_broker(request.strategy_name)
+        broker = self.get_broker(request.order.strategy_id)
 
         if broker is None:
             return None
@@ -147,7 +155,7 @@ class Bot(Mediator):
     def cancel_order(
         self, request: baseRR.CancelOrderRequestMessage
     ) -> Union[baseRR.CancelOrderResponseMessage, None]:
-        broker = self.get_broker(request.strategy_name)
+        broker = self.get_broker(request.strategy_id)
 
         if broker is None:
             return None
@@ -157,7 +165,7 @@ class Bot(Mediator):
     def get_order(
         self, request: baseRR.GetOrderRequestMessage
     ) -> Union[baseRR.GetOrderResponseMessage, None]:
-        broker = self.get_broker(request.strategy_name)
+        broker = self.get_broker(request.strategy_id)
 
         if broker is None:
             return None
@@ -167,7 +175,7 @@ class Bot(Mediator):
     def get_market_hours(
         self, request: baseRR.GetMarketHoursRequestMessage
     ) -> Union[baseRR.GetMarketHoursResponseMessage, None]:
-        broker = self.get_broker(request.strategy_name)
+        broker = self.get_broker(request.strategy_id)
 
         if broker is None:
             return None
@@ -177,7 +185,7 @@ class Bot(Mediator):
     def get_quote(
         self, request: baseRR.GetQuoteRequestMessage
     ) -> Union[baseRR.GetQuoteResponseMessage, None]:
-        broker = self.get_broker(request.strategy_name)
+        broker = self.get_broker(request.strategy_id)
 
         if broker is None:
             return None
@@ -187,7 +195,7 @@ class Bot(Mediator):
     def get_option_chain(
         self, request: baseRR.GetOptionChainRequestMessage
     ) -> Union[baseRR.GetOptionChainResponseMessage, None]:
-        broker = self.get_broker(request.strategy_name)
+        broker = self.get_broker(request.strategy_id)
 
         if broker is None:
             return None
@@ -206,17 +214,17 @@ class Bot(Mediator):
     def resume_bot(self) -> None:
         self.pause = False
 
-    def get_broker(self, strategy_name: str) -> Union[Broker, None]:
+    def get_broker(self, strategy_id: int) -> Union[Broker, None]:
         """Returns the broker object associated to a given strategy
 
         Args:
-            strategy_name (str): Name of the Strategy to search
+            strategy_id (int): Name of the Strategy to search
 
         Returns:
             Broker: Associated Broker object
         """
         for strategy, broker in self.brokerstrategy.items():
-            if strategy.strategy_name == strategy_name:
+            if strategy.strategy_id == strategy_id:
                 return broker
 
         return None
@@ -239,12 +247,12 @@ class Bot(Mediator):
     ) -> Union[baseRR.CreateDatabaseOrderResponse, None]:
         return self.database.create_order(request)
 
-    def create_db_position(
-        self, request: baseRR.CreateDatabasePositionRequest
-    ) -> Union[baseRR.CreateDatabasePositionResponse, None]:
-        return self.database.create_position(request)
+    def update_db_order(
+        self, request: baseRR.UpdateDatabaseOrderRequest
+    ) -> Union[baseRR.UpdateDatabaseOrderResponse, None]:
+        return self.database.update_order(request)
 
-    def read_open_db_position_by_strategy_id(
-        self, request: baseRR.ReadOpenPositionsByStrategyIDRequest
-    ) -> Union[baseRR.ReadOpenPositionsByStrategyIDResponse, None]:
-        return self.database.read_open_positions_by_strategy_id(request)
+    def read_active_orders(
+        self, request: baseRR.ReadOpenDatabaseOrdersRequest
+    ) -> Union[baseRR.ReadOpenDatabaseOrdersResponse, None]:
+        return self.database.read_active_orders(request)
