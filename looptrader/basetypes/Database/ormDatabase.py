@@ -18,7 +18,7 @@ from sqlalchemy import (
     create_engine,
 )
 from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import registry, relationship, sessionmaker
+from sqlalchemy.orm import joinedload, registry, relationship, sessionmaker
 from sqlalchemy.sql.schema import MetaData
 
 logger = logging.getLogger("autotrader")
@@ -138,6 +138,7 @@ class ormDatabase(Database):
             Column("position_effect", String(250)),
             Column("put_call", String(250)),
             Column("quantity", Integer),
+            Column("expiration_date", DateTime),
             Column("order_id", Integer, ForeignKey("orders.id")),
         )
 
@@ -251,6 +252,7 @@ class ormDatabase(Database):
         try:
             result = (
                 session.query(baseModels.Order)
+                .options(joinedload(baseModels.Order.legs))
                 .filter(
                     baseModels.Order.status == request.status
                     and baseModels.Order.strategy_id == request.strategy_id
@@ -283,6 +285,7 @@ class ormDatabase(Database):
         try:
             result = (
                 session.query(baseModels.Order)
+                .options(joinedload(baseModels.Order.legs))
                 .filter(baseModels.Order.strategy_id == request.strategy_id)
                 .filter(baseModels.Order.status != "REJECTED")
                 .filter(baseModels.Order.status != "CANCELED")

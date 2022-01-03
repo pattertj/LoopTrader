@@ -554,6 +554,11 @@ class SingleByDeltaStrategy(Strategy, Component):
             if latest_order is not None:
                 latest_order.order.id = order.id
 
+                for leg in latest_order.order.legs:
+                    for leg2 in order.legs:
+                        if leg.cusip == leg2.cusip:
+                            leg.id = leg2.id
+
                 # Update the DB record
                 create_order_req = baseRR.UpdateDatabaseOrderRequest(latest_order.order)
                 self.mediator.update_db_order(create_order_req)
@@ -638,7 +643,7 @@ class SingleByDeltaStrategy(Strategy, Component):
 
             # Calculate Delta
             calculated_delta = helpers.calculate_delta(
-                0,
+                underlying_last_price,
                 strike,
                 risk_free_rate,
                 days_to_expiration,
@@ -652,8 +657,8 @@ class SingleByDeltaStrategy(Strategy, Component):
             )
 
             # Make sure strike delta is less then our target delta
-            if (abs(details.delta) <= abs(self.target_delta)) and (
-                abs(details.delta) >= abs(self.min_delta)
+            if (abs(calculated_delta) <= abs(self.target_delta)) and (
+                abs(calculated_delta) >= abs(self.min_delta)
             ):
                 # Calculate the total premium for the strike based on our buying power
                 qty = self.calculate_order_quantity(
