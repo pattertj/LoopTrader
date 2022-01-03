@@ -652,10 +652,6 @@ class SingleByDeltaStrategy(Strategy, Component):
                 option_price,
             )
 
-            logger.info(
-                f"Strike:{strike} Calced Delta:{calculated_delta}, TD Delta:{details.delta}"
-            )
-
             # Make sure strike delta is less then our target delta
             if (abs(calculated_delta) <= abs(self.target_delta)) and (
                 abs(calculated_delta) >= abs(self.min_delta)
