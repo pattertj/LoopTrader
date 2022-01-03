@@ -8,6 +8,7 @@ from typing import Union
 import attr
 import basetypes.Mediator.baseModels as baseModels
 import basetypes.Mediator.reqRespTypes as baseRR
+import basetypes.Strategy.helpers as helpers
 from basetypes.Component.abstractComponent import Component
 from basetypes.Strategy.abstractStrategy import Strategy
 
@@ -266,7 +267,12 @@ class SingleByDeltaStrategy(Strategy, Component):
 
         # Find best strike to trade
         strike = self.get_best_strike(
-            expiration.strikes, availbp, account.currentbalances.liquidationvalue
+            expiration.strikes,
+            availbp,
+            account.currentbalances.liquidationvalue,
+            expiration.daystoexpiration,
+            chain.underlyinglastprice,
+            chain.volatility,
         )
 
         # If no valid strikes, exit.
@@ -279,7 +285,7 @@ class SingleByDeltaStrategy(Strategy, Component):
         )
 
         # Calculate price
-        formattedprice = self.format_order_price((strike.bid + strike.ask) / 2)
+        formattedprice = helpers.format_order_price((strike.bid + strike.ask) / 2)
 
         # Return Order
         return self.build_opening_order_request(strike, qty, formattedprice)
@@ -386,8 +392,8 @@ class SingleByDeltaStrategy(Strategy, Component):
         orderrequest.order.duration = "GOOD_TILL_CANCEL"
         orderrequest.order.order_type = "LIMIT"
         orderrequest.order.session = "NORMAL"
-        orderrequest.order.price = self.truncate(
-            self.format_order_price(
+        orderrequest.order.price = helpers.truncate(
+            helpers.format_order_price(
                 original_order.price * (1 - float(self.profit_target_percent))
             ),
             2,
@@ -516,7 +522,9 @@ class SingleByDeltaStrategy(Strategy, Component):
             )
         message += "</code>"
 
-        self.send_notification(message)
+        helpers.send_notification(
+            message, self.strategy_name, self.strategy_id, self.mediator
+        )
 
         # If we got here, return success
         return True
@@ -606,34 +614,60 @@ class SingleByDeltaStrategy(Strategy, Component):
         strikes: dict[
             float, baseRR.GetOptionChainResponseMessage.ExpirationDate.Strike
         ],
-        buyingpower: float,
-        liquidationvalue: float,
+        buying_power: float,
+        liquidation_value: float,
+        days_to_expiration: int,
+        underlying_last_price: float,
+        iv: float,
     ) -> Union[baseRR.GetOptionChainResponseMessage.ExpirationDate.Strike, None]:
         """Searches an option chain for the optimal strike."""
+
         logger.debug("get_best_strike")
+
         # Set Variables
-        bestpremium = float(0)
-        beststrike = None
+        best_premium = float(0)
+        best_strike = None
+
+        # Calculate Risk Free Rate
+        risk_free_rate = helpers.get_risk_free_rate()
 
         # Iterate through strikes
         for strike, details in strikes.items():
+            # Sell @ Bid, Buy @ Ask
+            option_price = details.bid if self.buy_or_sell == "SELL" else details.ask
+
+            # Calculate Delta
+            calculated_delta = helpers.calculate_delta(
+                0,
+                strike,
+                risk_free_rate,
+                days_to_expiration,
+                self.put_or_call,
+                None,
+                option_price,
+            )
+
+            logger.info(
+                f"Strike:{strike} Calced Delta:{calculated_delta}, TD Delta:{details.delta}"
+            )
+
             # Make sure strike delta is less then our target delta
             if (abs(details.delta) <= abs(self.target_delta)) and (
                 abs(details.delta) >= abs(self.min_delta)
             ):
                 # Calculate the total premium for the strike based on our buying power
                 qty = self.calculate_order_quantity(
-                    strike, buyingpower, liquidationvalue
+                    strike, buying_power, liquidation_value
                 )
-                totalpremium = ((details.bid + details.ask) / 2) * qty
+                total_premium = option_price * qty
 
                 # If the strike's premium is larger than our best premium, update it
-                if totalpremium > bestpremium:
-                    bestpremium = totalpremium
-                    beststrike = details
+                if total_premium > best_premium:
+                    best_premium = total_premium
+                    best_strike = details
 
         # Return the strike with the highest premium
-        return beststrike
+        return best_strike
 
     def get_offsetting_strike(
         self,
@@ -696,7 +730,9 @@ class SingleByDeltaStrategy(Strategy, Component):
         logger.info(message)
 
         # Send a notification that we are sleeping
-        self.send_notification(message)
+        helpers.send_notification(
+            message, self.strategy_name, self.strategy_id, self.mediator
+        )
 
     ###################
     ### Calculators ###
@@ -773,33 +809,3 @@ class SingleByDeltaStrategy(Strategy, Component):
 
         # Return quantity
         return int(trade_size)
-
-    ##################
-    ### Formatters ###
-    ##################
-    def format_order_price(self, price: float) -> float:
-        """Formats a price according to brokerage rules."""
-        logger.debug("format_order_price")
-
-        base = 0.1 if price > 3 else 0.05
-        return self.truncate(base * round(price / base), 2)
-
-    @staticmethod
-    def truncate(number: float, digits: int) -> float:
-        """Truncates a float to a specified number of digits."""
-        logger.debug("truncate")
-        stepper = 10.0 ** digits
-        return math.trunc(stepper * number) / stepper
-
-    ##############################
-    ### Notification Functions ###
-    ##############################
-    def send_notification(self, message: str):
-        # Append Strategy Prefix
-        message = f"Strategy {self.strategy_name}({self.strategy_id}): {message}"
-
-        # Build Request
-        notification = baseRR.SendNotificationRequestMessage(message)
-
-        # Send notification
-        self.mediator.send_notification(notification)
