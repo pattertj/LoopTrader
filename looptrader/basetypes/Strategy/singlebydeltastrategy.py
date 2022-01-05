@@ -71,6 +71,9 @@ class SingleByDeltaStrategy(Strategy, Component):
         default=dt.timedelta(minutes=5),
         validator=attr.validators.instance_of(dt.timedelta),
     )
+    use_vollib_for_greeks: bool = attr.ib(
+        default=True, validator=attr.validators.instance_of(bool)
+    )
 
     # Core Strategy Process
     def process_strategy(self):
@@ -642,15 +645,18 @@ class SingleByDeltaStrategy(Strategy, Component):
             option_price = details.bid if self.buy_or_sell == "SELL" else details.ask
 
             # Calculate Delta
-            calculated_delta = helpers.calculate_delta(
-                underlying_last_price,
-                strike,
-                risk_free_rate,
-                days_to_expiration,
-                self.put_or_call,
-                None,
-                option_price,
-            )
+            if self.use_vollib_for_greeks:
+                calculated_delta = helpers.calculate_delta(
+                    underlying_last_price,
+                    strike,
+                    risk_free_rate,
+                    days_to_expiration,
+                    self.put_or_call,
+                    None,
+                    option_price,
+                )
+            else:
+                calculated_delta = details.delta
 
             # Make sure strike delta is less then our target delta
             if (abs(calculated_delta) <= abs(self.target_delta)) and (
