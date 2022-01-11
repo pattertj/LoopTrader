@@ -685,8 +685,8 @@ class SingleByDeltaStrategy(Strategy, Component):
         """Searches an option chain for the optimal strike."""
         logger.debug("get_offsetting_strike")
         # Set Variables
-        max_strike = strikes[0].strike
-        best_strike = strikes[0]
+        max_strike = list(strikes.keys())[0]
+        best_strike = list(strikes.values())[0]
 
         # Iterate through strikes, select the largest strike with a minimum ask price over 0
         for strike, details in strikes.items():
