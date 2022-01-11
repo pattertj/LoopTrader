@@ -204,9 +204,15 @@ class TelegramNotifier(Notifier, Component):
         """Method to handle errors occurring in the dispatcher"""
         logger.warning('Update "%s" caused error "%s"', update, context.error)
 
-        self.reply_text(
-            r"An error occured, check the logs.", update.message, None, ParseMode.HTML
-        )
+        try:
+            self.reply_text(
+                r"An error occured, check the logs.",
+                update.message,
+                None,
+                ParseMode.HTML,
+            )
+        except Exception:
+            return
 
     def text(self, update: Update, context: CallbackContext):
         """Method to handle normal text"""

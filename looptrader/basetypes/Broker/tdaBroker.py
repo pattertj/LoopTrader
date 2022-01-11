@@ -578,6 +578,7 @@ class TdaBroker(Broker, Component):
             accountorderleg.cusip = instrument.get("cusip", None)
             accountorderleg.symbol = instrument.get("symbol", None)
             accountorderleg.description = instrument.get("description", None)
+            accountorderleg.asset_type = leg.get("assetType", "")
 
             if accountorderleg.description is not None:
                 match = re.search(

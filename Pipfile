@@ -11,6 +11,7 @@ python-dotenv = "*"
 pyyaml = "*"
 types-pyyaml = "*"
 sqlalchemy = "*"
+py-vollib = "*"
 
 [dev-packages]
 bandit = "*"
