@@ -103,8 +103,6 @@ class SingleByDeltaStrategy(Strategy, Component):
         core_market_close = market_hours.end - self.late_market_offset
         after_hours_close = market_hours.end + self.after_hours_offset
 
-        self.process_core_market()
-
         # Check where we are
         if now < market_hours.start:
             # Process Pre-Market
@@ -193,7 +191,11 @@ class SingleByDeltaStrategy(Strategy, Component):
         else:
             for order in current_orders:
                 # Check if the position expires today
-                if order.legs[0].expiration_date == dt.date.today():
+                if (
+                    order.legs[0].expiration_date
+                    is not None & order.legs[0].expiration_date
+                    == dt.date.today()
+                ):
                     # Offset
                     self.place_offsetting_order_loop(order.quantity)
 
@@ -425,11 +427,8 @@ class SingleByDeltaStrategy(Strategy, Component):
         if offsetting_order_request is None:
             return
 
-        # Place the order and check the result
-        result = self.place_order(offsetting_order_request)
-
-        # If successful, return
-        if result:
+        # Place the order and if we have a result, return
+        if self.place_order(offsetting_order_request):
             return
 
         # Otherwise, try again
@@ -446,11 +445,8 @@ class SingleByDeltaStrategy(Strategy, Component):
         if new_order_request is None:
             return
 
-        # Place the order and check the result
-        result = self.place_order(new_order_request)
-
-        # If successful, return
-        if result:
+        # Place the order and if we get a result, build the closing order.
+        if self.place_order(new_order_request):
             closing_order = self.new_build_closing_order(new_order_request.order)
             self.place_order(closing_order)
             return

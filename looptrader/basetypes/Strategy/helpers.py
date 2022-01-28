@@ -128,6 +128,9 @@ def calculate_iv(
     Returns:
         float: The Strike's implied volatility
     """
+    if time_in_days == 0:
+        raise ValueError("Days to Expiration should be > 0")
+
     # Set Variables
     risk_free_rate = get_risk_free_rate() if risk_free_rate is None else risk_free_rate
     flag = "p" if put_or_call == "PUT" else "c"
@@ -162,6 +165,8 @@ def calculate_delta(
     Returns:
         float: [description]
     """
+    if time_in_days == 0:
+        raise ValueError("Days to Expiration should be > 0")
 
     # Set Variables
     if iv is None:
