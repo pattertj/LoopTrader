@@ -15,7 +15,7 @@ py-vollib = "*"
 
 [dev-packages]
 bandit = "*"
-black = "==21.12b0"
+black = "==22.1.0"
 isort = "*"
 flake8 = "*"
 mypy = "*"
