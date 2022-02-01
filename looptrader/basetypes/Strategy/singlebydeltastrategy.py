@@ -191,11 +191,7 @@ class SingleByDeltaStrategy(Strategy, Component):
         else:
             for order in current_orders:
                 # Check if the position expires today
-                if (
-                    order.legs[0].expiration_date
-                    is not None & order.legs[0].expiration_date
-                    == dt.date.today()
-                ):
+                if order.legs[0].expiration_date == dt.date.today():
                     # Offset
                     self.place_offsetting_order_loop(order.quantity)
 
