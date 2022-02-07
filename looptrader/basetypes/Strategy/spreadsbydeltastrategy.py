@@ -49,6 +49,9 @@ class SpreadsByDeltaStrategy(Strategy, Component):
         default=dt.datetime.now().astimezone(dt.timezone.utc),
         validator=attr.validators.instance_of(dt.datetime),
     )
+    minutes_before_close: int = attr.ib(
+        default=10, validator=attr.validators.instance_of(int)
+    )
 
     # Core Strategy Process
     def process_strategy(self):
@@ -72,7 +75,9 @@ class SpreadsByDeltaStrategy(Strategy, Component):
 
         # If the next market session is not today, wait until 10 minutes before close
         if hours.start.day != now.day:
-            self.sleepuntil = hours.end - dt.timedelta(minutes=10)
+            self.sleepuntil = hours.end - dt.timedelta(
+                minutes=self.minutes_before_close
+            )
             logger.info(
                 "Markets are closed until {}. Sleeping until {}".format(
                     hours.start, self.sleepuntil
@@ -81,11 +86,15 @@ class SpreadsByDeltaStrategy(Strategy, Component):
             return
 
         # If Pre-Market
-        if now < (hours.end - dt.timedelta(minutes=10)):
+        if now < (hours.end - dt.timedelta(minutes=self.minutes_before_close)):
             self.process_pre_market()
 
         # If In-Market
-        elif (hours.end - dt.timedelta(minutes=10)) < now < hours.end:
+        elif (
+            (hours.end - dt.timedelta(minutes=self.minutes_before_close))
+            < now
+            < hours.end
+        ):
             self.process_open_market()
 
     def process_pre_market(self):
@@ -96,8 +105,8 @@ class SpreadsByDeltaStrategy(Strategy, Component):
         nextmarketsession = self.get_market_session_loop(dt.datetime.now())
 
         # Set sleepuntil
-        self.sleepuntil = (
-            nextmarketsession.end - dt.timedelta(minutes=10) - dt.timedelta(minutes=5)
+        self.sleepuntil = nextmarketsession.end - dt.timedelta(
+            minutes=self.minutes_before_close
         )
 
         logger.info(
@@ -161,7 +170,7 @@ class SpreadsByDeltaStrategy(Strategy, Component):
             fromdate=startdate,
             todate=enddate,
             symbol=self.underlying,
-            includequotes=False,
+            includequotes=True,
             optionrange="OTM",
         )
 
@@ -177,7 +186,7 @@ class SpreadsByDeltaStrategy(Strategy, Component):
             expiration = self.get_next_expiration(chain.callexpdatemap)
 
         # If no valid expirations, exit.
-        if expiration is None:
+        if expiration is None or expiration.strikes is None:
             return None
 
         # Get the short strike
@@ -286,6 +295,9 @@ class SpreadsByDeltaStrategy(Strategy, Component):
             and position.expirationdate.date() == dt.date.today()
             for position in account.positions
         )
+
+        if self.width == float("inf"):
+            return True
 
         # Check Available Balance
         tradable_today = (
@@ -444,7 +456,7 @@ class SpreadsByDeltaStrategy(Strategy, Component):
         """Searches an option chain for the optimal strike."""
         logger.debug("get_best_strike")
 
-        best_strike = 0.0 if self.put_or_call == "PUT" else float("inf")
+        best_strike = 0.0
 
         # If Max Width, find cheapest long
         if self.width == float("inf"):
@@ -453,22 +465,19 @@ class SpreadsByDeltaStrategy(Strategy, Component):
                 logger.error("Cannot buy a max-width spread.")
                 return None
 
-            best_bid = float("inf")
+            best_ask = float("inf")
 
             for strike, detail in strikes.items():
-                # If the bid is lower or the same and the strike is closer than our best_strike to our first strike, use it.
-                if 0 < detail.bid <= best_bid and (
+                # If the ask is lower or the same and the strike is closer than our best_strike to our first strike, use it.
+                if 0.00 < detail.ask <= best_ask and (
                     (
                         self.put_or_call == "PUT"
                         and best_strike < strike < first_strike.strike
                     )
-                    or (
-                        self.put_or_call == "CALL"
-                        and best_strike > strike > first_strike.strike
-                    )
+                    or (self.put_or_call == "CALL" and strike > best_strike)
                 ):
                     best_strike = strike
-                    best_bid = detail.bid
+                    best_ask = detail.ask
 
         # Otherwise get closest strike to the set width
         else:
