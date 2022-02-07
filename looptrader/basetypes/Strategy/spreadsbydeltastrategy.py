@@ -444,7 +444,7 @@ class SpreadsByDeltaStrategy(Strategy, Component):
         """Searches an option chain for the optimal strike."""
         logger.debug("get_best_strike")
 
-        best_strike = 0.0
+        best_strike = 0.0 if self.put_or_call == "PUT" else float("inf")
 
         # If Max Width, find cheapest long
         if self.width == float("inf"):
@@ -456,16 +456,22 @@ class SpreadsByDeltaStrategy(Strategy, Component):
             best_bid = float("inf")
 
             for strike, detail in strikes.items():
-                # Calculate distance between strikes
+                # If the bid is lower or the same and the strike is closer than our best_strike to our first strike, use it.
                 if 0 < detail.bid <= best_bid and (
-                    (self.put_or_call == "PUT" and strike < first_strike.strike)
-                    or (self.put_or_call == "CALL" and strike > first_strike.strike)
+                    (
+                        self.put_or_call == "PUT"
+                        and best_strike < strike < first_strike.strike
+                    )
+                    or (
+                        self.put_or_call == "CALL"
+                        and best_strike > strike > first_strike.strike
+                    )
                 ):
                     best_strike = strike
                     best_bid = detail.bid
 
+        # Otherwise get closest strike to the set width
         else:
-            best_strike = 0.0
             best_delta = 1000000.0
             new_strike = first_strike.strike - self.width
 
