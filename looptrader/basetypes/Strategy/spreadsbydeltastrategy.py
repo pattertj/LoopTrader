@@ -36,7 +36,9 @@ class SpreadsByDeltaStrategy(Strategy, Component):
     targetdelta: float = attr.ib(
         default=-0.10, validator=attr.validators.instance_of(float)
     )
-    width: float = attr.ib(default=70.0, validator=attr.validators.instance_of(float))
+    width: float = attr.ib(
+        default=float("inf"), validator=attr.validators.instance_of(float)
+    )
     minimumdte: int = attr.ib(default=1, validator=attr.validators.instance_of(int))
     maximumdte: int = attr.ib(default=4, validator=attr.validators.instance_of(int))
     openingorderloopseconds: int = attr.ib(
@@ -123,10 +125,7 @@ class SpreadsByDeltaStrategy(Strategy, Component):
             return
 
         # Place the order and check the result
-        result = self.place_order(neworder)
-
-        # If successful, return
-        if result:
+        if self.place_order(neworder):
             return
 
         # Otherwise, try again
@@ -188,7 +187,7 @@ class SpreadsByDeltaStrategy(Strategy, Component):
         if short_strike is None:
             return None
 
-        long_strike = self.get_long_strike(expiration.strikes, short_strike.strike)
+        long_strike = self.get_long_strike(expiration.strikes, short_strike)
 
         # If no valid long strike, exit.
         if long_strike is None:
@@ -271,16 +270,14 @@ class SpreadsByDeltaStrategy(Strategy, Component):
         self, account: baseRR.GetAccountResponseMessage
     ) -> bool:
         # Check if we have positions on already that expire today.
-        nonexpiring = any(
-            position.underlyingsymbol == self.underlying
-            and position.expirationdate.date() != dt.date.today()
-            for position in account.positions
-        )
-
         # If nothing is expiring and no tradable balance, exit.
         # If we are expiring, continue trying to place a trade
         # If we have a tradable balance, continue trying to place a trade
-        if nonexpiring:
+        if any(
+            position.underlyingsymbol == self.underlying
+            and position.expirationdate.date() != dt.date.today()
+            for position in account.positions
+        ):
             return False
 
         # Check if we have positions on already that expire today.
@@ -391,7 +388,7 @@ class SpreadsByDeltaStrategy(Strategy, Component):
         """Checks an option chain response for the next expiration date."""
         logger.debug("get_next_expiration")
 
-        if expirations is None or expirations == []:
+        if expirations is None or not expirations:
             logger.error("No expirations provided.")
             return None
 
@@ -442,21 +439,43 @@ class SpreadsByDeltaStrategy(Strategy, Component):
         strikes: dict[
             float, baseRR.GetOptionChainResponseMessage.ExpirationDate.Strike
         ],
-        short_strike: float,
+        first_strike: baseRR.GetOptionChainResponseMessage.ExpirationDate.Strike,
     ) -> Union[baseRR.GetOptionChainResponseMessage.ExpirationDate.Strike, None]:
         """Searches an option chain for the optimal strike."""
         logger.debug("get_best_strike")
 
-        new_strike = short_strike - self.width
-
         best_strike = 0.0
-        best_delta = 1000000.0
 
-        for strike in strikes:
-            delta = strike - new_strike
-            if abs(delta) < best_delta:
-                best_strike = strike
-                best_delta = abs(delta)
+        # If Max Width, find cheapest long
+        if self.width == float("inf"):
+            best_bid = float("inf")
+
+            for strike, detail in strikes.items():
+                # Calculate distance between strikes
+                if self.buy_or_sell == "SELL" and 0 < detail.bid <= best_bid:
+                    if (self.put_or_call == "PUT" and strike < first_strike.strike) or (
+                        self.put_or_call == "CALL" and strike > first_strike.strike
+                    ):
+                        best_strike = strike
+                        best_bid = detail.bid
+                elif self.buy_or_sell == "BUY" and detail.bid >= best_bid:
+                    if (self.put_or_call == "PUT" and strike > first_strike.strike) or (
+                        self.put_or_call == "CALL" and strike < first_strike.strike
+                    ):
+                        best_strike = strike
+                        best_bid = detail.bid
+
+        # Else, find the matching spread
+        else:
+            best_strike = 0.0
+            best_delta = 1000000.0
+            new_strike = first_strike.strike - self.width
+
+            for strike in strikes:
+                delta = strike - new_strike
+                if abs(delta) < best_delta:
+                    best_strike = strike
+                    best_delta = abs(delta)
 
         # Return the strike
         return strikes[best_strike]
