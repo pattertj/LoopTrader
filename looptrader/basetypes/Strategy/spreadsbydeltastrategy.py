@@ -448,24 +448,22 @@ class SpreadsByDeltaStrategy(Strategy, Component):
 
         # If Max Width, find cheapest long
         if self.width == float("inf"):
+
+            if self.buy_or_sell == "BUY":
+                logger.error("Cannot buy a max-width spread.")
+                return None
+
             best_bid = float("inf")
 
             for strike, detail in strikes.items():
                 # Calculate distance between strikes
-                if self.buy_or_sell == "SELL" and 0 < detail.bid <= best_bid:
-                    if (self.put_or_call == "PUT" and strike < first_strike.strike) or (
-                        self.put_or_call == "CALL" and strike > first_strike.strike
-                    ):
-                        best_strike = strike
-                        best_bid = detail.bid
-                elif self.buy_or_sell == "BUY" and detail.bid >= best_bid:
-                    if (self.put_or_call == "PUT" and strike > first_strike.strike) or (
-                        self.put_or_call == "CALL" and strike < first_strike.strike
-                    ):
-                        best_strike = strike
-                        best_bid = detail.bid
+                if 0 < detail.bid <= best_bid and (
+                    (self.put_or_call == "PUT" and strike < first_strike.strike)
+                    or (self.put_or_call == "CALL" and strike > first_strike.strike)
+                ):
+                    best_strike = strike
+                    best_bid = detail.bid
 
-        # Else, find the matching spread
         else:
             best_strike = 0.0
             best_delta = 1000000.0
