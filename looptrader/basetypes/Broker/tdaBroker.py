@@ -666,7 +666,7 @@ class TdaBroker(Broker, Component):
 
             if desc is not None:
                 match = re.search(
-                    r"([A-Z]{1}[a-z]{2} \d{2} \d{4})", instrument.get("description")
+                    r"([A-Z]{1}[a-z]{2} \d{1,2} \d{4})", instrument.get("description")
                 )
                 if match is not None:
                     accountposition.expirationdate = dtime.datetime.strptime(
