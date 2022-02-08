@@ -592,7 +592,7 @@ class SingleByDeltaStrategy(Strategy, Component):
         """Checks an option chain response for the next expiration date."""
         logger.debug("get_next_expiration")
 
-        if expirations is None or expirations == []:
+        if expirations is None or not expirations:
             logger.error("No expirations provided.")
             return None
 
