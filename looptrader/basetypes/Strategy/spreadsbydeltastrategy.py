@@ -222,7 +222,7 @@ class SpreadsByDeltaStrategy(Strategy, Component):
 
         # Calculate price
         price = (
-            short_strike.bid + short_strike.ask - (long_strike.bid + long_strike.ask)
+            short_strike.bid + short_strike.ask - long_strike.bid + long_strike.ask
         ) / 2
         formattedprice = self.format_order_price(price)
 
@@ -465,11 +465,12 @@ class SpreadsByDeltaStrategy(Strategy, Component):
                 logger.error("Cannot buy a max-width spread.")
                 return None
 
-            best_ask = float("inf")
+            best_mid = float("inf")
 
             for strike, detail in strikes.items():
-                # If the ask is lower or the same and the strike is closer than our best_strike to our first strike, use it.
-                if 0.00 < detail.ask <= best_ask and (
+                mid = (detail.bid + detail.ask) / 2
+                # If the mid-price is lower or the same and the strike is closer than our best_strike to our first strike, use it.
+                if 0.00 < mid <= best_mid and (
                     (
                         self.put_or_call == "PUT"
                         and best_strike < strike < first_strike.strike
@@ -477,7 +478,7 @@ class SpreadsByDeltaStrategy(Strategy, Component):
                     or (self.put_or_call == "CALL" and strike > best_strike)
                 ):
                     best_strike = strike
-                    best_ask = detail.ask
+                    best_mid = mid
 
         # Otherwise get closest strike to the set width
         else:
