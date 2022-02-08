@@ -37,7 +37,7 @@ if __name__ == "__main__":
     )
     spreadstrat = SpreadsByDeltaStrategy(strategy_name="spreads")
 
-    # testspreads = SpreadsByDeltaStrategy(strategy_name="test spreads", width=float("inf"), put_or_call="CALL", targetdelta=.07, underlying="$XSP.X", portfolioallocationpercent=.002, minutes_before_close=390)
+    # testspreads = SpreadsByDeltaStrategy(strategy_name="test spreads", width=float("inf"), put_or_call="CALL", targetdelta=.03, portfolioallocationpercent=2.0, minutes_before_close=390)
 
     # Create our brokers
     individualbroker = TdaBroker(id="individual")

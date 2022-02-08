@@ -676,20 +676,34 @@ class SingleByDeltaStrategy(Strategy, Component):
     ) -> Union[baseRR.GetOptionChainResponseMessage.ExpirationDate.Strike, None]:
         """Searches an option chain for the optimal strike."""
         logger.debug("get_offsetting_strike")
-        # Set Variables
-        max_strike = list(strikes.keys())[0]
-        best_strike = list(strikes.values())[0]
 
-        # Iterate through strikes, select the largest strike with a minimum ask price over 0
-        for strike, details in strikes.items():
-            if 0 < details.ask < best_strike.ask or (
-                details.ask == best_strike.ask and strike > max_strike
+        best_strike = 0.0
+
+        if self.buy_or_sell == "BUY":
+            logger.error("Cannot buy a max-width spread.")
+            return None
+
+        best_mid = float("inf")
+
+        for strike, detail in strikes.items():
+            mid = (detail.bid + detail.ask) / 2
+
+            # If the mid-price is lower or the same, and the strike is closer than our best_strike to our first strike, use it.
+            if 0.00 < mid < best_mid:
+                best_strike = strike
+                best_mid = mid
+            elif self.put_or_call == "PUT" and mid == best_mid and best_strike < strike:
+                best_strike = strike
+                best_mid = mid
+            # If the mid-price is lower, or the same and the strike is closer than our best_strike to our first strike, use it.
+            elif (
+                self.put_or_call == "CALL" and mid == best_mid and best_strike > strike
             ):
-                max_strike = strike
-                best_strike = details
+                best_strike = strike
+                best_mid = mid
 
-        # Return the strike with the highest premium
-        return best_strike
+        # Return the strike
+        return strikes[best_strike]
 
     ####################
     ### Market Hours ###
