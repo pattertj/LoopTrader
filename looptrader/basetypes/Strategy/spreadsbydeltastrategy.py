@@ -471,31 +471,22 @@ class SpreadsByDeltaStrategy(Strategy, Component):
             for strike, detail in strikes.items():
                 mid = (detail.bid + detail.ask) / 2
 
-                # If the mid-price is lower or the same, and the strike is closer than our best_strike to our first strike, use it.
+                # If the mid-price is lower, use it
                 if 0.00 < mid < best_mid:
                     best_strike = strike
                     best_mid = mid
+                # If we're selling a PUT and the mid price is the same, but the strike is higher, use it.
                 elif (self.put_or_call == "PUT") and (
                     (mid == best_mid) and (best_strike < strike < first_strike.strike)
                 ):
                     best_strike = strike
                     best_mid = mid
-                # If the mid-price is lower, or the same and the strike is closer than our best_strike to our first strike, use it.
+                # If we're selling a CALL and the mid price is the same, but the strike is lower, use it.
                 elif self.put_or_call == "CALL" and (
                     (mid == best_mid) and (best_strike > strike > first_strike.strike)
                 ):
                     best_strike = strike
                     best_mid = mid
-
-            # if 0.00 < mid <= best_mid and (
-            #     (
-            #         self.put_or_call == "PUT"
-            #         and best_strike < strike < first_strike.strike
-            #     )
-            #     or (self.put_or_call == "CALL" and strike > best_strike)
-            # ):
-            #     best_strike = strike
-            #     best_mid = mid
 
         # Otherwise get closest strike to the set width
         else:

@@ -74,6 +74,9 @@ class SingleByDeltaStrategy(Strategy, Component):
     use_vollib_for_greeks: bool = attr.ib(
         default=True, validator=attr.validators.instance_of(bool)
     )
+    offset_sold_positions: bool = attr.ib(
+        default=True, validator=attr.validators.instance_of(bool)
+    )
 
     # Core Strategy Process
     def process_strategy(self):
@@ -257,10 +260,7 @@ class SingleByDeltaStrategy(Strategy, Component):
         availbp = self.calculate_actual_buying_power(account)
 
         # Find next expiration
-        if self.put_or_call == "PUT":
-            expiration = self.get_next_expiration(chain.putexpdatemap)
-        if self.put_or_call == "CALL":
-            expiration = self.get_next_expiration(chain.callexpdatemap)
+        expiration = self.get_next_expiration(chain)
 
         # If no valid expirations, exit.
         if expiration is None:
@@ -280,16 +280,61 @@ class SingleByDeltaStrategy(Strategy, Component):
         if strike is None:
             return None
 
+        # If we should immediate offset positions, get the second leg.
+        if self.offset_sold_positions:
+            offset_strike = self.get_offsetting_strike(expiration.strikes)
+
+            # If no valid strikes, exit.
+            if offset_strike is None:
+                return None
+
         # Calculate Quantity
         qty = self.calculate_order_quantity(
             strike.strike, availbp, account.currentbalances.liquidationvalue
         )
 
-        # Calculate price
-        formattedprice = helpers.format_order_price((strike.bid + strike.ask) / 2)
-
         # Return Order
-        return self.build_opening_order_request(strike, qty, formattedprice)
+        return self.build_opening_order_request(strike, offset_strike, qty=qty)
+
+    def build_opening_order_request(
+        self,
+        strike: baseRR.GetOptionChainResponseMessage.ExpirationDate.Strike,
+        offset_strike: Union[
+            baseRR.GetOptionChainResponseMessage.ExpirationDate.Strike, None
+        ],
+        qty: int,
+        offsetting: bool = False,
+    ) -> Union[baseRR.PlaceOrderRequestMessage, None]:
+
+        # If no valid qty, exit.
+        if qty is None or qty <= 0:
+            return None
+
+        # Build Base Order
+        order_request = self.build_base_order_request_message()
+
+        # Build the first leg and append
+        first_leg = self.build_leg(
+            strike.symbol, qty, "BUY" if offsetting else self.buy_or_sell, True
+        )
+        order_request.order.legs.append(first_leg)
+
+        # Calculate price
+        price = (strike.bid + strike.ask) / 2
+
+        # If we have an offset_strike...
+        if offset_strike is not None:
+            # Build Long Leg and append
+            long_leg = self.build_leg(offset_strike.symbol, qty, "BUY", True)
+            order_request.order.legs.append(long_leg)
+
+            # Subtract the offset, if it exists
+            price = price - (offset_strike.bid + offset_strike.ask) / 2
+
+        # Set the price
+        order_request.order.price = helpers.format_order_price(price)
+
+        return order_request
 
     def build_offsetting_order(
         self, qty: int
@@ -308,7 +353,7 @@ class SingleByDeltaStrategy(Strategy, Component):
         # Find next expiration
         if self.put_or_call == "CALL":
             expiration = chain.callexpdatemap[0]
-        elif self.put_or_call == "PUT":
+        else:
             expiration = chain.putexpdatemap[0]
 
         # Find best strike to trade
@@ -319,73 +364,33 @@ class SingleByDeltaStrategy(Strategy, Component):
             return None
 
         # Return Order
-        return self.build_opening_order_request(
-            strike, qty, strike.ask, offsetting=True
-        )
-
-    def build_opening_order_request(
-        self,
-        strike: baseRR.GetOptionChainResponseMessage.ExpirationDate.Strike,
-        qty: int,
-        price: float,
-        offsetting: bool = False,
-    ) -> baseRR.PlaceOrderRequestMessage:  # sourcery skip: class-extract-method
-        """Builds an order request to open a new postion
-
-        Args:
-            strike (baseRR.GetOptionChainResponseMessage.ExpirationDate.Strike): The strike to trade
-            qty (int): The number of contracts
-            price (float): Contract Price
-
-        Returns:
-            baseRR.PlaceOrderRequestMessage: Order request message
-        """
-        # Build Leg
-        leg = baseModels.OrderLeg()
-        leg.symbol = strike.symbol
-        leg.asset_type = "OPTION"
-        leg.quantity = qty
-        leg.position_effect = "OPENING"
-
-        if (
-            offsetting
-            and self.buy_or_sell == "SELL"
-            or not offsetting
-            and self.buy_or_sell != "SELL"
-        ):
-            leg.instruction = "BUY_TO_OPEN"
-        else:
-            leg.instruction = "SELL_TO_OPEN"
-
-        # Build Order
-        orderrequest = baseRR.PlaceOrderRequestMessage()
-        orderrequest.order = baseModels.Order()
-        orderrequest.order.strategy_id = self.strategy_id
-        orderrequest.order.order_strategy_type = "SINGLE"
-        orderrequest.order.duration = "GOOD_TILL_CANCEL"
-        orderrequest.order.order_type = "LIMIT"
-        orderrequest.order.session = "NORMAL"
-        orderrequest.order.price = price
-        orderrequest.order.legs = list[baseModels.OrderLeg]()
-        orderrequest.order.legs.append(leg)
-
-        return orderrequest
+        return self.build_opening_order_request(strike, None, qty, offsetting=True)
 
     def new_build_closing_order(
         self, original_order: baseModels.Order
     ) -> baseRR.PlaceOrderRequestMessage:
         """Builds a closing order request message for a given position."""
-        leg = baseModels.OrderLeg()
-        leg.symbol = original_order.legs[0].symbol
-        leg.asset_type = "OPTION"
-        leg.quantity = original_order.legs[0].quantity
-        leg.position_effect = "CLOSING"
 
-        if original_order.legs[0].instruction == "SELL_TO_OPEN":
-            leg.instruction = "BUY_TO_CLOSE"
-        else:
-            leg.instruction = "SELL_TO_CLOSE"
+        # Build base order
+        order_request = self.build_base_order_request_message()
 
+        # Build and append new legs
+        for leg in original_order.legs:
+            instruction = "BUY" if leg.instruction == "SELL_TO_OPEN" else "SELL"
+            new_leg = self.build_leg(
+                leg.symbol, leg.quantity, instruction, opening=False
+            )
+            order_request.order.legs.append(new_leg)
+
+        # Calculate and enter price
+        order_request.order.price = helpers.format_order_price(
+            original_order.price * (1 - float(self.profit_target_percent))
+        )
+
+        # Return request
+        return order_request
+
+    def build_base_order_request_message(self):
         orderrequest = baseRR.PlaceOrderRequestMessage()
         orderrequest.order = baseModels.Order()
         orderrequest.order.strategy_id = self.strategy_id
@@ -393,16 +398,32 @@ class SingleByDeltaStrategy(Strategy, Component):
         orderrequest.order.duration = "GOOD_TILL_CANCEL"
         orderrequest.order.order_type = "LIMIT"
         orderrequest.order.session = "NORMAL"
-        orderrequest.order.price = helpers.truncate(
-            helpers.format_order_price(
-                original_order.price * (1 - float(self.profit_target_percent))
-            ),
-            2,
-        )
         orderrequest.order.legs = list[baseModels.OrderLeg]()
-        orderrequest.order.legs.append(leg)
 
         return orderrequest
+
+    def build_leg(
+        self, symbol: str, quantity: int, buy_or_sell: str, opening: bool
+    ) -> baseModels.OrderLeg:
+        leg = baseModels.OrderLeg()
+        leg.symbol = symbol
+        leg.asset_type = "OPTION"
+        leg.quantity = quantity
+        leg.position_effect = "OPENING" if opening else "CLOSING"
+
+        # Determine Instructions
+        if buy_or_sell == "SELL" and opening:
+            instruction = "SELL_TO_OPEN"
+        elif buy_or_sell == "BUY" and opening:
+            instruction = "BUY_TO_OPEN"
+        elif buy_or_sell == "BUY":
+            instruction = "BUY_TO_CLOSE"
+        else:
+            instruction = "SELL_TO_CLOSE"
+
+        leg.instruction = instruction
+
+        return leg
 
     #####################
     ### Order Placers ###
@@ -585,21 +606,25 @@ class SingleByDeltaStrategy(Strategy, Component):
             optionrange="OTM",
         )
 
-    @staticmethod
     def get_next_expiration(
-        expirations: list[baseRR.GetOptionChainResponseMessage.ExpirationDate],
+        self,
+        chain: baseRR.GetOptionChainResponseMessage,
     ) -> Union[baseRR.GetOptionChainResponseMessage.ExpirationDate, None]:
         """Checks an option chain response for the next expiration date."""
         logger.debug("get_next_expiration")
 
-        if expirations is None or expirations == []:
-            logger.error("No expirations provided.")
-            return None
+        # Determine which expiration map to use
+        if self.put_or_call == "CALL":
+            expirations = chain.callexpdatemap
+
+        elif self.put_or_call == "PUT":
+            expirations = chain.putexpdatemap
 
         # Initialize min DTE to infinity
         mindte = math.inf
 
-        # loop through expirations and find the minimum DTE
+        # Loop through expirations and find the minimum DTE
+        expiration: baseRR.GetOptionChainResponseMessage.ExpirationDate
         for expiration in expirations:
             dte = expiration.daystoexpiration
             if dte < mindte:
@@ -677,27 +702,32 @@ class SingleByDeltaStrategy(Strategy, Component):
         """Searches an option chain for the optimal strike."""
         logger.debug("get_offsetting_strike")
 
-        best_strike = 0.0
-
         if self.buy_or_sell == "BUY":
             logger.error("Cannot buy a max-width spread.")
             return None
 
         best_mid = float("inf")
+        best_strike = 0.0
 
         for strike, detail in strikes.items():
+            # Calc mid-price
             mid = (detail.bid + detail.ask) / 2
 
-            # If the mid-price is lower or the same, and the strike is closer than our best_strike to our first strike, use it.
+            # If the mid-price is lower, use it
             if 0.00 < mid < best_mid:
                 best_strike = strike
                 best_mid = mid
-            elif self.put_or_call == "PUT" and mid == best_mid and best_strike < strike:
+
+            # If we're selling a PUT and the mid price is the same, but the strike is higher, use it.
+            elif (self.put_or_call == "PUT") and (
+                (mid == best_mid) and (best_strike < strike)
+            ):
                 best_strike = strike
                 best_mid = mid
-            # If the mid-price is lower, or the same and the strike is closer than our best_strike to our first strike, use it.
-            elif (
-                self.put_or_call == "CALL" and mid == best_mid and best_strike > strike
+
+            # If we're selling a CALL and the mid price is the same, but the strike is lower, use it.
+            elif self.put_or_call == "CALL" and (
+                (mid == best_mid) and (best_strike > strike)
             ):
                 best_strike = strike
                 best_mid = mid
@@ -806,19 +836,6 @@ class SingleByDeltaStrategy(Strategy, Component):
 
         # Calculate trade size
         trade_size = remainingbalance // max_loss
-
-        # Log Values
-        # logger.info(
-        #     "Strike: {} BuyingPower: {} LiquidationValue: {} MaxLoss: {} BalanceToRisk: {} RemainingBalance: {} TradeSize: {} ".format(
-        #         strike,
-        #         buyingpower,
-        #         liquidationvalue,
-        #         max_loss,
-        #         balance_to_risk,
-        #         remainingbalance,
-        #         trade_size,
-        #     )
-        # )
 
         # Return quantity
         return int(trade_size)
