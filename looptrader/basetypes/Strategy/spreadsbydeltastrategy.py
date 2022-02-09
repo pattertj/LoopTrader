@@ -36,9 +36,7 @@ class SpreadsByDeltaStrategy(Strategy, Component):
     targetdelta: float = attr.ib(
         default=-0.10, validator=attr.validators.instance_of(float)
     )
-    width: float = attr.ib(
-        default=float("inf"), validator=attr.validators.instance_of(float)
-    )
+    width: float = attr.ib(default=70.0, validator=attr.validators.instance_of(float))
     minimumdte: int = attr.ib(default=1, validator=attr.validators.instance_of(int))
     maximumdte: int = attr.ib(default=4, validator=attr.validators.instance_of(int))
     openingorderloopseconds: int = attr.ib(
@@ -50,7 +48,7 @@ class SpreadsByDeltaStrategy(Strategy, Component):
         validator=attr.validators.instance_of(dt.datetime),
     )
     minutes_before_close: int = attr.ib(
-        default=10, validator=attr.validators.instance_of(int)
+        default=5, validator=attr.validators.instance_of(int)
     )
 
     # Core Strategy Process
@@ -75,9 +73,7 @@ class SpreadsByDeltaStrategy(Strategy, Component):
 
         # If the next market session is not today, wait until 10 minutes before close
         if hours.start.day != now.day:
-            self.sleepuntil = hours.end - dt.timedelta(
-                minutes=self.minutes_before_close
-            )
+            self.sleepuntil = hours.end - dt.timedelta(minutes=10)
             logger.info(
                 "Markets are closed until {}. Sleeping until {}".format(
                     hours.start, self.sleepuntil
@@ -105,8 +101,10 @@ class SpreadsByDeltaStrategy(Strategy, Component):
         nextmarketsession = self.get_market_session_loop(dt.datetime.now())
 
         # Set sleepuntil
-        self.sleepuntil = nextmarketsession.end - dt.timedelta(
-            minutes=self.minutes_before_close
+        self.sleepuntil = (
+            nextmarketsession.end
+            - dt.timedelta(minutes=self.minutes_before_close)
+            - dt.timedelta(minutes=5)
         )
 
         logger.info(
@@ -133,7 +131,6 @@ class SpreadsByDeltaStrategy(Strategy, Component):
         if neworder is None:
             return
 
-        # Place the order and check the result
         if self.place_order(neworder):
             return
 
@@ -170,7 +167,7 @@ class SpreadsByDeltaStrategy(Strategy, Component):
             fromdate=startdate,
             todate=enddate,
             symbol=self.underlying,
-            includequotes=True,
+            includequotes=False,
             optionrange="OTM",
         )
 
@@ -186,7 +183,7 @@ class SpreadsByDeltaStrategy(Strategy, Component):
             expiration = self.get_next_expiration(chain.callexpdatemap)
 
         # If no valid expirations, exit.
-        if expiration is None or expiration.strikes is None:
+        if expiration is None:
             return None
 
         # Get the short strike
@@ -196,7 +193,7 @@ class SpreadsByDeltaStrategy(Strategy, Component):
         if short_strike is None:
             return None
 
-        long_strike = self.get_long_strike(expiration.strikes, short_strike)
+        long_strike = self.get_long_strike(expiration.strikes, short_strike.strike)
 
         # If no valid long strike, exit.
         if long_strike is None:
@@ -222,7 +219,7 @@ class SpreadsByDeltaStrategy(Strategy, Component):
 
         # Calculate price
         price = (
-            short_strike.bid + short_strike.ask - long_strike.bid - long_strike.ask
+            short_strike.bid + short_strike.ask - (long_strike.bid + long_strike.ask)
         ) / 2
         formattedprice = self.format_order_price(price)
 
@@ -278,14 +275,6 @@ class SpreadsByDeltaStrategy(Strategy, Component):
     def build_new_order_precheck(
         self, account: baseRR.GetAccountResponseMessage
     ) -> bool:
-
-        if self.width == float("inf"):
-            return True
-
-        # Check if we have positions on already that expire today.
-        # If nothing is expiring and no tradable balance, exit.
-        # If we are expiring, continue trying to place a trade
-        # If we have a tradable balance, continue trying to place a trade
         if any(
             position.underlyingsymbol == self.underlying
             and position.expirationdate.date() != dt.date.today()
@@ -401,7 +390,7 @@ class SpreadsByDeltaStrategy(Strategy, Component):
         """Checks an option chain response for the next expiration date."""
         logger.debug("get_next_expiration")
 
-        if expirations is None or not expirations:
+        if expirations is None or expirations == []:
             logger.error("No expirations provided.")
             return None
 
@@ -452,52 +441,21 @@ class SpreadsByDeltaStrategy(Strategy, Component):
         strikes: dict[
             float, baseRR.GetOptionChainResponseMessage.ExpirationDate.Strike
         ],
-        first_strike: baseRR.GetOptionChainResponseMessage.ExpirationDate.Strike,
+        short_strike: float,
     ) -> Union[baseRR.GetOptionChainResponseMessage.ExpirationDate.Strike, None]:
         """Searches an option chain for the optimal strike."""
         logger.debug("get_best_strike")
 
+        new_strike = short_strike - self.width
+
         best_strike = 0.0
+        best_delta = 1000000.0
 
-        # If Max Width, find cheapest long
-        if self.width == float("inf"):
-
-            if self.buy_or_sell == "BUY":
-                logger.error("Cannot buy a max-width spread.")
-                return None
-
-            best_mid = float("inf")
-
-            for strike, detail in strikes.items():
-                mid = (detail.bid + detail.ask) / 2
-
-                # If the mid-price is lower, use it
-                if 0.00 < mid < best_mid:
-                    best_strike = strike
-                    best_mid = mid
-                # If we're selling a PUT and the mid price is the same, but the strike is higher, use it.
-                elif (self.put_or_call == "PUT") and (
-                    (mid == best_mid) and (best_strike < strike < first_strike.strike)
-                ):
-                    best_strike = strike
-                    best_mid = mid
-                # If we're selling a CALL and the mid price is the same, but the strike is lower, use it.
-                elif self.put_or_call == "CALL" and (
-                    (mid == best_mid) and (best_strike > strike > first_strike.strike)
-                ):
-                    best_strike = strike
-                    best_mid = mid
-
-        # Otherwise get closest strike to the set width
-        else:
-            best_delta = 1000000.0
-            new_strike = first_strike.strike - self.width
-
-            for strike in strikes:
-                delta = strike - new_strike
-                if abs(delta) < best_delta:
-                    best_strike = strike
-                    best_delta = abs(delta)
+        for strike in strikes:
+            delta = strike - new_strike
+            if abs(delta) < best_delta:
+                best_strike = strike
+                best_delta = abs(delta)
 
         # Return the strike
         return strikes[best_strike]
@@ -511,38 +469,30 @@ class SpreadsByDeltaStrategy(Strategy, Component):
         """Calculates the number of positions to open for a given account and strike."""
         logger.debug("calculate_order_quantity")
 
+        # Calculate max loss per contract
+        max_loss = abs(shortstrike - longstrike) * 100
+
         # Calculate max buying power to use
         balance_to_risk = account_balance.liquidationvalue * float(
             self.portfolioallocationpercent
         )
 
-        # Calculate max loss per contract
-        if self.width == float("inf"):
-            # Calculate max loss per contract
-            max_loss = shortstrike * 100 * 0.2
+        remainingbalance = account_balance.buyingpower
 
-            trading_power = account_balance.buyingpower - (
-                account_balance.liquidationvalue - balance_to_risk
-            )
-
-        else:
-            max_loss = abs(shortstrike - longstrike) * 100
-
-            trading_power = min(balance_to_risk, account_balance.buyingpower)
-
+        trading_power = min(balance_to_risk, remainingbalance)
         # Calculate trade size
         trade_size = trading_power // max_loss
 
         # Log Values
         logger.info(
-            "Short Strike: {} Long Strike: {} BuyingPower: {} LiquidationValue: {} MaxLoss: {} BalanceToRisk: {} TradingPower: {} TradeSize: {} ".format(
+            "Short Strike: {} Long Strike: {} BuyingPower: {} LiquidationValue: {} MaxLoss: {} BalanceToRisk: {} RemainingBalance: {} TradeSize: {} ".format(
                 shortstrike,
                 longstrike,
                 account_balance.buyingpower,
                 account_balance.liquidationvalue,
                 max_loss,
                 balance_to_risk,
-                trading_power,
+                remainingbalance,
                 trade_size,
             )
         )
