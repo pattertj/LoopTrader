@@ -470,8 +470,8 @@ class TdaBroker(Broker, Component):
     ###############
     # Translators #
     ###############
-    @staticmethod
     def translate_option_chain(
+        self,
         rawoptionchain: dict,
     ) -> list[baseRR.GetOptionChainResponseMessage.ExpirationDate]:
         """Transforms a TDA option chain dictionary into a LoopTrader option chain"""
@@ -493,27 +493,7 @@ class TdaBroker(Broker, Component):
                 detail: dict
                 for detail in details:
                     if detail.get("settlementType", str) == "P":
-                        strikeresponse = (
-                            baseRR.GetOptionChainResponseMessage.ExpirationDate.Strike()
-                        )
-                        strikeresponse.strike = detail.get("strikePrice", float)
-                        strikeresponse.multiplier = detail.get("multiplier", float)
-                        strikeresponse.bid = detail.get("bid", float)
-                        strikeresponse.ask = detail.get("ask", float)
-                        strikeresponse.delta = detail.get("delta", float)
-                        strikeresponse.gamma = detail.get("gamma", float)
-                        strikeresponse.theta = detail.get("theta", float)
-                        strikeresponse.vega = detail.get("vega", float)
-                        strikeresponse.rho = detail.get("rho", float)
-                        strikeresponse.symbol = detail.get("symbol", str)
-                        strikeresponse.description = detail.get("description", str)
-                        strikeresponse.putcall = detail.get("putCall", str)
-                        strikeresponse.settlementtype = detail.get(
-                            "settlementType", str
-                        )
-                        strikeresponse.expirationtype = detail.get(
-                            "expirationType", str
-                        )
+                        strikeresponse = self.Build_Option_Chain_Strike(detail)
 
                         expiry.strikes[
                             detail.get("strikePrice", float)
@@ -522,6 +502,26 @@ class TdaBroker(Broker, Component):
             response.append(expiry)
 
         return response
+
+    @staticmethod
+    def Build_Option_Chain_Strike(detail: dict):
+        strikeresponse = baseRR.GetOptionChainResponseMessage.ExpirationDate.Strike()
+        strikeresponse.strike = detail.get("strikePrice", float)
+        strikeresponse.multiplier = detail.get("multiplier", float)
+        strikeresponse.bid = detail.get("bid", float)
+        strikeresponse.ask = detail.get("ask", float)
+        strikeresponse.delta = detail.get("delta", float)
+        strikeresponse.gamma = detail.get("gamma", float)
+        strikeresponse.theta = detail.get("theta", float)
+        strikeresponse.vega = detail.get("vega", float)
+        strikeresponse.rho = detail.get("rho", float)
+        strikeresponse.symbol = detail.get("symbol", str)
+        strikeresponse.description = detail.get("description", str)
+        strikeresponse.putcall = detail.get("putCall", str)
+        strikeresponse.settlementtype = detail.get("settlementType", str)
+        strikeresponse.expirationtype = detail.get("expirationType", str)
+
+        return strikeresponse
 
     def translate_account_order_activity(
         self, orderActivity: dict
