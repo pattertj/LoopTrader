@@ -270,7 +270,6 @@ class SingleByDeltaStrategy(Strategy, Component):
             account.currentbalances.liquidationvalue,
             expiration.daystoexpiration,
             chain.underlyinglastprice,
-            chain.volatility,
         )
 
         # If no valid strikes, exit.
@@ -659,7 +658,6 @@ class SingleByDeltaStrategy(Strategy, Component):
         liquidation_value: float,
         days_to_expiration: int,
         underlying_last_price: float,
-        iv: float,
     ) -> Union[baseRR.GetOptionChainResponseMessage.ExpirationDate.Strike, None]:
         """Searches an option chain for the optimal strike."""
 
