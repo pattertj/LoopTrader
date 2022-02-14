@@ -160,6 +160,10 @@ class TdaBroker(Broker, Component):
         for attempt in range(self.maxretries):
             try:
                 optionschain = self.getsession().get_options_chain(optionchainrequest)
+
+                if optionschain.status == "FAILED":
+                    raise BaseException("Option Chain Status Response = FAILED")
+
             except Exception:
                 logger.exception(
                     "Failed to get Options Chain. Attempt #{}".format(attempt)
