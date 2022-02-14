@@ -56,9 +56,6 @@ class SingleByDeltaStrategy(Strategy, Component):
         default=dt.datetime.now().astimezone(dt.timezone.utc),
         validator=attr.validators.instance_of(dt.datetime),
     )
-    minutes_after_open_delay: int = attr.ib(
-        default=3, validator=attr.validators.instance_of(int)
-    )
     early_market_offset: dt.timedelta = attr.ib(
         default=dt.timedelta(minutes=5),
         validator=attr.validators.instance_of(dt.timedelta),
@@ -75,7 +72,7 @@ class SingleByDeltaStrategy(Strategy, Component):
         default=True, validator=attr.validators.instance_of(bool)
     )
     offset_sold_positions: bool = attr.ib(
-        default=True, validator=attr.validators.instance_of(bool)
+        default=False, validator=attr.validators.instance_of(bool)
     )
 
     # Core Strategy Process
@@ -166,7 +163,7 @@ class SingleByDeltaStrategy(Strategy, Component):
 
         # Logger
         logger.debug(
-            f"Strategy {self.strategy_name} Has {'' if has_open_orders else 'No '}Open Orders"
+            f"Strategy {self.strategy_name} Has {'' if has_open_orders else 'No '}Open Order(s)"
         )
 
         # If no open orders, open a new one.
@@ -183,7 +180,7 @@ class SingleByDeltaStrategy(Strategy, Component):
 
         # Logger
         logger.debug(
-            f"Strategy {self.strategy_name} Has {'' if has_open_orders else 'No '}Open Orders"
+            f"Strategy {self.strategy_name} Has {'' if has_open_orders else 'No '}Open Order(s)"
         )
 
         # If no open orders, open a new one.
@@ -281,6 +278,8 @@ class SingleByDeltaStrategy(Strategy, Component):
             return None
 
         # If we should immediate offset positions, get the second leg.
+        offset_strike = None
+
         if self.offset_sold_positions:
             offset_strike = self.get_offsetting_strike(expiration.strikes)
 
@@ -366,13 +365,13 @@ class SingleByDeltaStrategy(Strategy, Component):
         # Return Order
         return self.build_opening_order_request(strike, None, qty, offsetting=True)
 
-    def new_build_closing_order(
+    def build_closing_order(
         self, original_order: baseModels.Order
     ) -> baseRR.PlaceOrderRequestMessage:
         """Builds a closing order request message for a given position."""
 
         # Build base order
-        order_request = self.build_base_order_request_message()
+        order_request = self.build_base_order_request_message(is_closing=True)
 
         # Build and append new legs
         for leg in original_order.legs:
@@ -390,13 +389,23 @@ class SingleByDeltaStrategy(Strategy, Component):
         # Return request
         return order_request
 
-    def build_base_order_request_message(self):
+    def build_base_order_request_message(self, is_closing: bool = False):
         orderrequest = baseRR.PlaceOrderRequestMessage()
         orderrequest.order = baseModels.Order()
         orderrequest.order.strategy_id = self.strategy_id
         orderrequest.order.order_strategy_type = "SINGLE"
         orderrequest.order.duration = "GOOD_TILL_CANCEL"
-        orderrequest.order.order_type = "LIMIT"
+
+        if (
+            is_closing
+            and self.buy_or_sell == "SELL"
+            or not is_closing
+            and self.buy_or_sell != "SELL"
+        ):
+            orderrequest.order.order_type = "NET_DEBIT"
+        else:
+            orderrequest.order.order_type = "NET_CREDIT"
+
         orderrequest.order.session = "NORMAL"
         orderrequest.order.legs = list[baseModels.OrderLeg]()
 
@@ -464,7 +473,7 @@ class SingleByDeltaStrategy(Strategy, Component):
 
         # Place the order and if we get a result, build the closing order.
         if self.place_order(new_order_request):
-            closing_order = self.new_build_closing_order(new_order_request.order)
+            closing_order = self.build_closing_order(new_order_request.order)
             self.place_order(closing_order)
             return
 
@@ -567,21 +576,24 @@ class SingleByDeltaStrategy(Strategy, Component):
             )
             latest_order = self.mediator.get_order(get_order_req)
 
-            if latest_order is not None:
-                latest_order.order.id = order.id
+            if latest_order is None:
+                continue
 
-                for leg in latest_order.order.legs:
-                    for leg2 in order.legs:
-                        if leg.cusip == leg2.cusip:
-                            leg.id = leg2.id
+            latest_order.order.id = order.id
 
-                # Update the DB record
-                create_order_req = baseRR.UpdateDatabaseOrderRequest(latest_order.order)
-                self.mediator.update_db_order(create_order_req)
+            for leg in latest_order.order.legs:
+                for leg2 in order.legs:
+                    if leg.cusip == leg2.cusip:
+                        leg.id = leg2.id
+                        break
 
-                # If the Order's status is still open, update our flag
-                if latest_order.order.isActive():
-                    current_orders.append(latest_order.order)
+            # Update the DB record
+            create_order_req = baseRR.UpdateDatabaseOrderRequest(latest_order.order)
+            self.mediator.update_db_order(create_order_req)
+
+            # If the Order's status is still open, update our flag
+            if latest_order.order.isActive():
+                current_orders.append(latest_order.order)
 
         return current_orders
 
@@ -619,6 +631,10 @@ class SingleByDeltaStrategy(Strategy, Component):
 
         elif self.put_or_call == "PUT":
             expirations = chain.putexpdatemap
+
+        if expirations == []:
+            logger.exception("Chain has no expirations.")
+            return None
 
         # Initialize min DTE to infinity
         mindte = math.inf

@@ -34,10 +34,10 @@ if __name__ == "__main__":
         target_delta=0.03,
         min_delta=0.01,
         profit_target_percent=0.83,
+        portfolio_allocation_percent=2.0,
+        offset_sold_positions=True,
     )
     spreadstrat = SpreadsByDeltaStrategy(strategy_name="spreads")
-
-    # testspreads = SpreadsByDeltaStrategy(strategy_name="test spreads", width=float("inf"), put_or_call="CALL", targetdelta=.03, portfolioallocationpercent=2.0, minutes_before_close=390)
 
     # Create our brokers
     individualbroker = TdaBroker(id="individual")
@@ -56,7 +56,6 @@ if __name__ == "__main__":
             cspstrat: individualbroker,
             nakedcalls: individualbroker,
             vgshstrat: individualbroker,
-            # testspreads: individualbroker,
         },
         database=sqlitedb,
         notifier=telegram_bot,
