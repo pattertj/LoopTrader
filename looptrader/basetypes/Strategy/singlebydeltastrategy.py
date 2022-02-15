@@ -395,7 +395,9 @@ class SingleByDeltaStrategy(Strategy, Component):
         orderrequest.order.order_strategy_type = "SINGLE"
         orderrequest.order.duration = "GOOD_TILL_CANCEL"
 
-        if (
+        if self.offset_sold_positions is False:
+            orderrequest.order.order_type = "LIMIT"
+        elif (
             is_closing
             and self.buy_or_sell == "SELL"
             or not is_closing

@@ -21,6 +21,7 @@ if __name__ == "__main__":
     vgshstrat = LongSharesStrategy(
         strategy_name="VGSH Core", underlying="VGSH", portfolio_allocation_percent=0.9
     )
+
     cspstrat = SingleByDeltaStrategy(
         strategy_name="Puts",
         put_or_call="PUT",
@@ -28,6 +29,7 @@ if __name__ == "__main__":
         min_delta=0.03,
         profit_target_percent=0.7,
     )
+
     nakedcalls = SingleByDeltaStrategy(
         strategy_name="Calls",
         put_or_call="CALL",
@@ -37,6 +39,7 @@ if __name__ == "__main__":
         portfolio_allocation_percent=2.0,
         offset_sold_positions=True,
     )
+
     spreadstrat = SpreadsByDeltaStrategy(strategy_name="spreads")
 
     # Create our brokers
