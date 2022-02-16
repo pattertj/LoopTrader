@@ -322,12 +322,21 @@ class SingleByDeltaStrategy(Strategy, Component):
 
         # If we have an offset_strike...
         if offset_strike is not None:
-            # Build Long Leg and append
-            long_leg = self.build_leg(offset_strike.symbol, qty, "BUY", True)
-            order_request.order.legs.append(long_leg)
+            # Check if we already have a Long position in place.
+            long_offset = self.get_current_offset(first_leg.expiration_date)
 
-            # Subtract the offset, if it exists
-            price = price - (offset_strike.bid + offset_strike.ask) / 2
+            # If none exists or quantity doesn't match, build the offset leg
+            if long_offset is None or long_offset.quantity != first_leg.quantity:
+                # If we have an offset and the offset qty < new qty, then qty = the delta between current and new qty
+                if long_offset is not None and (long_offset.quantity < qty):
+                    qty -= long_offset.quantity
+
+                # Build Long Leg and append
+                long_leg = self.build_leg(offset_strike.symbol, qty, "BUY", True)
+                order_request.order.legs.append(long_leg)
+
+                # Subtract the offset, if it exists
+                price = price - (offset_strike.bid + offset_strike.ask) / 2
 
         # Set the price
         order_request.order.price = helpers.format_order_price(price)
@@ -374,7 +383,11 @@ class SingleByDeltaStrategy(Strategy, Component):
 
         # Build and append new legs
         for leg in original_order.legs:
-            instruction = "BUY" if leg.instruction == "SELL_TO_OPEN" else "SELL"
+            instruction = self.get_closing_order_instruction(leg.instruction)
+
+            if instruction is None:
+                break
+
             new_leg = self.build_leg(
                 leg.symbol, leg.quantity, instruction, opening=False
             )
@@ -387,6 +400,27 @@ class SingleByDeltaStrategy(Strategy, Component):
 
         # Return request
         return order_request
+
+    def get_closing_order_instruction(
+        self, opening_instruction: str
+    ) -> Union[str, None]:
+        """Returns the correct instruction for a closing order leg, based on the opening leg's instruction
+
+        Args:
+            opening_instruction (str): Instruction of the opening order's leg
+
+        Returns:
+            Union[str, None]: The closing instruction, or None if we shouldn't close this leg.
+        """
+
+        # Return the opposite instruction, if the leg matches our strategy
+        if opening_instruction == "SELL_TO_OPEN" and self.buy_or_sell == "SELL":
+            return "BUY"
+        elif opening_instruction == "BUY_TO_OPEN" and self.buy_or_sell == "BUY":
+            return "SELL"
+        # If it doesn't match, return nothing, because we don't close offsetting legs, let them expire.
+        else:
+            return None
 
     def build_base_order_request_message(self, is_closing: bool = False):
         orderrequest = baseRR.PlaceOrderRequestMessage()
@@ -597,6 +631,31 @@ class SingleByDeltaStrategy(Strategy, Component):
                 current_orders.append(latest_order.order)
 
         return current_orders
+
+    def get_current_offset(
+        self, expiration: dt.date
+    ) -> Union[baseModels.OrderLeg, None]:
+        """Returns the first offsetting leg found in the DB for the given expiration date.
+
+        Args:
+            expiration (dt.date): Expiration date to search
+
+        Returns:
+            Union[baseModels.OrderLeg,None]: The leg from the DB, if found.
+        """
+        # Read DB Orders
+        open_offset_request = baseRR.ReadFirstDatabaseOffsetLegRequest(
+            self.strategy_id,
+            self.put_or_call,
+            dt.datetime.combine(expiration, dt.time(0, 0)),
+        )
+        open_offset = self.mediator.read_first_offset_leg(open_offset_request)
+
+        if open_offset is None or open_offset.offset_leg is None:
+            logger.info("No open offset exist.")
+            return None
+
+        return open_offset.offset_leg
 
     ####################
     ### Option Chain ###

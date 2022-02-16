@@ -47,3 +47,11 @@ class Database(abc.ABC, Component):
         raise NotImplementedError(
             "Each database must implement the 'read_open_orders' method."
         )
+
+    @abc.abstractmethod
+    def read_first_offset_leg(
+        self, request: baseRR.ReadFirstDatabaseOffsetLegRequest
+    ) -> Union[baseRR.ReadFirstDatabaseOffsetLegResponse, None]:
+        raise NotImplementedError(
+            "Each database must implement the 'read_first_offset_leg' method."
+        )

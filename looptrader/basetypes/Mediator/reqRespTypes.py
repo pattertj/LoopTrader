@@ -335,6 +335,20 @@ class ReadOpenDatabaseOrdersResponse:
 
 
 @attr.s(auto_attribs=True)
+class ReadFirstDatabaseOffsetLegRequest:
+    strategy_id: int = attr.ib(validator=attr.validators.instance_of(int))
+    put_or_call: str = attr.ib(validator=attr.validators.instance_of(str))
+    expiration: datetime = attr.ib(validator=attr.validators.instance_of(datetime))
+
+
+@attr.s(auto_attribs=True, init=False)
+class ReadFirstDatabaseOffsetLegResponse:
+    offset_leg: base.OrderLeg = attr.ib(
+        validator=attr.validators.instance_of(base.OrderLeg)
+    )
+
+
+@attr.s(auto_attribs=True)
 class GetQuoteRequestMessage:
     strategy_id: int = attr.ib(validator=attr.validators.instance_of(int))
     instruments: list[str] = attr.ib(validator=attr.validators.instance_of(list))
