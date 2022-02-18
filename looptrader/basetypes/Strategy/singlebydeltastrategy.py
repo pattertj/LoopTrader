@@ -243,19 +243,17 @@ class SingleByDeltaStrategy(Strategy, Component):
             logger.error("Failed to get Account")
             return None
 
-        # Get option chain
-        min_date = dt.date.today() + dt.timedelta(days=self.minimum_dte)
-        max_date = dt.date.today() + dt.timedelta(days=self.maximum_dte)
-        chainrequest = self.build_option_chain_request(min_date, max_date)
+        # Get our available BP
+        availbp = self.calculate_actual_buying_power(account)
+
+        # Get default option chain
+        chainrequest = self.build_option_chain_request()
 
         chain = self.mediator.get_option_chain(chainrequest)
 
         if chain is None:
             logger.error("Failed to get Option Chain.")
             return None
-
-        # Should we even try?
-        availbp = self.calculate_actual_buying_power(account)
 
         # Find next expiration
         expiration = self.get_next_expiration(chain)
@@ -277,31 +275,40 @@ class SingleByDeltaStrategy(Strategy, Component):
         if strike is None:
             return None
 
-        # If we should immediate offset positions, get the second leg.
-        offset_strike = None
-
-        if self.offset_sold_positions:
-            offset_strike = self.get_offsetting_strike(expiration.strikes)
-
-            # If no valid strikes, exit.
-            if offset_strike is None:
-                return None
-
         # Calculate Quantity
-        qty = self.calculate_order_quantity(
+        quantity = self.calculate_order_quantity(
             strike.strike, availbp, account.currentbalances.liquidationvalue
         )
 
+        offset_strike = None
+        offset_qty = 0
+
+        # If we should immediately offset positions, decide how many we need.
+        if self.offset_sold_positions:
+            offset_qty = self.calculate_offset_leg_quantity(
+                quantity, expiration.expirationdate
+            )
+
+            if offset_qty > 0:
+                offset_strike = self.get_offsetting_strike(expiration.strikes)
+
+                # If we should have an offset, but don't find one, exit.
+                if offset_strike is None:
+                    raise BaseException("No offset strike found when expected.")
+
         # Return Order
-        return self.build_opening_order_request(strike, offset_strike, qty=qty)
+        return self.build_opening_order_request(
+            strike, quantity, offset_strike, offset_qty
+        )
 
     def build_opening_order_request(
         self,
         strike: baseRR.GetOptionChainResponseMessage.ExpirationDate.Strike,
+        qty: int,
         offset_strike: Union[
             baseRR.GetOptionChainResponseMessage.ExpirationDate.Strike, None
-        ],
-        qty: int,
+        ] = None,
+        offset_qty: int = 0,
         offsetting: bool = False,
     ) -> Union[baseRR.PlaceOrderRequestMessage, None]:
 
@@ -312,7 +319,7 @@ class SingleByDeltaStrategy(Strategy, Component):
         # Build Base Order
         order_request = self.build_base_order_request_message()
 
-        # Build the first leg and append
+        # Build the first leg
         first_leg = self.build_leg(
             strike.symbol,
             strike.description,
@@ -320,50 +327,33 @@ class SingleByDeltaStrategy(Strategy, Component):
             "BUY" if offsetting else self.buy_or_sell,
             True,
         )
+        # Append the leg
         order_request.order.legs.append(first_leg)
 
         # Calculate price
         price = (strike.bid + strike.ask) / 2
 
-        # If we have an offset_strike...
-        if offset_strike is not None:
-            # Check if we already have a Long position in place.
-            long_offsets = self.get_current_offsets(first_leg.expiration_date)
+        # If we have an offset_strike and quantity > 0...
+        if (
+            self.buy_or_sell == "SELL"
+            and not offsetting
+            and offset_strike is not None
+            and offset_qty > 0
+        ):
+            # Build the offset leg
+            long_leg = self.build_leg(
+                offset_strike.symbol, offset_strike.description, offset_qty, "BUY", True
+            )
+            # Append the leg
+            order_request.order.legs.append(long_leg)
 
-            # If no longs, build one.
-            if long_offsets is None:
-                # Build Long Leg and append
-                long_leg = self.build_leg(
-                    offset_strike.symbol, offset_strike.description, qty, "BUY", True
-                )
-                order_request.order.legs.append(long_leg)
+            # Recalculate the price
+            price = price - (offset_strike.bid + offset_strike.ask) / 2
 
-                # Subtract the offset, if it exists
-                price = price - (offset_strike.bid + offset_strike.ask) / 2
-            else:
-                # If there are longs, get the quantity
-                qty = sum(leg.quantity for leg in long_offsets)
-
-                # If we have less than we need, determine the delta, buld the additonal leg(s)
-                if qty < first_leg.quantity:
-                    qty -= first_leg.quantity
-
-                    # Build Long Leg and append
-                    long_leg = self.build_leg(
-                        offset_strike.symbol,
-                        offset_strike.description,
-                        qty,
-                        "BUY",
-                        True,
-                    )
-                    order_request.order.legs.append(long_leg)
-
-                    # Subtract the offset, if it exists
-                    price = price - (offset_strike.bid + offset_strike.ask) / 2
-
-        # Set the price
+        # Format the price
         order_request.order.price = helpers.format_order_price(price)
 
+        # Return the request message
         return order_request
 
     def build_offsetting_order(
@@ -394,7 +384,7 @@ class SingleByDeltaStrategy(Strategy, Component):
             return None
 
         # Return Order
-        return self.build_opening_order_request(strike, None, qty, offsetting=True)
+        return self.build_opening_order_request(strike, qty, offsetting=True)
 
     def build_closing_order(
         self, original_order: baseModels.Order
@@ -699,13 +689,21 @@ class SingleByDeltaStrategy(Strategy, Component):
     ### Option Chain ###
     ####################
     def build_option_chain_request(
-        self, min_date, max_date
+        self,
+        min_date: Union[dt.date, None] = None,
+        max_date: Union[dt.date, None] = None,
     ) -> baseRR.GetOptionChainRequestMessage:
         """Builds the option chain request message.
 
         Returns:
             baseRR.GetOptionChainRequestMessage: Option chain request message
         """
+        if min_date is None:
+            min_date = dt.date.today() + dt.timedelta(days=self.minimum_dte)
+
+        if max_date is None:
+            max_date = dt.date.today() + dt.timedelta(days=self.maximum_dte)
+
         return baseRR.GetOptionChainRequestMessage(
             self.strategy_id,
             contracttype=self.put_or_call,
@@ -932,7 +930,7 @@ class SingleByDeltaStrategy(Strategy, Component):
         )
 
     def calculate_order_quantity(
-        self, strike: float, buyingpower: float, liquidationvalue: float
+        self, strike: float, buyingpower: float, liquidation_value: float
     ) -> int:
         """Calculates the number of positions to open for a given account and strike."""
         logger.debug("calculate_order_quantity")
@@ -941,12 +939,37 @@ class SingleByDeltaStrategy(Strategy, Component):
         max_loss = strike * 100 * float(self.max_loss_calc_percent)
 
         # Calculate max buying power to use
-        balance_to_risk = liquidationvalue * float(self.portfolio_allocation_percent)
+        balance_to_risk = liquidation_value * float(self.portfolio_allocation_percent)
 
-        remainingbalance = buyingpower - (liquidationvalue - balance_to_risk)
+        remainingbalance = buyingpower - (liquidation_value - balance_to_risk)
 
         # Calculate trade size
         trade_size = remainingbalance // max_loss
 
         # Return quantity
         return int(trade_size)
+
+    def calculate_offset_leg_quantity(
+        self, target_qty: int, expiration_date: dt.date
+    ) -> int:
+        """Calculates the quantity for an offset leg based on what has already been purchased for the given expiration.
+
+        Args:
+            target_qty (int): How many positions we need to offset
+            expiration_date (dt.date): The date we need to offset on
+
+        Returns:
+            int: Quantity of offset legs needed.
+        """
+        # Get all offsetting legs on the date provided
+        long_offsets = self.get_current_offsets(expiration_date)
+
+        # If we don't have any, return the full amount
+        if long_offsets is None:
+            return target_qty
+
+        # If we do have offsets, sum up the quantity
+        qty = sum(leg.quantity for leg in long_offsets)
+
+        # Return either the  difference between our target qty and actual qty, or 0, whichever is larger
+        return max(target_qty - qty, 0)
