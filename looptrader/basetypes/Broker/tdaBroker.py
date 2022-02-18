@@ -617,7 +617,8 @@ class TdaBroker(Broker, Component):
 
         return accountorder
 
-    def translate_base_account_order(self, order):
+    @staticmethod
+    def translate_base_account_order(order) -> baseModels.Order:
         accountorder = baseModels.Order()
         accountorder.order_strategy_type = order.get("complexOrderStrategyType", "")
         accountorder.order_type = order.get("orderType", "")
