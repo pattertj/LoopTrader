@@ -662,30 +662,34 @@ class TdaBroker(Broker, Component):
         instrument = position.get("instrument", dict)
 
         if instrument is not None:
-            desc = instrument.get("description")
-
-            if desc is not None:
-                match = re.search(
-                    r"([A-Z]{1}[a-z]{2} \d{1,2} \d{4})", instrument.get("description")
-                )
-                if match is not None:
-                    accountposition.expirationdate = dtime.datetime.strptime(
-                        match.group(), "%b %d %Y"
-                    )
-
-            accountposition.assettype = instrument.get("assetType", str)
-            accountposition.description = instrument.get("description", str)
-            accountposition.putcall = instrument.get("putCall", str)
-            accountposition.symbol = instrument.get("symbol", str)
-            accountposition.underlyingsymbol = instrument.get("underlyingSymbol", str)
-
-            strikeprice = re.search(r"(?<=[PC])\d\w+", instrument.get("symbol", str))
-
-            if strikeprice is None and accountposition.assettype == "OPTION":
-                logger.error(
-                    "No strike price found for {}".format(instrument.get("symbol", str))
-                )
-            elif strikeprice is not None:
-                accountposition.strikeprice = float(strikeprice.group())
+            TdaBroker.translate_account_position_instrument(accountposition, instrument)
 
         return accountposition
+
+    @staticmethod
+    def translate_account_position_instrument(accountposition, instrument):
+        desc = instrument.get("description")
+
+        if desc is not None:
+            match = re.search(
+                r"([A-Z]{1}[a-z]{2} \d{1,2} \d{4})", instrument.get("description")
+            )
+            if match is not None:
+                accountposition.expirationdate = dtime.datetime.strptime(
+                    match.group(), "%b %d %Y"
+                )
+
+        accountposition.assettype = instrument.get("assetType", str)
+        accountposition.description = instrument.get("description", str)
+        accountposition.putcall = instrument.get("putCall", str)
+        accountposition.symbol = instrument.get("symbol", str)
+        accountposition.underlyingsymbol = instrument.get("underlyingSymbol", str)
+
+        strikeprice = re.search(r"(?<=[PC])\d\w+", instrument.get("symbol", str))
+
+        if strikeprice is None and accountposition.assettype == "OPTION":
+            logger.error(
+                "No strike price found for {}".format(instrument.get("symbol", str))
+            )
+        elif strikeprice is not None:
+            accountposition.strikeprice = float(strikeprice.group())
