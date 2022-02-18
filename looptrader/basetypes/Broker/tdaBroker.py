@@ -594,6 +594,30 @@ class TdaBroker(Broker, Component):
     def translate_account_order(self, order: dict) -> baseModels.Order:
         """Transforms a TDA order dictionary into a LoopTrader order"""
 
+        accountorder = self.translate_base_account_order(order)
+
+        legs = order.get("orderLegCollection")
+        if legs is not None:
+            for leg in legs:
+                # Build Leg
+                accountorderleg = self.translate_account_order_leg(leg)
+                accountorderleg.order_id = accountorder.order_id
+                # Append Leg
+                accountorder.legs.append(accountorderleg)
+
+        activities = order.get("orderActivityCollection")
+        if activities is not None:
+            for activity in activities:
+                # Build Leg
+                accountorderactivity = self.translate_account_order_activity(activity)
+                accountorderactivity.order_id = accountorder.order_id
+
+                # Append Leg
+                accountorder.activities.append(accountorderactivity)
+
+        return accountorder
+
+    def translate_base_account_order(self, order):
         accountorder = baseModels.Order()
         accountorder.order_strategy_type = order.get("complexOrderStrategyType", "")
         accountorder.order_type = order.get("orderType", "")
@@ -619,26 +643,6 @@ class TdaBroker(Broker, Component):
         accountorder.cancelable = order.get("cancelable", False)
         accountorder.editable = order.get("editable", False)
         accountorder.legs = []
-
-        legs = order.get("orderLegCollection")
-        if legs is not None:
-            for leg in legs:
-                # Build Leg
-                accountorderleg = self.translate_account_order_leg(leg)
-                accountorderleg.order_id = accountorder.order_id
-                # Append Leg
-                accountorder.legs.append(accountorderleg)
-
-        activities = order.get("orderActivityCollection")
-        if activities is not None:
-            for activity in activities:
-                # Build Leg
-                accountorderactivity = self.translate_account_order_activity(activity)
-                accountorderactivity.order_id = accountorder.order_id
-
-                # Append Leg
-                accountorder.activities.append(accountorderactivity)
-
         return accountorder
 
     @staticmethod
