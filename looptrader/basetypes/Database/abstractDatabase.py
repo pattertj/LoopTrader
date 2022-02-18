@@ -49,9 +49,9 @@ class Database(abc.ABC, Component):
         )
 
     @abc.abstractmethod
-    def read_first_offset_leg(
-        self, request: baseRR.ReadFirstDatabaseOffsetLegRequest
-    ) -> Union[baseRR.ReadFirstDatabaseOffsetLegResponse, None]:
+    def read_offset_legs_by_expiration(
+        self, request: baseRR.ReadOffsetLegsByExpirationRequest
+    ) -> Union[baseRR.ReadOffsetLegsByExpirationResponse, None]:
         raise NotImplementedError(
-            "Each database must implement the 'read_first_offset_leg' method."
+            "Each database must implement the 'read_offset_legs_by_expiration' method."
         )

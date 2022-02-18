@@ -132,9 +132,9 @@ class Mediator(abc.ABC):
             "Each mediator must implement the 'read_open_orders' method."
         )
 
-    def read_first_offset_leg(
-        self, request: baseRR.ReadFirstDatabaseOffsetLegRequest
-    ) -> Union[baseRR.ReadFirstDatabaseOffsetLegResponse, None]:
+    def read_offset_legs_by_expiration(
+        self, request: baseRR.ReadOffsetLegsByExpirationRequest
+    ) -> Union[baseRR.ReadOffsetLegsByExpirationResponse, None]:
         raise NotImplementedError(
-            "Each mediator must implement the 'read_first_offset_leg' method."
+            "Each mediator must implement the 'read_offset_legs_by_expiration' method."
         )

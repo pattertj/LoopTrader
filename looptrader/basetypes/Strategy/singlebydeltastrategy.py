@@ -2,6 +2,7 @@ import datetime as dt
 import logging
 import logging.config
 import math
+import re
 import time
 from typing import Union
 
@@ -313,7 +314,11 @@ class SingleByDeltaStrategy(Strategy, Component):
 
         # Build the first leg and append
         first_leg = self.build_leg(
-            strike.symbol, qty, "BUY" if offsetting else self.buy_or_sell, True
+            strike.symbol,
+            strike.description,
+            qty,
+            "BUY" if offsetting else self.buy_or_sell,
+            True,
         )
         order_request.order.legs.append(first_leg)
 
@@ -323,20 +328,38 @@ class SingleByDeltaStrategy(Strategy, Component):
         # If we have an offset_strike...
         if offset_strike is not None:
             # Check if we already have a Long position in place.
-            long_offset = self.get_current_offset(first_leg.expiration_date)
+            long_offsets = self.get_current_offsets(first_leg.expiration_date)
 
-            # If none exists or quantity doesn't match, build the offset leg
-            if long_offset is None or long_offset.quantity != first_leg.quantity:
-                # If we have an offset and the offset qty < new qty, then qty = the delta between current and new qty
-                if long_offset is not None and (long_offset.quantity < qty):
-                    qty -= long_offset.quantity
-
+            # If no longs, build one.
+            if long_offsets is None:
                 # Build Long Leg and append
-                long_leg = self.build_leg(offset_strike.symbol, qty, "BUY", True)
+                long_leg = self.build_leg(
+                    offset_strike.symbol, offset_strike.description, qty, "BUY", True
+                )
                 order_request.order.legs.append(long_leg)
 
                 # Subtract the offset, if it exists
                 price = price - (offset_strike.bid + offset_strike.ask) / 2
+            else:
+                # If there are longs, get the quantity
+                qty = sum(leg.quantity for leg in long_offsets)
+
+                # If we have less than we need, determine the delta, buld the additonal leg(s)
+                if qty < first_leg.quantity:
+                    qty -= first_leg.quantity
+
+                    # Build Long Leg and append
+                    long_leg = self.build_leg(
+                        offset_strike.symbol,
+                        offset_strike.description,
+                        qty,
+                        "BUY",
+                        True,
+                    )
+                    order_request.order.legs.append(long_leg)
+
+                    # Subtract the offset, if it exists
+                    price = price - (offset_strike.bid + offset_strike.ask) / 2
 
         # Set the price
         order_request.order.price = helpers.format_order_price(price)
@@ -389,7 +412,7 @@ class SingleByDeltaStrategy(Strategy, Component):
                 break
 
             new_leg = self.build_leg(
-                leg.symbol, leg.quantity, instruction, opening=False
+                leg.symbol, leg.description, leg.quantity, instruction, opening=False
             )
             order_request.order.legs.append(new_leg)
 
@@ -447,10 +470,16 @@ class SingleByDeltaStrategy(Strategy, Component):
         return orderrequest
 
     def build_leg(
-        self, symbol: str, quantity: int, buy_or_sell: str, opening: bool
+        self,
+        symbol: str,
+        description: str,
+        quantity: int,
+        buy_or_sell: str,
+        opening: bool,
     ) -> baseModels.OrderLeg:
         leg = baseModels.OrderLeg()
         leg.symbol = symbol
+        leg.description = description
         leg.asset_type = "OPTION"
         leg.quantity = quantity
         leg.position_effect = "OPENING" if opening else "CLOSING"
@@ -466,6 +495,12 @@ class SingleByDeltaStrategy(Strategy, Component):
             instruction = "SELL_TO_CLOSE"
 
         leg.instruction = instruction
+
+        if leg.description is not None:
+            match = re.search(r"([A-Z]{1}[a-z]{2} \d{1,2} \d{4})", leg.description)
+            if match is not None:
+                re_date = dt.datetime.strptime(match.group(), "%b %d %Y")
+                leg.expiration_date = re_date.date()
 
         return leg
 
@@ -632,9 +667,9 @@ class SingleByDeltaStrategy(Strategy, Component):
 
         return current_orders
 
-    def get_current_offset(
+    def get_current_offsets(
         self, expiration: dt.date
-    ) -> Union[baseModels.OrderLeg, None]:
+    ) -> Union[list[baseModels.OrderLeg], None]:
         """Returns the first offsetting leg found in the DB for the given expiration date.
 
         Args:
@@ -643,19 +678,22 @@ class SingleByDeltaStrategy(Strategy, Component):
         Returns:
             Union[baseModels.OrderLeg,None]: The leg from the DB, if found.
         """
+        if expiration is None:
+            raise BaseException("No Expiration Date Provided for Offset Lookup")
+
         # Read DB Orders
-        open_offset_request = baseRR.ReadFirstDatabaseOffsetLegRequest(
+        open_offset_request = baseRR.ReadOffsetLegsByExpirationRequest(
             self.strategy_id,
             self.put_or_call,
             dt.datetime.combine(expiration, dt.time(0, 0)),
         )
-        open_offset = self.mediator.read_first_offset_leg(open_offset_request)
+        open_offsets = self.mediator.read_offset_legs_by_expiration(open_offset_request)
 
-        if open_offset is None or open_offset.offset_leg is None:
+        if open_offsets is None or open_offsets.offset_legs == []:
             logger.info("No open offset exist.")
             return None
 
-        return open_offset.offset_leg
+        return open_offsets.offset_legs
 
     ####################
     ### Option Chain ###

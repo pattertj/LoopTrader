@@ -260,7 +260,7 @@ class Bot(Mediator):
     ) -> Union[baseRR.ReadOpenDatabaseOrdersResponse, None]:
         return self.database.read_active_orders(request)
 
-    def read_first_offset_leg(
-        self, request: baseRR.ReadFirstDatabaseOffsetLegRequest
-    ) -> Union[baseRR.ReadFirstDatabaseOffsetLegResponse, None]:
-        return self.database.read_first_offset_leg(request)
+    def read_offset_legs_by_expiration(
+        self, request: baseRR.ReadOffsetLegsByExpirationRequest
+    ) -> Union[baseRR.ReadOffsetLegsByExpirationResponse, None]:
+        return self.database.read_offset_legs_by_expiration(request)

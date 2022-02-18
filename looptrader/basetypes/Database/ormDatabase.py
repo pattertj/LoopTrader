@@ -336,9 +336,9 @@ class ormDatabase(Database):
 
         return response
 
-    def read_first_offset_leg(
-        self, request: baseRR.ReadFirstDatabaseOffsetLegRequest
-    ) -> baseRR.ReadFirstDatabaseOffsetLegResponse:
+    def read_offset_legs_by_expiration(
+        self, request: baseRR.ReadOffsetLegsByExpirationRequest
+    ) -> baseRR.ReadOffsetLegsByExpirationResponse:
         # Setup DB Session
         engine = create_engine(self.connection_string)
         Base.metadata.bind = engine
@@ -346,7 +346,7 @@ class ormDatabase(Database):
         session = DBSession(expire_on_commit=False)
 
         # Build Response
-        response = baseRR.ReadFirstDatabaseOffsetLegResponse()
+        response = baseRR.ReadOffsetLegsByExpirationResponse()
 
         try:
             result = (
@@ -358,12 +358,12 @@ class ormDatabase(Database):
                 .filter(baseModels.OrderLeg.expiration_date == request.expiration)
                 .filter(baseModels.OrderLeg.put_call == request.put_or_call)
                 .filter(baseModels.OrderLeg.instruction == "BUY_TO_OPEN")
-                .first()
+                .all()
             )
 
             session.commit()
 
-            response.offset_leg = result
+            response.offset_legs = result
         except Exception as e:
             print(e)
             session.rollback()
