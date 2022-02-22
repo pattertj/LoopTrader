@@ -27,7 +27,7 @@ if __name__ == "__main__":
         put_or_call="PUT",
         target_delta=0.07,
         min_delta=0.03,
-        profit_target_percent=0.7,
+        profit_target_percent=(0.95, 0.04, 0.70),
     )
 
     nakedcalls = SingleByDeltaStrategy(
@@ -40,7 +40,7 @@ if __name__ == "__main__":
         offset_sold_positions=True,
     )
 
-    spreadstrat = SpreadsByDeltaStrategy(strategy_name="spreads")
+    spreadstrat = SpreadsByDeltaStrategy(strategy_name="spreads", targetdelta=-0.07)
 
     # Create our brokers
     individualbroker = TdaBroker(id="individual")

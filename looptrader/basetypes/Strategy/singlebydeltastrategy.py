@@ -43,9 +43,7 @@ class SingleByDeltaStrategy(Strategy, Component):
     )
     minimum_dte: int = attr.ib(default=1, validator=attr.validators.instance_of(int))
     maximum_dte: int = attr.ib(default=4, validator=attr.validators.instance_of(int))
-    profit_target_percent: float = attr.ib(
-        default=0.7, validator=attr.validators.instance_of(float)
-    )
+    profit_target_percent: Union[float, tuple] = attr.ib(default=0.7)
     max_loss_calc_percent: float = attr.ib(
         default=0.2, validator=attr.validators.instance_of(float)
     )
@@ -129,15 +127,12 @@ class SingleByDeltaStrategy(Strategy, Component):
             # Process After-Market
             self.process_after_market()
 
-        return
-
     ###############################
     ### Closed Market Functions ###
     ###############################
     def process_closed_market(self, market_open: dt.datetime):
         # Sleep until market opens
         self.sleep_until_market_open(market_open)
-        return
 
     ############################
     ### Pre-Market Functions ###
@@ -145,7 +140,6 @@ class SingleByDeltaStrategy(Strategy, Component):
     def process_pre_market(self, market_open: dt.datetime):
         # Sleep until market opens
         self.sleep_until_market_open(market_open)
-        return
 
     ############################
     ### Early Core Functions ###
@@ -225,7 +219,6 @@ class SingleByDeltaStrategy(Strategy, Component):
         market = self.get_next_market_hours()
 
         self.sleep_until_market_open(market.start)
-        return
 
     ######################
     ### Order Builders ###
@@ -294,7 +287,7 @@ class SingleByDeltaStrategy(Strategy, Component):
 
                 # If we should have an offset, but don't find one, exit.
                 if offset_strike is None:
-                    raise BaseException("No offset strike found when expected.")
+                    raise RuntimeError("No offset strike found when expected.")
 
         # Return Order
         return self.build_opening_order_request(
@@ -316,8 +309,11 @@ class SingleByDeltaStrategy(Strategy, Component):
         if qty is None or qty <= 0:
             return None
 
-        # Build Base Order
-        order_request = self.build_base_order_request_message()
+        # Determine how many legs are in the order
+        single_leg = offset_strike is None or offset_qty <= 0
+
+        # Build base order request
+        order_request = self.build_base_order_request_message(is_single=single_leg)
 
         # Build the first leg
         first_leg = self.build_leg(
@@ -390,6 +386,7 @@ class SingleByDeltaStrategy(Strategy, Component):
         self, original_order: baseModels.Order
     ) -> baseRR.PlaceOrderRequestMessage:
         """Builds a closing order request message for a given position."""
+        original_strike = 0.0
 
         # Build base order
         order_request = self.build_base_order_request_message(is_closing=True)
@@ -401,14 +398,43 @@ class SingleByDeltaStrategy(Strategy, Component):
             if instruction is None:
                 break
 
+            # Get the Strike
+            match = re.search(r"([0-9])+$", leg.symbol)
+            if match is not None:
+                original_strike = float(match.group())
+
+            # Build the new leg and append it
             new_leg = self.build_leg(
                 leg.symbol, leg.description, leg.quantity, instruction, opening=False
             )
             order_request.order.legs.append(new_leg)
 
-        # Calculate and enter price
+        # If it is a float, use the entered value
+        if isinstance(self.profit_target_percent, float):
+            pt = float(self.profit_target_percent)
+        # If it is a tuple parse it as 1) Base PT, 2) %OTM Limit 3) Alternate PT
+        elif isinstance(self.profit_target_percent, tuple):
+            # Get current ticker price
+            get_quote_request = baseRR.GetQuoteRequestMessage(
+                self.strategy_id, [self.underlying]
+            )
+            current_quote = self.mediator.get_quote(get_quote_request)
+
+            if current_quote is not None:
+                current_price = current_quote.instruments[0].lastPrice
+
+            # Calculate opening position %OTM
+            percent_otm = abs((current_price - original_strike) / current_price)
+
+            # Determine profit target %
+            if percent_otm < float(self.profit_target_percent[1]):
+                pt = float(self.profit_target_percent[0])
+            else:
+                pt = float(self.profit_target_percent[2])
+
+        # Set and format the closing price
         order_request.order.price = helpers.format_order_price(
-            original_order.price * (1 - float(self.profit_target_percent))
+            original_order.price * (1 - pt)
         )
 
         # Return request
@@ -435,14 +461,16 @@ class SingleByDeltaStrategy(Strategy, Component):
         else:
             return None
 
-    def build_base_order_request_message(self, is_closing: bool = False):
+    def build_base_order_request_message(
+        self, is_closing: bool = False, is_single: bool = True
+    ):
         orderrequest = baseRR.PlaceOrderRequestMessage()
         orderrequest.order = baseModels.Order()
         orderrequest.order.strategy_id = self.strategy_id
         orderrequest.order.order_strategy_type = "SINGLE"
         orderrequest.order.duration = "GOOD_TILL_CANCEL"
 
-        if self.offset_sold_positions is False:
+        if self.offset_sold_positions is False or is_single:
             orderrequest.order.order_type = "LIMIT"
         elif (
             is_closing
@@ -450,7 +478,7 @@ class SingleByDeltaStrategy(Strategy, Component):
             or not is_closing
             and self.buy_or_sell != "SELL"
         ):
-            orderrequest.order.order_type = "NET_DEBIT"
+            orderrequest.order.order_type = "LIMIT"
         else:
             orderrequest.order.order_type = "NET_CREDIT"
 
@@ -520,8 +548,6 @@ class SingleByDeltaStrategy(Strategy, Component):
         # Otherwise, try again
         self.place_offsetting_order_loop(qty)
 
-        return
-
     def place_new_orders_loop(self) -> None:
         """Looping Logic for placing new orders"""
         # Build Order
@@ -539,8 +565,6 @@ class SingleByDeltaStrategy(Strategy, Component):
 
         # Otherwise, try again
         self.place_new_orders_loop()
-
-        return
 
     def place_order(self, orderrequest: baseRR.PlaceOrderRequestMessage) -> bool:
         """Method for placing new Orders and handling fills"""
@@ -669,7 +693,7 @@ class SingleByDeltaStrategy(Strategy, Component):
             Union[baseModels.OrderLeg,None]: The leg from the DB, if found.
         """
         if expiration is None:
-            raise BaseException("No Expiration Date Provided for Offset Lookup")
+            raise RuntimeError("No Expiration Date Provided for Offset Lookup")
 
         # Read DB Orders
         open_offset_request = baseRR.ReadOffsetLegsByExpirationRequest(
@@ -823,20 +847,18 @@ class SingleByDeltaStrategy(Strategy, Component):
             mid = (detail.bid + detail.ask) / 2
 
             # If the mid-price is lower, use it
-            if 0.00 < mid < best_mid:
-                best_strike = strike
-                best_mid = mid
-
             # If we're selling a PUT and the mid price is the same, but the strike is higher, use it.
-            elif (self.put_or_call == "PUT") and (
-                (mid == best_mid) and (best_strike < strike)
-            ):
-                best_strike = strike
-                best_mid = mid
-
             # If we're selling a CALL and the mid price is the same, but the strike is lower, use it.
-            elif self.put_or_call == "CALL" and (
-                (mid == best_mid) and (best_strike > strike)
+            if (
+                (0.00 < mid < best_mid)
+                or (
+                    (self.put_or_call == "PUT")
+                    and ((mid == best_mid) and (best_strike < strike))
+                )
+                or (
+                    self.put_or_call == "CALL"
+                    and ((mid == best_mid) and (best_strike > strike))
+                )
             ):
                 best_strike = strike
                 best_mid = mid
