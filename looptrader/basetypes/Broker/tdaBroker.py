@@ -130,6 +130,9 @@ class TdaBroker(Broker, Component):
                 if attempt == self.maxretries - 1:
                     return None
 
+        if order is None:
+            return None
+
         response = baseRR.GetOrderResponseMessage()
 
         response.order = self.translate_account_order(order)
