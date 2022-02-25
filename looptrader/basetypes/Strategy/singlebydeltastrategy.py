@@ -990,8 +990,23 @@ class SingleByDeltaStrategy(Strategy, Component):
         if long_offsets is None:
             return target_qty
 
-        # If we do have offsets, sum up the quantity
-        qty = sum(leg.quantity for leg in long_offsets)
+        # Get working, closing orders to determine how many positions are accounted for
+        req = baseRR.ReadOpenDatabaseOrdersRequest(strategy_id=self.strategy_id)
+        open_orders = self.mediator.read_active_orders(req)
 
-        # Return either the  difference between our target qty and actual qty, or 0, whichever is larger
-        return max(target_qty - qty, 0)
+        open_qty = 0
+
+        if open_orders is not None:
+            for order in open_orders.orders:
+                for leg in order.legs:
+                    if (
+                        leg.position_effect == "CLOSING"
+                        and leg.put_call == self.put_or_call
+                    ):
+                        open_qty += leg.quantity
+
+        # If we do have offsets, sum up the quantity
+        offset_qty = sum(leg.quantity for leg in long_offsets)
+
+        # Return either the difference between our target qty and actual qty, or 0, whichever is larger
+        return max(target_qty - (offset_qty - open_qty), 0)

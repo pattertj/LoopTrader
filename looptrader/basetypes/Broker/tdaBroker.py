@@ -31,6 +31,7 @@ from td.client import TDClient
 from td.option_chain import OptionChain
 
 logger = logging.getLogger("autotrader")
+DT_REGEX = "%Y-%m-%dT%H:%M:%S%z"
 
 
 @attr.s(auto_attribs=True)
@@ -73,7 +74,7 @@ class TdaBroker(Broker, Component):
                             return
 
             # If no match, raise exception
-            raise Exception("No credentials found in config.yaml")
+            raise RuntimeError("No credentials found in config.yaml")
 
     ########
     # Read #
@@ -129,6 +130,9 @@ class TdaBroker(Broker, Component):
                 )
                 if attempt == self.maxretries - 1:
                     return None
+
+        if order is None:
+            raise ValueError("No Order to Translate")
 
         response = baseRR.GetOrderResponseMessage()
 
@@ -349,11 +353,9 @@ class TdaBroker(Broker, Component):
         response = baseRR.GetMarketHoursResponseMessage()
 
         startdt = dtime.datetime.strptime(
-            str(dict(markethours[0]).get("start")), "%Y-%m-%dT%H:%M:%S%z"
+            str(dict(markethours[0]).get("start")), DT_REGEX
         )
-        enddt = dtime.datetime.strptime(
-            str(dict(markethours[0]).get("end")), "%Y-%m-%dT%H:%M:%S%z"
-        )
+        enddt = dtime.datetime.strptime(str(dict(markethours[0]).get("end")), DT_REGEX)
         response.start = startdt.astimezone(dtime.timezone.utc)
         response.end = enddt.astimezone(dtime.timezone.utc)
         response.isopen = details.get("isOpen", bool)
@@ -524,20 +526,20 @@ class TdaBroker(Broker, Component):
         return strikeresponse
 
     def translate_account_order_activity(
-        self, orderActivity: dict
+        self, order_activity: dict
     ) -> baseModels.OrderActivity:
         """Transforms a TDA order activity dictionary into a LoopTrader order leg"""
         account_order_activity = baseModels.OrderActivity()
 
         account_order_activity.id = None
-        account_order_activity.activity_type = orderActivity.get("activityType", "")
-        account_order_activity.execution_type = orderActivity.get("executionType", "")
-        account_order_activity.quantity = orderActivity.get("quantity", 0)
-        account_order_activity.order_remaining_quantity = orderActivity.get(
+        account_order_activity.activity_type = order_activity.get("activityType", "")
+        account_order_activity.execution_type = order_activity.get("executionType", "")
+        account_order_activity.quantity = order_activity.get("quantity", 0)
+        account_order_activity.order_remaining_quantity = order_activity.get(
             "orderRemainingQuantity", 0
         )
 
-        legs = orderActivity.get("executionLegs")
+        legs = order_activity.get("executionLegs")
         if legs is not None:
             for leg in legs:
                 # Build Leg
@@ -558,7 +560,7 @@ class TdaBroker(Broker, Component):
         account_order_activity.price = leg.get("price", 0.0)
         account_order_activity.quantity = leg.get("quantity", 0)
         account_order_activity.time = dtime.datetime.strptime(
-            leg.get("time", dtime.datetime), "%Y-%m-%dT%H:%M:%S%z"
+            leg.get("time", dtime.datetime), DT_REGEX
         )
 
         return account_order_activity
@@ -594,6 +596,9 @@ class TdaBroker(Broker, Component):
     def translate_account_order(self, order: dict) -> baseModels.Order:
         """Transforms a TDA order dictionary into a LoopTrader order"""
 
+        if order is None:
+            raise ValueError("No Order Passed In")
+
         accountorder = self.translate_base_account_order(order)
 
         legs = order.get("orderLegCollection")
@@ -619,6 +624,9 @@ class TdaBroker(Broker, Component):
 
     @staticmethod
     def translate_base_account_order(order) -> baseModels.Order:
+        if order is None:
+            raise ValueError("No Order to Translate")
+
         accountorder = baseModels.Order()
         accountorder.order_strategy_type = order.get("complexOrderStrategyType", "")
         accountorder.order_type = order.get("orderType", "")
@@ -632,14 +640,12 @@ class TdaBroker(Broker, Component):
         accountorder.order_id = order.get("orderId", 0)
         accountorder.status = order.get("status", "")
         accountorder.entered_time = dtime.datetime.strptime(
-            order.get("enteredTime", dtime.datetime), "%Y-%m-%dT%H:%M:%S%z"
+            order.get("enteredTime", dtime.datetime), DT_REGEX
         )
 
         close = order.get("closeTime")
         if close is not None:
-            accountorder.close_time = dtime.datetime.strptime(
-                close, "%Y-%m-%dT%H:%M:%S%z"
-            )
+            accountorder.close_time = dtime.datetime.strptime(close, DT_REGEX)
         accountorder.account_id = order.get("accountId", 0)
         accountorder.cancelable = order.get("cancelable", False)
         accountorder.editable = order.get("editable", False)
@@ -672,29 +678,42 @@ class TdaBroker(Broker, Component):
         return accountposition
 
     @staticmethod
-    def translate_account_position_instrument(accountposition, instrument):
-        desc = instrument.get("description")
+    def translate_account_position_instrument(
+        accountposition: baseRR.AccountPosition, instrument: dict
+    ):
+        """Translates an instrument into an account position
 
-        if desc is not None:
-            match = re.search(
-                r"([A-Z]{1}[a-z]{2} \d{1,2} \d{4})", instrument.get("description")
-            )
-            if match is not None:
-                accountposition.expirationdate = dtime.datetime.strptime(
-                    match.group(), "%b %d %Y"
-                )
+        Args:
+            accountposition (baseRR.AccountPosition): Account Position to build
+            instrument (baseRR.Instrument): Instrument to translate
+        """
+        # Get the symbol
+        symbol = instrument.get("symbol", str)
 
         accountposition.assettype = instrument.get("assetType", str)
+
+        # If we have a symbol, try to extract an expiration date
+        if symbol is not None:
+            # Set the symbol
+            accountposition.symbol = symbol
+
+            # Get our regex match
+            exp_match = re.search(r"(\d{6})(?=[PC])", symbol)
+
+            # If we have a match, try to StrpTime
+            if exp_match is not None:
+                accountposition.expirationdate = dtime.datetime.strptime(
+                    exp_match.group(), "%m%d%y"
+                )
+
+            strike_match = re.search(r"(?<=[PC])\d\w+", symbol)
+
+            if strike_match is not None:
+                accountposition.strikeprice = float(strike_match.group())
+            elif accountposition.assettype == "OPTION":
+                logger.error("No strike price found for {}".format(symbol))
+
+        # Map the other fields
         accountposition.description = instrument.get("description", str)
         accountposition.putcall = instrument.get("putCall", str)
-        accountposition.symbol = instrument.get("symbol", str)
         accountposition.underlyingsymbol = instrument.get("underlyingSymbol", str)
-
-        strikeprice = re.search(r"(?<=[PC])\d\w+", instrument.get("symbol", str))
-
-        if strikeprice is None and accountposition.assettype == "OPTION":
-            logger.error(
-                "No strike price found for {}".format(instrument.get("symbol", str))
-            )
-        elif strikeprice is not None:
-            accountposition.strikeprice = float(strikeprice.group())
