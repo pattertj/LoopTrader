@@ -384,7 +384,7 @@ class SingleByDeltaStrategy(Strategy, Component):
 
     def build_closing_order(
         self, original_order: baseModels.Order
-    ) -> baseRR.PlaceOrderRequestMessage:
+    ) -> Union[None, baseRR.PlaceOrderRequestMessage]:
         """Builds a closing order request message for a given position."""
         original_strike = 0.0
 
@@ -411,6 +411,8 @@ class SingleByDeltaStrategy(Strategy, Component):
 
         # If it is a float, use the entered value
         if isinstance(self.profit_target_percent, float):
+            if self.profit_target_percent == 1.0:
+                return None
             pt = float(self.profit_target_percent)
         # If it is a tuple parse it as 1) Base PT, 2) %OTM Limit 3) Alternate PT
         elif isinstance(self.profit_target_percent, tuple):
@@ -431,6 +433,8 @@ class SingleByDeltaStrategy(Strategy, Component):
                 pt = float(self.profit_target_percent[0])
             else:
                 pt = float(self.profit_target_percent[2])
+
+            logger.info(f"OTM: {percent_otm*100}%, PT: {pt*100}%")
 
         # Set and format the closing price
         order_request.order.price = helpers.format_order_price(
@@ -560,7 +564,8 @@ class SingleByDeltaStrategy(Strategy, Component):
         # Place the order and if we get a result, build the closing order.
         if self.place_order(new_order_request):
             closing_order = self.build_closing_order(new_order_request.order)
-            self.place_order(closing_order)
+            if closing_order is not None:
+                self.place_order(closing_order)
             return
 
         # Otherwise, try again
