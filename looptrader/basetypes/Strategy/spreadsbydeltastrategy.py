@@ -173,7 +173,7 @@ class SpreadsByDeltaStrategy(Strategy, Component):
 
         chain = self.mediator.get_option_chain(chainrequest)
 
-        if chain is None:
+        if chain is None or chain.status == "FAILED":
             return None
 
         # Find expiration to trade

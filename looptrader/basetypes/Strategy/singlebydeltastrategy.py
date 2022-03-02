@@ -244,7 +244,7 @@ class SingleByDeltaStrategy(Strategy, Component):
 
         chain = self.mediator.get_option_chain(chainrequest)
 
-        if chain is None:
+        if chain is None or chain.status == "FAILED":
             logger.error("Failed to get Option Chain.")
             return None
 
@@ -362,7 +362,7 @@ class SingleByDeltaStrategy(Strategy, Component):
         chainrequest = self.build_option_chain_request(dt.date.today(), dt.date.today())
         chain = self.mediator.get_option_chain(chainrequest)
 
-        if chain is None:
+        if chain is None or chain.status == "FAILED":
             logger.error("Failed to get Option Chain.")
             return None
 
