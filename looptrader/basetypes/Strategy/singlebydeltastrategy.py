@@ -188,7 +188,7 @@ class SingleByDeltaStrategy(Strategy, Component):
                 # Check if the position expires today
                 if order.legs[0].expiration_date == dt.date.today():
                     # Offset
-                    self.place_offsetting_order_loop(order.quantity)
+                    self.place_offsetting_order_loop(order)
 
                     # Open a new position
                     self.place_new_orders_loop()
@@ -283,7 +283,9 @@ class SingleByDeltaStrategy(Strategy, Component):
             )
 
             if offset_qty > 0:
-                offset_strike = self.get_offsetting_strike(expiration.strikes)
+                offset_strike = self.get_offsetting_strike(
+                    expiration.strikes, account, offset_qty, strike.strike
+                )
 
                 # If we should have an offset, but don't find one, exit.
                 if offset_strike is None:
@@ -353,7 +355,7 @@ class SingleByDeltaStrategy(Strategy, Component):
         return order_request
 
     def build_offsetting_order(
-        self, qty: int
+        self, order: baseModels.Order
     ) -> Union[baseRR.PlaceOrderRequestMessage, None]:
         """Trading Logic for building Offsetting Order Request Messages"""
         logger.debug("build_offsetting_order")
@@ -372,15 +374,29 @@ class SingleByDeltaStrategy(Strategy, Component):
         else:
             expiration = chain.putexpdatemap[0]
 
+        # Get account balance
+        account = self.mediator.get_account(
+            baseRR.GetAccountRequestMessage(self.strategy_id, False, True)
+        )
+
+        if account is None or not hasattr(account, "positions"):
+            logger.error("Failed to get Account")
+            return None
+
+        # Get Short Strike
+        short_strike = self.get_strike_from_symbol(order.legs[0].symbol)
+
         # Find best strike to trade
-        strike = self.get_offsetting_strike(expiration.strikes)
+        strike = self.get_offsetting_strike(
+            expiration.strikes, account, order.quantity, short_strike
+        )
 
         if strike is None:
             logger.error("Failed to get Offsetting Strike.")
             return None
 
         # Return Order
-        return self.build_opening_order_request(strike, qty, offsetting=True)
+        return self.build_opening_order_request(strike, order.quantity, offsetting=True)
 
     def build_closing_order(
         self, original_order: baseModels.Order
@@ -399,9 +415,7 @@ class SingleByDeltaStrategy(Strategy, Component):
                 break
 
             # Get the Strike
-            match = re.search(r"([0-9])+$", leg.symbol)
-            if match is not None:
-                original_strike = float(match.group())
+            original_strike = self.get_strike_from_symbol(leg.symbol)
 
             # Build the new leg and append it
             new_leg = self.build_leg(
@@ -537,9 +551,9 @@ class SingleByDeltaStrategy(Strategy, Component):
         # Send Request
         self.mediator.cancel_order(cancelorderrequest)
 
-    def place_offsetting_order_loop(self, qty: int) -> None:
+    def place_offsetting_order_loop(self, order: baseModels.Order) -> None:
         # Build Order
-        offsetting_order_request = self.build_offsetting_order(qty)
+        offsetting_order_request = self.build_offsetting_order(order)
 
         # If neworder is None, exit.
         if offsetting_order_request is None:
@@ -550,7 +564,7 @@ class SingleByDeltaStrategy(Strategy, Component):
             return
 
         # Otherwise, try again
-        self.place_offsetting_order_loop(qty)
+        self.place_offsetting_order_loop(order)
 
     def place_new_orders_loop(self) -> None:
         """Looping Logic for placing new orders"""
@@ -714,6 +728,14 @@ class SingleByDeltaStrategy(Strategy, Component):
 
         return open_offsets.offset_legs
 
+    def get_strike_from_symbol(self, symbol: str):
+        match = re.search(r"([0-9])+$", symbol)
+
+        if match is not None:
+            original_strike = float(match.group())
+
+        return original_strike
+
     ####################
     ### Option Chain ###
     ####################
@@ -836,6 +858,9 @@ class SingleByDeltaStrategy(Strategy, Component):
         strikes: dict[
             float, baseRR.GetOptionChainResponseMessage.ExpirationDate.Strike
         ],
+        account: baseRR.GetAccountResponseMessage,
+        quantity: int,
+        short_strike: float,
     ) -> Union[baseRR.GetOptionChainResponseMessage.ExpirationDate.Strike, None]:
         """Searches an option chain for the optimal strike."""
         logger.debug("get_offsetting_strike")
@@ -844,6 +869,13 @@ class SingleByDeltaStrategy(Strategy, Component):
             logger.error("Cannot buy a max-width spread.")
             return None
 
+        # Get Buying Power
+        buying_power = self.calculate_actual_buying_power(account)
+
+        # Determine max spread for the available buying power.
+        max_strike_width = buying_power / strikes[0].multiplier / quantity
+
+        # Initialize values
         best_mid = float("inf")
         best_strike = 0.0
 
@@ -851,20 +883,24 @@ class SingleByDeltaStrategy(Strategy, Component):
             # Calc mid-price
             mid = (detail.bid + detail.ask) / 2
 
+            # Determine if our strike fits the parameters
+            good_strike_width = max_strike_width <= abs(short_strike - best_strike)
+            good_strike_position = (
+                (best_strike < strike)
+                if (self.put_or_call == "PUT")
+                else (best_strike > strike)
+            )
+            good_strike = (0.00 < mid < best_mid) or (
+                (mid == best_mid) and good_strike_position and good_strike_width
+            )
+
             # If the mid-price is lower, use it
             # If we're selling a PUT and the mid price is the same, but the strike is higher, use it.
             # If we're selling a CALL and the mid price is the same, but the strike is lower, use it.
-            if (
-                (0.00 < mid < best_mid)
-                or (
-                    (self.put_or_call == "PUT")
-                    and ((mid == best_mid) and (best_strike < strike))
+            if good_strike:
+                logger.info(
+                    f"Risk: {(abs(strike-best_strike)*detail.multiplier)}, Buying Power: {buying_power}"
                 )
-                or (
-                    self.put_or_call == "CALL"
-                    and ((mid == best_mid) and (best_strike > strike))
-                )
-            ):
                 best_strike = strike
                 best_mid = mid
 

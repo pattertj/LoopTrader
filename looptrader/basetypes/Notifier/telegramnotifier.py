@@ -405,7 +405,7 @@ class TelegramNotifier(Notifier, Component):
         parsemode: Union[DefaultValue[str], str, None],
     ):
         """Wrapper method to send reply texts"""
-        if message is None:
+        if message is None or "":
             return
 
         try:
