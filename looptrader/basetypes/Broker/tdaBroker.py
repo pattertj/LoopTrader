@@ -107,6 +107,9 @@ class TdaBroker(Broker, Component):
                 if attempt == self.maxretries - 1:
                     return None
 
+        if account is None:
+            return None
+
         securitiesaccount = account.get("securitiesAccount", dict)
 
         if securitiesaccount is None:
@@ -164,12 +167,19 @@ class TdaBroker(Broker, Component):
         for attempt in range(self.maxretries):
             try:
                 optionschain = self.getsession().get_options_chain(optionchainrequest)
+
+                if optionschain.status == "FAILED":
+                    raise BaseException("Option Chain Status Response = FAILED")
+
             except Exception:
                 logger.exception(
                     "Failed to get Options Chain. Attempt #{}".format(attempt)
                 )
                 if attempt == self.maxretries - 1:
                     return None
+
+        if optionschain is None:
+            return None
 
         response = baseRR.GetOptionChainResponseMessage()
 
@@ -201,6 +211,9 @@ class TdaBroker(Broker, Component):
                 )
                 if attempt == self.maxretries - 1:
                     return None
+
+        if quotes is None:
+            return None
 
         response = baseRR.GetQuoteResponseMessage()
         response.instruments = []
@@ -245,6 +258,9 @@ class TdaBroker(Broker, Component):
                 )
                 if attempt == self.maxretries - 1:
                     return None
+
+        if hours is None:
+            return None
 
         markettype: dict
         for markettype in hours.values():
