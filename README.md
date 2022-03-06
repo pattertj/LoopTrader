@@ -12,6 +12,7 @@
   <a href="https://github.com/pattertj/LoopTrader/network/members"><img src="https://img.shields.io/github/forks/pattertj/LoopTrader?style=flat"></a> 
   <a href="https://github.com/pattertj/LoopTrader/stargazers"><img src="https://img.shields.io/github/stars/pattertj/LoopTrader?style=flat"></a> 
   <a href="https://github.com/pattertj/LoopTrader/blob/main/LICENSE"><img src="https://img.shields.io/github/license/pattertj/LoopTrader?style=flat"></a>
+  <a href="https://saythanks.io/inbox#badge-modal"><img src="https://img.shields.io/badge/Say%20Thanks-!-1EAEDB.svg"></a>
 </p>
 
 <h4 align="center">An extensible options trading bot built on top of Python.</h4>
