@@ -104,7 +104,7 @@ def get_risk_free_rate() -> float:
     if oNode[0].text is None:
         raise ValueError("No Risk Free Rate found.")
     else:
-        return float(oNode[0].text)
+        return float(oNode[0].text) / 100.0
 
 
 def calculate_iv(
