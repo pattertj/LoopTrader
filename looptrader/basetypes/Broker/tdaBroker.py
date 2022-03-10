@@ -168,7 +168,7 @@ class TdaBroker(Broker, Component):
             try:
                 optionschain = self.getsession().get_options_chain(optionchainrequest)
 
-                if optionschain.status == "FAILED":
+                if optionschain["status"] == "FAILED":
                     raise BaseException("Option Chain Status Response = FAILED")
 
             except Exception:
