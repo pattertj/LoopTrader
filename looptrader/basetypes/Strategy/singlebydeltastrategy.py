@@ -60,7 +60,7 @@ class SingleByDeltaStrategy(Strategy, Component):
         validator=attr.validators.instance_of(dt.timedelta),
     )
     late_market_offset: dt.timedelta = attr.ib(
-        default=dt.timedelta(minutes=10),
+        default=dt.timedelta(minutes=0),
         validator=attr.validators.instance_of(dt.timedelta),
     )
     after_hours_offset: dt.timedelta = attr.ib(
@@ -296,6 +296,117 @@ class SingleByDeltaStrategy(Strategy, Component):
             strike, quantity, offset_strike, offset_qty
         )
 
+    def build_offsetting_order(
+        self, order: baseModels.Order
+    ) -> Union[baseRR.PlaceOrderRequestMessage, None]:
+        """Trading Logic for building Offsetting Order Request Messages"""
+        logger.debug("build_offsetting_order")
+
+        # Get option chain
+        chainrequest = self.build_option_chain_request(dt.date.today(), dt.date.today())
+        chain = self.mediator.get_option_chain(chainrequest)
+
+        if chain is None or chain.status == "FAILED":
+            logger.error("Failed to get Option Chain.")
+            return None
+
+        # Find next expiration
+        if self.put_or_call == "CALL":
+            expiration = chain.callexpdatemap[0]
+        else:
+            expiration = chain.putexpdatemap[0]
+
+        # Get account balance
+        account = self.mediator.get_account(
+            baseRR.GetAccountRequestMessage(self.strategy_id, False, True)
+        )
+
+        if account is None or not hasattr(account, "positions"):
+            logger.error("Failed to get Account")
+            return None
+
+        # Get Short Strike
+        short_strike = helpers.get_strike_from_symbol(order.legs[0].symbol)
+
+        if short_strike is None:
+            return None
+
+        # Find best strike to trade
+        strike = self.get_offsetting_strike(
+            expiration.strikes, account, order.quantity, short_strike
+        )
+
+        if strike is None:
+            logger.error("Failed to get Offsetting Strike.")
+            return None
+
+        # Return Order
+        return self.build_opening_order_request(strike, order.quantity, offsetting=True)
+
+    def build_closing_order(
+        self, original_order: baseModels.Order
+    ) -> Union[None, baseRR.PlaceOrderRequestMessage]:
+        """Builds a closing order request message for a given position."""
+        # Build base order
+        order_request = self.build_base_order_request_message(is_closing=True)
+
+        # Build and append new legs
+        for leg in original_order.legs:
+            instruction = self.get_closing_order_instruction(leg.instruction)
+
+            if instruction is None:
+                break
+
+            # Get the Strike
+            original_strike = helpers.get_strike_from_symbol(leg.symbol)
+
+            if original_strike is None:
+                break
+
+            # Build the new leg and append it
+            new_leg = self.build_leg(
+                leg.symbol, leg.description, leg.quantity, instruction, opening=False
+            )
+            order_request.order.legs.append(new_leg)
+
+        # If it is a float, use the entered value
+        if isinstance(self.profit_target_percent, float):
+            if self.profit_target_percent == 1.0:
+                return None
+            pt = float(self.profit_target_percent)
+        # If it is a tuple parse it as 1) Base PT, 2) %OTM Limit 3) Alternate PT
+        elif (
+            isinstance(self.profit_target_percent, tuple)
+            and original_strike is not None
+        ):
+            # Get current ticker price
+            get_quote_request = baseRR.GetQuoteRequestMessage(
+                self.strategy_id, [self.underlying]
+            )
+            current_quote = self.mediator.get_quote(get_quote_request)
+
+            if current_quote is not None:
+                current_price = current_quote.instruments[0].lastPrice
+
+            # Calculate opening position %OTM
+            percent_otm = abs((current_price - original_strike) / current_price)
+
+            # Determine profit target %
+            if percent_otm < float(self.profit_target_percent[1]):
+                pt = float(self.profit_target_percent[0])
+            else:
+                pt = float(self.profit_target_percent[2])
+
+            logger.info(f"OTM: {percent_otm*100}%, PT: {pt*100}%")
+
+        # Set and format the closing price
+        order_request.order.price = helpers.format_order_price(
+            original_order.price * (1 - pt)
+        )
+
+        # Return request
+        return order_request
+
     def build_opening_order_request(
         self,
         strike: baseRR.GetOptionChainResponseMessage.ExpirationDate.Strike,
@@ -354,134 +465,9 @@ class SingleByDeltaStrategy(Strategy, Component):
         # Return the request message
         return order_request
 
-    def build_offsetting_order(
-        self, order: baseModels.Order
-    ) -> Union[baseRR.PlaceOrderRequestMessage, None]:
-        """Trading Logic for building Offsetting Order Request Messages"""
-        logger.debug("build_offsetting_order")
-
-        # Get option chain
-        chainrequest = self.build_option_chain_request(dt.date.today(), dt.date.today())
-        chain = self.mediator.get_option_chain(chainrequest)
-
-        if chain is None or chain.status == "FAILED":
-            logger.error("Failed to get Option Chain.")
-            return None
-
-        # Find next expiration
-        if self.put_or_call == "CALL":
-            expiration = chain.callexpdatemap[0]
-        else:
-            expiration = chain.putexpdatemap[0]
-
-        # Get account balance
-        account = self.mediator.get_account(
-            baseRR.GetAccountRequestMessage(self.strategy_id, False, True)
-        )
-
-        if account is None or not hasattr(account, "positions"):
-            logger.error("Failed to get Account")
-            return None
-
-        # Get Short Strike
-        short_strike = self.get_strike_from_symbol(order.legs[0].symbol)
-
-        # Find best strike to trade
-        strike = self.get_offsetting_strike(
-            expiration.strikes, account, order.quantity, short_strike
-        )
-
-        if strike is None:
-            logger.error("Failed to get Offsetting Strike.")
-            return None
-
-        # Return Order
-        return self.build_opening_order_request(strike, order.quantity, offsetting=True)
-
-    def build_closing_order(
-        self, original_order: baseModels.Order
-    ) -> Union[None, baseRR.PlaceOrderRequestMessage]:
-        """Builds a closing order request message for a given position."""
-        original_strike = 0.0
-
-        # Build base order
-        order_request = self.build_base_order_request_message(is_closing=True)
-
-        # Build and append new legs
-        for leg in original_order.legs:
-            instruction = self.get_closing_order_instruction(leg.instruction)
-
-            if instruction is None:
-                break
-
-            # Get the Strike
-            original_strike = self.get_strike_from_symbol(leg.symbol)
-
-            # Build the new leg and append it
-            new_leg = self.build_leg(
-                leg.symbol, leg.description, leg.quantity, instruction, opening=False
-            )
-            order_request.order.legs.append(new_leg)
-
-        # If it is a float, use the entered value
-        if isinstance(self.profit_target_percent, float):
-            if self.profit_target_percent == 1.0:
-                return None
-            pt = float(self.profit_target_percent)
-        # If it is a tuple parse it as 1) Base PT, 2) %OTM Limit 3) Alternate PT
-        elif isinstance(self.profit_target_percent, tuple):
-            # Get current ticker price
-            get_quote_request = baseRR.GetQuoteRequestMessage(
-                self.strategy_id, [self.underlying]
-            )
-            current_quote = self.mediator.get_quote(get_quote_request)
-
-            if current_quote is not None:
-                current_price = current_quote.instruments[0].lastPrice
-
-            # Calculate opening position %OTM
-            percent_otm = abs((current_price - original_strike) / current_price)
-
-            # Determine profit target %
-            if percent_otm < float(self.profit_target_percent[1]):
-                pt = float(self.profit_target_percent[0])
-            else:
-                pt = float(self.profit_target_percent[2])
-
-            logger.info(f"OTM: {percent_otm*100}%, PT: {pt*100}%")
-
-        # Set and format the closing price
-        order_request.order.price = helpers.format_order_price(
-            original_order.price * (1 - pt)
-        )
-
-        # Return request
-        return order_request
-
-    def get_closing_order_instruction(
-        self, opening_instruction: str
-    ) -> Union[str, None]:
-        """Returns the correct instruction for a closing order leg, based on the opening leg's instruction
-
-        Args:
-            opening_instruction (str): Instruction of the opening order's leg
-
-        Returns:
-            Union[str, None]: The closing instruction, or None if we shouldn't close this leg.
-        """
-
-        # Return the opposite instruction, if the leg matches our strategy
-        if opening_instruction == "SELL_TO_OPEN" and self.buy_or_sell == "SELL":
-            return "BUY"
-        elif opening_instruction == "BUY_TO_OPEN" and self.buy_or_sell == "BUY":
-            return "SELL"
-        # If it doesn't match, return nothing, because we don't close offsetting legs, let them expire.
-        else:
-            return None
-
     def build_base_order_request_message(
         self, is_closing: bool = False, is_single: bool = True
-    ):
+    ) -> baseRR.PlaceOrderRequestMessage:
         orderrequest = baseRR.PlaceOrderRequestMessage()
         orderrequest.order = baseModels.Order()
         orderrequest.order.strategy_id = self.strategy_id
@@ -728,13 +714,26 @@ class SingleByDeltaStrategy(Strategy, Component):
 
         return open_offsets.offset_legs
 
-    def get_strike_from_symbol(self, symbol: str):
-        match = re.search(r"([0-9])+$", symbol)
+    def get_closing_order_instruction(
+        self, opening_instruction: str
+    ) -> Union[str, None]:
+        """Returns the correct instruction for a closing order leg, based on the opening leg's instruction
 
-        if match is not None:
-            original_strike = float(match.group())
+        Args:
+            opening_instruction (str): Instruction of the opening order's leg
 
-        return original_strike
+        Returns:
+            Union[str, None]: The closing instruction, or None if we shouldn't close this leg.
+        """
+
+        # Return the opposite instruction, if the leg matches our strategy
+        if opening_instruction == "SELL_TO_OPEN" and self.buy_or_sell == "SELL":
+            return "BUY"
+        elif opening_instruction == "BUY_TO_OPEN" and self.buy_or_sell == "BUY":
+            return "SELL"
+        # If it doesn't match, return nothing, because we don't close offsetting legs, let them expire.
+        else:
+            return None
 
     ####################
     ### Option Chain ###
@@ -873,7 +872,7 @@ class SingleByDeltaStrategy(Strategy, Component):
         buying_power = self.calculate_actual_buying_power(account)
 
         # Determine max spread for the available buying power.
-        max_strike_width = buying_power / strikes[0].multiplier / quantity
+        max_strike_width = buying_power / 100 / quantity
 
         # Initialize values
         best_mid = float("inf")

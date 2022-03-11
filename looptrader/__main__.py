@@ -36,11 +36,21 @@ if __name__ == "__main__":
         target_delta=0.03,
         min_delta=0.01,
         profit_target_percent=0.83,
-        portfolio_allocation_percent=2.0,
+        portfolio_allocation_percent=1.5,
         offset_sold_positions=True,
     )
 
     spreadstrat = SpreadsByDeltaStrategy(strategy_name="spreads", targetdelta=-0.07)
+
+    ira_puts = SingleByDeltaStrategy(
+        strategy_name="ira_Puts",
+        put_or_call="PUT",
+        target_delta=0.07,
+        min_delta=0.03,
+        profit_target_percent=(0.95, 0.04, 0.70),
+        offset_sold_positions=True,
+        portfolio_allocation_percent=2.0,
+    )
 
     # Create our brokers
     individualbroker = TdaBroker(id="individual")

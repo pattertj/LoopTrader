@@ -1,6 +1,7 @@
 import logging
 import logging.config
 import math
+import re
 from typing import Union
 from urllib.request import urlopen
 from xml.etree.ElementTree import parse
@@ -45,6 +46,20 @@ def truncate(number: float, digits: int) -> float:
 
     stepper = 10.0 ** digits
     return math.trunc(stepper * number) / stepper
+
+
+def get_strike_from_symbol(symbol: str) -> Union[None, float]:
+    """Returns the strike for an option, based on the symbol string provided
+
+    Args:
+        symbol (str): Symbol String
+
+    Returns:
+        float: Strike
+    """
+    match = re.search(r"([0-9])+$", symbol)
+
+    return float(match.group()) if match is not None else None
 
 
 ##############################
