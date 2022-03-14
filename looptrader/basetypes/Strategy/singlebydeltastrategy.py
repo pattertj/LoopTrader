@@ -492,8 +492,9 @@ class SingleByDeltaStrategy(Strategy, Component):
     def cancel_order(self, order_id: int):
         # Build Request
         cancelorderrequest = baseRR.CancelOrderRequestMessage(
-            self.strategy_id, int(order_id)
+            self.strategy_id, order_id
         )
+
         # Send Request
         self.mediator.cancel_order(cancelorderrequest)
 
@@ -773,7 +774,7 @@ class SingleByDeltaStrategy(Strategy, Component):
         # Set Variables
         best_strike = None
         best_premium = float(0)
-        best_quantity = int(0)
+        best_quantity = 0
 
         # Calculate Risk Free Rate
         risk_free_rate = helpers.get_risk_free_rate()

@@ -61,7 +61,7 @@ class SpreadsByDeltaStrategy(Strategy, Component):
 
         # Check if should be sleeping
         if now < self.sleepuntil:
-            logger.debug("Markets Closed. Sleeping until {}".format(self.sleepuntil))
+            logger.debug(f"Markets Closed. Sleeping until {self.sleepuntil}")
             return
 
         # Check market hours
@@ -75,10 +75,9 @@ class SpreadsByDeltaStrategy(Strategy, Component):
         if hours.start.day != now.day:
             self.sleepuntil = hours.end - dt.timedelta(minutes=10)
             logger.info(
-                "Markets are closed until {}. Sleeping until {}".format(
-                    hours.start, self.sleepuntil
-                )
+                f"Markets are closed until {hours.start}. Sleeping until {self.sleepuntil}"
             )
+
             return
 
         # If Pre-Market
@@ -108,10 +107,7 @@ class SpreadsByDeltaStrategy(Strategy, Component):
         )
 
         logger.info(
-            "Markets are closed until {}. Sleeping until {}".format(
-                nextmarketsession.start,
-                self.sleepuntil,
-            )
+            f"Markets are closed until {nextmarketsession.start}. Sleeping until {self.sleepuntil}"
         )
 
     def process_open_market(self):
@@ -485,17 +481,9 @@ class SpreadsByDeltaStrategy(Strategy, Component):
 
         # Log Values
         logger.info(
-            "Short Strike: {} Long Strike: {} BuyingPower: {} LiquidationValue: {} MaxLoss: {} BalanceToRisk: {} RemainingBalance: {} TradeSize: {} ".format(
-                shortstrike,
-                longstrike,
-                account_balance.buyingpower,
-                account_balance.liquidationvalue,
-                max_loss,
-                balance_to_risk,
-                remainingbalance,
-                trade_size,
-            )
+            f"Short Strike: {shortstrike} Long Strike: {longstrike} BuyingPower: {account_balance.buyingpower} LiquidationValue: {account_balance.liquidationvalue} MaxLoss: {max_loss} BalanceToRisk: {balance_to_risk} RemainingBalance: {remainingbalance} TradeSize: {trade_size} "
         )
+
 
         # Return quantity
         return int(trade_size)

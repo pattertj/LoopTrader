@@ -100,10 +100,9 @@ class TdaBroker(Broker, Component):
                 )
             except Exception:
                 logger.exception(
-                    "Failed to get Account {}. Attempt #{}".format(
-                        self.account_number, attempt
-                    )
+                    f"Failed to get Account {self.account_number}. Attempt #{attempt}"
                 )
+
                 if attempt == self.maxretries - 1:
                     return None
 
@@ -128,9 +127,7 @@ class TdaBroker(Broker, Component):
                     account=self.account_number, order_id=str(request.orderid)
                 )
             except Exception:
-                logger.exception(
-                    "Failed to read order {}.".format(str(request.orderid))
-                )
+                logger.exception(f"Failed to read order {str(request.orderid)}.")
                 if attempt == self.maxretries - 1:
                     return None
 
@@ -161,7 +158,7 @@ class TdaBroker(Broker, Component):
         optionchainobj.query_parameters = optionchainrequest
 
         if not optionchainobj.validate_chain():
-            logger.exception("Chain Validation Failed. {}".format(optionchainobj))
+            logger.exception(f"Chain Validation Failed. {optionchainobj}")
             return None
 
         for attempt in range(self.maxretries):
@@ -172,9 +169,7 @@ class TdaBroker(Broker, Component):
                     raise BaseException("Option Chain Status Response = FAILED")
 
             except Exception:
-                logger.exception(
-                    "Failed to get Options Chain. Attempt #{}".format(attempt)
-                )
+                logger.exception(f"Failed to get Options Chain. Attempt #{attempt}")
                 if attempt == self.maxretries - 1:
                     return None
 
@@ -206,9 +201,7 @@ class TdaBroker(Broker, Component):
                 quotes = self.getsession().get_quotes(request.instruments)
                 break
             except Exception:
-                logger.exception(
-                    "Failed to get quotes. Attempt #{}".format(attempt),
-                )
+                logger.exception(f"Failed to get quotes. Attempt #{attempt}")
                 if attempt == self.maxretries - 1:
                     return None
 
@@ -252,10 +245,9 @@ class TdaBroker(Broker, Component):
                 break
             except Exception:
                 logger.exception(
-                    "Failed to get market hours for {} on {}. Attempt #{}".format(
-                        markets, request.datetime, attempt
-                    ),
+                    f"Failed to get market hours for {markets} on {request.datetime}. Attempt #{attempt}"
                 )
+
                 if attempt == self.maxretries - 1:
                     return None
 
@@ -423,14 +415,14 @@ class TdaBroker(Broker, Component):
         response = baseRR.PlaceOrderResponseMessage()
 
         # Log the Order
-        logger.info("Your order being placed is: {} ".format(orderrequest))
+        logger.info(f"Your order being placed is: {orderrequest} ")
 
         # Place the Order
         try:
             orderresponse = self.getsession().place_order(
                 account=self.account_number, order=orderrequest
             )
-            logger.info("Order {} Placed".format(orderresponse["order_id"]))
+            logger.info(f'Order {orderresponse["order_id"]} Placed')
         except Exception:
             logger.exception("Failed to place order.")
             return None
@@ -468,7 +460,7 @@ class TdaBroker(Broker, Component):
                 order_id=str(request.orderid),
             )
         except Exception:
-            logger.exception("Failed to cancel order {}.".format(str(request.orderid)))
+            logger.exception(f"Failed to cancel order {str(request.orderid)}.")
             return None
 
         response = baseRR.CancelOrderResponseMessage()
@@ -727,7 +719,7 @@ class TdaBroker(Broker, Component):
             if strike_match is not None:
                 accountposition.strikeprice = float(strike_match.group())
             elif accountposition.assettype == "OPTION":
-                logger.error("No strike price found for {}".format(symbol))
+                logger.error(f"No strike price found for {symbol}")
 
         # Map the other fields
         accountposition.description = instrument.get("description", str)
