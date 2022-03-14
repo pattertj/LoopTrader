@@ -484,7 +484,6 @@ class SpreadsByDeltaStrategy(Strategy, Component):
             f"Short Strike: {shortstrike} Long Strike: {longstrike} BuyingPower: {account_balance.buyingpower} LiquidationValue: {account_balance.liquidationvalue} MaxLoss: {max_loss} BalanceToRisk: {balance_to_risk} RemainingBalance: {remainingbalance} TradeSize: {trade_size} "
         )
 
-
         # Return quantity
         return int(trade_size)
 
