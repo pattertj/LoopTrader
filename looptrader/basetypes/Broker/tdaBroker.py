@@ -502,7 +502,8 @@ class TdaBroker(Broker, Component):
             for details in strikes.values():
                 detail: dict
                 for detail in details:
-                    if detail.get("settlementType", str) == "P":
+                    settlement_type = detail.get("settlementType")
+                    if settlement_type in ["P", " "]:
                         strikeresponse = self.Build_Option_Chain_Strike(detail)
 
                         expiry.strikes[

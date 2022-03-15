@@ -44,9 +44,7 @@ class SingleByDeltaStrategy(Strategy, Component):
     minimum_dte: int = attr.ib(default=1, validator=attr.validators.instance_of(int))
     maximum_dte: int = attr.ib(default=4, validator=attr.validators.instance_of(int))
     profit_target_percent: Union[float, tuple] = attr.ib(default=0.7)
-    max_loss_calc_percent: float = attr.ib(
-        default=0.2, validator=attr.validators.instance_of(float)
-    )
+    max_loss_calc_percent: Union[float, dict[int, float]] = attr.ib(default=0.2)
     opening_order_loop_seconds: int = attr.ib(
         default=20, validator=attr.validators.instance_of(int)
     )
@@ -229,10 +227,10 @@ class SingleByDeltaStrategy(Strategy, Component):
 
         # Get account balance
         account = self.mediator.get_account(
-            baseRR.GetAccountRequestMessage(self.strategy_id, False, True)
+            baseRR.GetAccountRequestMessage(self.strategy_id, False, False)
         )
 
-        if account is None or not hasattr(account, "positions"):
+        if account is None:
             logger.error("Failed to get Account")
             return None
 
@@ -579,7 +577,7 @@ class SingleByDeltaStrategy(Strategy, Component):
         # If the order isn't filled
         if processed_order.order.status != "FILLED":
             # Cancel it
-            self.cancel_order(new_order_result.order_id)
+            self.cancel_order(int(new_order_result.order_id))
 
             # Return failure to fill order
             return False
@@ -696,6 +694,22 @@ class SingleByDeltaStrategy(Strategy, Component):
         else:
             return None
 
+    def get_max_loss_percentage(self, dte) -> Union[float, None]:
+        if isinstance(self.max_loss_calc_percent, float):
+            return self.max_loss_calc_percent
+        elif isinstance(self.max_loss_calc_percent, dict):
+            return float(
+                self.max_loss_calc_percent.get(dte)
+                or self.max_loss_calc_percent[
+                    min(
+                        self.max_loss_calc_percent.keys(),
+                        key=lambda key: abs(key - dte),
+                    )
+                ]
+            )
+        else:
+            return None
+
     ####################
     ### Option Chain ###
     ####################
@@ -802,7 +816,7 @@ class SingleByDeltaStrategy(Strategy, Component):
             if abs(self.min_delta) <= abs(calculated_delta) <= abs(self.target_delta):
                 # Calculate the total premium for the strike based on our buying power
                 qty = self.calculate_order_quantity(
-                    strike, buying_power, liquidation_value
+                    strike, buying_power, liquidation_value, days_to_expiration
                 )
                 total_premium = option_mid_price * qty
 
@@ -1020,13 +1034,17 @@ class SingleByDeltaStrategy(Strategy, Component):
         # return min(allocation_bp, buying_power)
 
     def calculate_order_quantity(
-        self, strike: float, buying_power: float, liquidation_value: float
+        self, strike: float, buying_power: float, liquidation_value: float, dte: int = 2
     ) -> int:
         """Calculates the number of positions to open for a given account and strike."""
         logger.debug("calculate_order_quantity")
 
-        # Calculate max loss per contract
-        max_loss = strike * 100 * float(self.max_loss_calc_percent)
+        max_loss_percent = self.get_max_loss_percentage(dte)
+
+        if max_loss_percent is None:
+            return 0
+
+        max_loss = strike * 100 * max_loss_percent
 
         # Calculate max buying power to use
         balance_to_risk = self.calculate_strategy_buying_power(

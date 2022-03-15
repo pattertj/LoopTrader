@@ -28,6 +28,33 @@ if __name__ == "__main__":
         target_delta=0.07,
         min_delta=0.03,
         profit_target_percent=(0.95, 0.04, 0.70),
+        max_loss_calc_percent=dict({1: 0.2, 2: 0.2}),
+    )
+
+    tsla_strat = SingleByDeltaStrategy(
+        strategy_name="TSLA Puts",
+        put_or_call="PUT",
+        underlying="TSLA",
+        target_delta=0.05,
+        min_delta=0.03,
+        minimum_dte=3,
+        maximum_dte=7,
+        portfolio_allocation_percent=0.05,
+        profit_target_percent=0.95,
+        max_loss_calc_percent=0.2,
+    )
+
+    amzn_strat = SingleByDeltaStrategy(
+        strategy_name="AMZN Puts",
+        put_or_call="PUT",
+        underlying="AMZN",
+        target_delta=0.05,
+        min_delta=0.03,
+        minimum_dte=3,
+        maximum_dte=7,
+        portfolio_allocation_percent=0.05,
+        profit_target_percent=0.95,
+        max_loss_calc_percent=0.2,
     )
 
     nakedcalls = SingleByDeltaStrategy(
@@ -66,6 +93,8 @@ if __name__ == "__main__":
     bot = Bot(
         brokerstrategy={
             spreadstrat: irabroker,
+            tsla_strat: individualbroker,
+            # amzn_strat: individualbroker,
             cspstrat: individualbroker,
             nakedcalls: individualbroker,
             vgshstrat: individualbroker,
