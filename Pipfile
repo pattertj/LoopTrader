@@ -12,6 +12,8 @@ pyyaml = "*"
 types-pyyaml = "*"
 sqlalchemy = "*"
 py-vollib = "*"
+requests = "*"
+types-requests = "*"
 
 [dev-packages]
 bandit = "*"

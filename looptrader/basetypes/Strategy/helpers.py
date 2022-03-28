@@ -1,11 +1,11 @@
+import datetime as dt
 import logging
 import logging.config
 import math
 from typing import Union
-from urllib.request import urlopen
-from xml.etree.ElementTree import parse
 
 import basetypes.Mediator.reqRespTypes as baseRR
+import requests
 from basetypes.Mediator.abstractMediator import Mediator
 from py_vollib.black.greeks.analytical import delta
 from py_vollib.black.implied_volatility import implied_volatility
@@ -75,36 +75,25 @@ def send_notification(
 ### Volatility Calculations ###
 ###############################
 def get_risk_free_rate() -> float:
-    """Returns the current Risk-Free Rate of Return
+    now = dt.datetime.now()
 
-    Returns:
-        float: Current Risk-Free Rate of Return
-    """
-    # Get the latest feed from the FED
-    sFedURL = "https://data.treasury.gov/feed.svc/DailyTreasuryYieldCurveRateData?$top=1&$orderby=NEW_DATE%20desc"
-
-    # Open the url
-    oResponse = urlopen(sFedURL)
-
-    # Parse the XML
-    tree = parse(oResponse)
-    # tree.getroot()
-
-    # Build the xpath query tot he 3 month interest rate
-    xPathQuery = (
-        "{http://www.w3.org/2005/Atom}entry/"
-        "{http://www.w3.org/2005/Atom}content/"
-        "{http://schemas.microsoft.com/ado/2007/08/dataservices/metadata}properties/"
-        "{http://schemas.microsoft.com/ado/2007/08/dataservices}BC_3MONTH"
+    url = (
+        "https://home.treasury.gov/resource-center/data-chart-center/interest-rates/daily-treasury-rates.csv/all/"
+        + str(now.year)
+        + str(now.strftime("%m"))
+        + "?type=daily_treasury_yield_curve"
     )
 
-    # Execute the xPath
-    oNode = tree.findall(xPathQuery)
+    r = requests.get(url)
 
-    if oNode[0].text is None:
-        raise ValueError("No Risk Free Rate found.")
-    else:
-        return float(oNode[0].text) / 100.0
+    date_curve = r.text.split("\n")
+
+    for line in reversed(date_curve[1:]):
+        columns = line.split(",")
+        print(float(columns[3]))
+        return float(columns[3])
+
+    return 0.0
 
 
 def calculate_iv(
