@@ -88,7 +88,7 @@ def get_risk_free_rate() -> float:
 
     date_curve = r.text.split("\n")
 
-    for line in reversed(date_curve[1:]):
+    for line in date_curve[1:]:
         columns = line.split(",")
         print(float(columns[3]))
         return float(columns[3])
