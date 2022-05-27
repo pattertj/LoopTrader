@@ -204,10 +204,12 @@ class TelegramNotifier(Notifier, Component):
         """Method to handle errors occurring in the dispatcher"""
         logger.warning('Update "%s" caused error "%s"', update, context.error)
 
+        message = "" if update is None else update.message
+
         try:
             self.reply_text(
                 r"An error occured, check the logs.",
-                update.message,
+                message,
                 None,
                 ParseMode.HTML,
             )
@@ -403,7 +405,7 @@ class TelegramNotifier(Notifier, Component):
         parsemode: Union[DefaultValue[str], str, None],
     ):
         """Wrapper method to send reply texts"""
-        if message is None:
+        if message == "" or message is None:
             return
 
         try:

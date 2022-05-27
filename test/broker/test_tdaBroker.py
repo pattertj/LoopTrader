@@ -1,14 +1,11 @@
-# import datetime as dt
-
-# import basetypes.Mediator.reqRespTypes as baseRR
 # from basetypes.Broker.tdaBroker import TdaBroker
-
+# import basetypes.Mediator.reqRespTypes as baseRR
+# import datetime as dt
 
 # def test_get_account():
 #     broker = TdaBroker(id="individual")
-#     broker.maxretries = 3
 
-#     request = baseRR.GetAccountRequestMessage("", True, True)
+#     request = baseRR.GetAccountRequestMessage(2, True, True)
 #     response = broker.get_account(request)
 
 #     assert response is not None
@@ -20,50 +17,43 @@
 
 # def test_get_quote():
 #     broker = TdaBroker(id="individual")
-#     broker.maxretries = 3
 
-#     request = baseRR.GetQuoteRequestMessage('', ['VGSH'])
+#     request = baseRR.GetQuoteRequestMessage(2, ['VGSH'])
 #     response = broker.get_quote(request)
 
 #     assert response is not None
+#     assert response.instruments is not None
+#     assert response.instruments[0].symbol == "VGSH"
+#     assert response.instruments[0].askPrice > 0
 
 # def test_get_order():
-#     broker = TdaBroker()
-#     broker.maxretries = 3
+#     broker = TdaBroker(id="individual")
 
 #     requestorderid = 4240878201
-#     request = baseRR.GetOrderRequestMessage(requestorderid)
+#     request = baseRR.GetOrderRequestMessage(2,requestorderid)
 #     response = broker.get_order(request)
 
 #     assert response is not None
-#     assert response.orderid == requestorderid
+#     assert response.order is not None
+#     assert response.order.order_id == requestorderid
 
 
 # def test_cancel_order():
-#     broker = TdaBroker()
-#     broker.maxretries = 3
+#     broker = TdaBroker(id="individual")
 
 #     requestorderid = 4240878201
-#     request = baseRR.CancelOrderRequestMessage(requestorderid)
+#     request = baseRR.CancelOrderRequestMessage(2,requestorderid)
 #     response = broker.cancel_order(request)
 
 #     assert response is not None
 #     assert response.responsecode == 200
 
 
-# RUN AT YOUR OWN RISK, THIS COULD OPEN NEW POSITIONS ON YOUR ACCOUNT. YOU MAY NEED TO REVISE THE SYMBOL
-# def test_place_order(self):
-#     request = baseRR.PlaceOrderRequestMessage(price=.01, quantity=1, symbol='AAPL_040521P60')
-#     response = self.func.place_order(request)
-
-#     self.assertIsNotNone(response)
-
-
 # def test_get_option_chain():
-#     broker = TdaBroker()
-#     broker.maxretries = 3
+#     broker = TdaBroker(id="individual")
 
 #     request = baseRR.GetOptionChainRequestMessage(
+#         strategy_id=2,
 #         symbol="$SPX.X",
 #         contracttype="PUT",
 #         includequotes=True,
@@ -91,10 +81,9 @@
 
 
 # def test_get_market_hours():
-#     broker = TdaBroker()
-#     broker.maxretries = 3
+#     broker = TdaBroker(id="individual")
 
-#     request = baseRR.GetMarketHoursRequestMessage(
+#     request = baseRR.GetMarketHoursRequestMessage(strategy_id=2,
 #         datetime=dt.datetime.now(), market="OPTION", product="IND"
 #     )
 #     response = broker.get_market_hours(request)

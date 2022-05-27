@@ -35,7 +35,7 @@ class ormDatabase(Database):
     )
 
     def __attrs_post_init__(self):
-        self.connection_string = "sqlite:///" + self.db_filename
+        self.connection_string = f"sqlite:///{self.db_filename}"
         self.pre_flight_db_check()
 
     ##################
@@ -327,6 +327,43 @@ class ormDatabase(Database):
             session.commit()
 
             response.strategy = result
+        except Exception as e:
+            print(e)
+            session.rollback()
+        finally:
+            session.close()
+            engine.dispose()
+
+        return response
+
+    def read_offset_legs_by_expiration(
+        self, request: baseRR.ReadOffsetLegsByExpirationRequest
+    ) -> baseRR.ReadOffsetLegsByExpirationResponse:
+        # Setup DB Session
+        engine = create_engine(self.connection_string)
+        Base.metadata.bind = engine
+        DBSession = sessionmaker(bind=engine)
+        session = DBSession(expire_on_commit=False)
+
+        # Build Response
+        response = baseRR.ReadOffsetLegsByExpirationResponse()
+
+        try:
+            result = (
+                session.query(baseModels.OrderLeg)
+                .join(baseModels.Order)
+                .filter(baseModels.Order.id == baseModels.OrderLeg.order_id)
+                .filter(baseModels.Order.strategy_id == request.strategy_id)
+                .filter(baseModels.Order.status == "FILLED")
+                .filter(baseModels.OrderLeg.expiration_date == request.expiration)
+                .filter(baseModels.OrderLeg.put_call == request.put_or_call)
+                .filter(baseModels.OrderLeg.instruction == "BUY_TO_OPEN")
+                .all()
+            )
+
+            session.commit()
+
+            response.offset_legs = result
         except Exception as e:
             print(e)
             session.rollback()

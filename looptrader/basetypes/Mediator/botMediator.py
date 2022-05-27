@@ -223,11 +223,14 @@ class Bot(Mediator):
         Returns:
             Broker: Associated Broker object
         """
-        for strategy, broker in self.brokerstrategy.items():
-            if strategy.strategy_id == strategy_id:
-                return broker
-
-        return None
+        return next(
+            (
+                broker
+                for strategy, broker in self.brokerstrategy.items()
+                if strategy.strategy_id == strategy_id
+            ),
+            None,
+        )
 
     def get_all_strategies(self) -> list[str]:
         strategies = list[str]()
@@ -256,3 +259,8 @@ class Bot(Mediator):
         self, request: baseRR.ReadOpenDatabaseOrdersRequest
     ) -> Union[baseRR.ReadOpenDatabaseOrdersResponse, None]:
         return self.database.read_active_orders(request)
+
+    def read_offset_legs_by_expiration(
+        self, request: baseRR.ReadOffsetLegsByExpirationRequest
+    ) -> Union[baseRR.ReadOffsetLegsByExpirationResponse, None]:
+        return self.database.read_offset_legs_by_expiration(request)

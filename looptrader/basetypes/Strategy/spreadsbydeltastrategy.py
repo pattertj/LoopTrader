@@ -47,6 +47,9 @@ class SpreadsByDeltaStrategy(Strategy, Component):
         default=dt.datetime.now().astimezone(dt.timezone.utc),
         validator=attr.validators.instance_of(dt.datetime),
     )
+    minutes_before_close: int = attr.ib(
+        default=5, validator=attr.validators.instance_of(int)
+    )
 
     # Core Strategy Process
     def process_strategy(self):
@@ -58,7 +61,7 @@ class SpreadsByDeltaStrategy(Strategy, Component):
 
         # Check if should be sleeping
         if now < self.sleepuntil:
-            logger.debug("Markets Closed. Sleeping until {}".format(self.sleepuntil))
+            logger.debug(f"Markets Closed. Sleeping until {self.sleepuntil}")
             return
 
         # Check market hours
@@ -72,18 +75,21 @@ class SpreadsByDeltaStrategy(Strategy, Component):
         if hours.start.day != now.day:
             self.sleepuntil = hours.end - dt.timedelta(minutes=10)
             logger.info(
-                "Markets are closed until {}. Sleeping until {}".format(
-                    hours.start, self.sleepuntil
-                )
+                f"Markets are closed until {hours.start}. Sleeping until {self.sleepuntil}"
             )
+
             return
 
         # If Pre-Market
-        if now < (hours.end - dt.timedelta(minutes=10)):
+        if now < (hours.end - dt.timedelta(minutes=self.minutes_before_close)):
             self.process_pre_market()
 
         # If In-Market
-        elif (hours.end - dt.timedelta(minutes=10)) < now < hours.end:
+        elif (
+            (hours.end - dt.timedelta(minutes=self.minutes_before_close))
+            < now
+            < hours.end
+        ):
             self.process_open_market()
 
     def process_pre_market(self):
@@ -95,14 +101,13 @@ class SpreadsByDeltaStrategy(Strategy, Component):
 
         # Set sleepuntil
         self.sleepuntil = (
-            nextmarketsession.end - dt.timedelta(minutes=10) - dt.timedelta(minutes=5)
+            nextmarketsession.end
+            - dt.timedelta(minutes=self.minutes_before_close)
+            - dt.timedelta(minutes=5)
         )
 
         logger.info(
-            "Markets are closed until {}. Sleeping until {}".format(
-                nextmarketsession.start,
-                self.sleepuntil,
-            )
+            f"Markets are closed until {nextmarketsession.start}. Sleeping until {self.sleepuntil}"
         )
 
     def process_open_market(self):
@@ -122,11 +127,7 @@ class SpreadsByDeltaStrategy(Strategy, Component):
         if neworder is None:
             return
 
-        # Place the order and check the result
-        result = self.place_order(neworder)
-
-        # If successful, return
-        if result:
+        if self.place_order(neworder):
             return
 
         # Otherwise, try again
@@ -270,17 +271,11 @@ class SpreadsByDeltaStrategy(Strategy, Component):
     def build_new_order_precheck(
         self, account: baseRR.GetAccountResponseMessage
     ) -> bool:
-        # Check if we have positions on already that expire today.
-        nonexpiring = any(
+        if any(
             position.underlyingsymbol == self.underlying
             and position.expirationdate.date() != dt.date.today()
             for position in account.positions
-        )
-
-        # If nothing is expiring and no tradable balance, exit.
-        # If we are expiring, continue trying to place a trade
-        # If we have a tradable balance, continue trying to place a trade
-        if nonexpiring:
+        ):
             return False
 
         # Check if we have positions on already that expire today.
@@ -391,7 +386,7 @@ class SpreadsByDeltaStrategy(Strategy, Component):
         """Checks an option chain response for the next expiration date."""
         logger.debug("get_next_expiration")
 
-        if expirations is None or expirations == []:
+        if expirations is None or not expirations:
             logger.error("No expirations provided.")
             return None
 
@@ -486,16 +481,7 @@ class SpreadsByDeltaStrategy(Strategy, Component):
 
         # Log Values
         logger.info(
-            "Short Strike: {} Long Strike: {} BuyingPower: {} LiquidationValue: {} MaxLoss: {} BalanceToRisk: {} RemainingBalance: {} TradeSize: {} ".format(
-                shortstrike,
-                longstrike,
-                account_balance.buyingpower,
-                account_balance.liquidationvalue,
-                max_loss,
-                balance_to_risk,
-                remainingbalance,
-                trade_size,
-            )
+            f"Short Strike: {shortstrike} Long Strike: {longstrike} BuyingPower: {account_balance.buyingpower} LiquidationValue: {account_balance.liquidationvalue} MaxLoss: {max_loss} BalanceToRisk: {balance_to_risk} RemainingBalance: {remainingbalance} TradeSize: {trade_size} "
         )
 
         # Return quantity
