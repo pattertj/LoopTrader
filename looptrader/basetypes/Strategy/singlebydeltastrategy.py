@@ -45,6 +45,9 @@ class SingleByDeltaStrategy(Strategy, Component):
     maximum_dte: int = attr.ib(default=4, validator=attr.validators.instance_of(int))
     profit_target_percent: Union[float, tuple] = attr.ib(default=0.7)
     max_loss_calc_percent: Union[float, dict[int, float]] = attr.ib(default=0.2)
+    max_loss_calc_method: str = attr.ib(
+        default="STRIKE", validator=attr.validators.in_(["STRIKE", "SPREAD"])
+    )
     opening_order_loop_seconds: int = attr.ib(
         default=20, validator=attr.validators.instance_of(int)
     )
@@ -235,10 +238,9 @@ class SingleByDeltaStrategy(Strategy, Component):
             return None
 
         # Get our available BP
-        availbp = self.calculate_strategy_buying_power(
-            account.currentbalances.buyingpower,
-            account.currentbalances.liquidationvalue,
-        )
+        # availbp = self.calculate_strategy_buying_power(
+        #     account.currentbalances.liquidationvalue
+        # )
 
         # Get default option chain
         chainrequest = self.build_option_chain_request()
@@ -257,25 +259,49 @@ class SingleByDeltaStrategy(Strategy, Component):
             return None
 
         # Find best strike to trade
-        strike, quantity = self.get_best_strike_and_quantity(
+        (
+            best_strike,
+            best_offset_strike,
+            best_premium,
+            best_quantity,
+            best_offset_qty,
+        ) = self.get_best_strike_and_quantity_v2(
             expiration.strikes,
-            availbp,
             account.currentbalances.liquidationvalue,
             expiration.daystoexpiration,
             chain.underlyinglastprice,
+            expiration.expirationdate,
         )
+        # strike, quantity = self.get_best_strike_and_quantity(
+        #     expiration.strikes,
+        #     availbp,
+        #     account.currentbalances.liquidationvalue,
+        #     expiration.daystoexpiration,
+        #     chain.underlyinglastprice,
+        # )
 
         # If no valid strikes, exit.
-        if strike is None:
+        # if strike is None:
+        #     return None
+        if best_strike is None or best_quantity == 0:
             return None
 
-        offset_strike, offset_qty = self.get_offset_strike_and_quantity(
-            account, expiration, strike, quantity
-        )
+        # offset_strike, offset_qty = self.get_offset_strike_and_quantity(
+        #     account, expiration, strike, quantity
+        # )
+
+        # # Return Order
+        # return self.build_opening_order_request(
+        #     strike, quantity, offset_strike, offset_qty
+        # )
 
         # Return Order
-        return self.build_opening_order_request(
-            strike, quantity, offset_strike, offset_qty
+        return self.build_opening_order_request_v2(
+            best_strike,
+            best_quantity,
+            best_premium,
+            best_offset_strike,
+            best_offset_qty,
         )
 
     def build_offsetting_order(
@@ -365,6 +391,59 @@ class SingleByDeltaStrategy(Strategy, Component):
         )
 
         # Return request
+        return order_request
+
+    def build_opening_order_request_v2(
+        self,
+        strike: baseRR.GetOptionChainResponseMessage.ExpirationDate.Strike,
+        order_qty: int,
+        premium: float,
+        offset_strike: Union[
+            baseRR.GetOptionChainResponseMessage.ExpirationDate.Strike, None
+        ] = None,
+        offset_qty: Union[int, None] = None,
+        offsetting: bool = False,
+    ) -> Union[baseRR.PlaceOrderRequestMessage, None]:
+
+        # If no valid qty, exit.
+        if order_qty is None or order_qty <= 0:
+            return None
+
+        # Determine how many legs are in the order
+        single_leg = offset_strike is None or offset_qty == 0
+
+        # Build base order request
+        order_request = self.build_base_order_request_message(is_single=single_leg)
+
+        # Build the first leg
+        first_leg = self.build_leg(
+            strike.symbol,
+            strike.description,
+            order_qty,
+            "BUY" if offsetting else self.buy_or_sell,
+            True,
+        )
+        # Append the leg
+        order_request.order.legs.append(first_leg)
+
+        # If we are building an offse...
+        if (
+            not single_leg
+            and offset_strike is not None
+            and offset_qty is not None
+            and offset_qty > 0
+        ):
+            # Build the offset leg
+            long_leg = self.build_leg(
+                offset_strike.symbol, offset_strike.description, offset_qty, "BUY", True
+            )
+            # Append the leg
+            order_request.order.legs.append(long_leg)
+
+        # Format the price
+        order_request.order.price = helpers.format_order_price(premium)
+
+        # Return the request message
         return order_request
 
     def build_opening_order_request(
@@ -771,6 +850,204 @@ class SingleByDeltaStrategy(Strategy, Component):
         # Return the min expiration
         return minexpiration
 
+    def get_best_strike_and_quantity_v2(
+        self,
+        strikes: dict[
+            float, baseRR.GetOptionChainResponseMessage.ExpirationDate.Strike
+        ],
+        liquidation_value: float,
+        days_to_expiration: int,
+        underlying_last_price: float,
+        expiration_date: dt.datetime,
+    ) -> tuple:
+        """Searches Option Chain for best Strike and optionally offset strike.
+
+        Args:
+            strikes (dict[ float, baseRR.GetOptionChainResponseMessage.ExpirationDate.Strike ]): _description_
+            buying_power (float): _description_
+            liquidation_value (float): _description_
+            days_to_expiration (int): _description_
+            underlying_last_price (float): _description_
+
+        Returns:
+            tuple: _description_
+        """
+        logger.debug("get_best_strike")
+
+        # Set Variables
+        best_strike = None
+        best_offset_strike = None
+        best_premium = float(0)
+        best_quantity = 0
+        best_offset_qty = 0
+        best_delta_dist = 1.0
+        best_delta = 1.0
+
+        # Calculate Risk Free Rate
+        risk_free_rate = helpers.get_risk_free_rate()
+
+        # Iterate through strikes
+        for strike, detail in strikes.items():
+            offset_strike = None
+
+            (
+                offset_strike,
+                total_premium,
+                quantity,
+                calculated_delta,
+                delta_distance,
+            ) = self.get_strike_details(
+                underlying_last_price,
+                strike,
+                risk_free_rate,
+                days_to_expiration,
+                detail,
+                strikes,
+                liquidation_value,
+                best_delta_dist,
+            )
+
+            if self.offset_sold_positions is True and offset_strike is None:
+                continue
+
+            if total_premium is None or quantity is None:
+                continue
+
+            offset_qty = self.calculate_offset_leg_quantity(quantity, expiration_date)
+
+            # If Total Premium is better or
+            # If our best delta is over our target delta and the current strike is closer, store this option
+            if total_premium > best_premium or (
+                best_delta > self.target_delta and delta_distance < best_delta_dist
+            ):
+                best_strike = detail
+                best_offset_strike = offset_strike
+                best_premium = total_premium
+                best_quantity = quantity
+                best_delta_dist = delta_distance
+                best_delta = calculated_delta
+                best_offset_qty = offset_qty
+
+        # return first strike, long strike, premium, and quantity
+        premium = best_premium / best_quantity if best_quantity != 0 else None
+
+        return best_strike, best_offset_strike, premium, best_quantity, best_offset_qty
+
+    def get_strike_details(
+        self,
+        underlying_last_price,
+        strike,
+        risk_free_rate,
+        days_to_expiration,
+        detail,
+        strikes,
+        liquidation_value,
+        best_delta_dist,
+    ) -> tuple:
+        # Calc Delta
+        calculated_delta = self.calculate_delta(
+            underlying_last_price, strike, risk_free_rate, days_to_expiration, detail
+        )
+
+        delta_distance = abs(abs(calculated_delta) - self.target_delta)
+
+        # If our delta is less than the minimum, or
+        # If our delta is greater than the max, and not closer to the target than our best
+        if abs(calculated_delta) < self.min_delta or (
+            abs(calculated_delta) > self.target_delta
+            and delta_distance > best_delta_dist
+        ):
+            return None, None, None, None, None
+
+        # Get best long strike
+        offset_strike = self.get_offset_strike_v2(strike, strikes, liquidation_value)
+
+        # Calculate the quantity
+        offset_strike_strike = (
+            offset_strike.strike if offset_strike is not None else None
+        )
+        quantity = self.calculate_quantity(
+            liquidation_value, days_to_expiration, strike, offset_strike_strike
+        )
+
+        # Calculate total premium
+        total_premium = self.calculate_total_premium(detail, offset_strike, quantity)
+        return offset_strike, total_premium, quantity, calculated_delta, delta_distance
+
+    def get_offset_strike_v2(
+        self,
+        strike: float,
+        strikes: dict[
+            float, baseRR.GetOptionChainResponseMessage.ExpirationDate.Strike
+        ],
+        liquidation_value: float,
+    ) -> Union[None, baseRR.GetOptionChainResponseMessage.ExpirationDate.Strike]:
+        # If we should immediately offset positions, decide how many we need.
+        if not self.offset_sold_positions:
+            return None
+
+        # Get Buying Power
+        strat_buying_power = self.calculate_strategy_buying_power(liquidation_value)
+
+        logger.info(f"Strat Buying Power: {strat_buying_power}")
+
+        # Determine max spread for the available buying power.
+        max_strike_width = strat_buying_power / 100
+
+        offset_strike = self.get_offsetting_strike_v2(strikes, max_strike_width, strike)
+
+        # If we should have an offset, but don't find one, exit.
+        if offset_strike is None:
+            logger.error("No offset strike found when expected.")
+            raise RuntimeError("No offset strike found when expected.")
+
+        return offset_strike
+
+    def get_offsetting_strike_v2(
+        self,
+        strikes: dict[
+            float, baseRR.GetOptionChainResponseMessage.ExpirationDate.Strike
+        ],
+        max_strike_width: float,
+        short_strike: float,
+    ) -> Union[baseRR.GetOptionChainResponseMessage.ExpirationDate.Strike, None]:
+        """Searches an option chain for the optimal strike."""
+        logger.debug("get_offsetting_strike")
+
+        if self.buy_or_sell == "BUY":
+            logger.error("Cannot buy a max-width spread.")
+            return None
+
+        # Initialize values
+        best_mid = float("inf")
+        best_strike = 0.0
+
+        for strike, detail in strikes.items():
+            # Calc mid-price
+            mid = (detail.bid + detail.ask) / 2
+
+            # Determine if our strike fits the parameters
+            good_strike_width = max_strike_width <= abs(short_strike - best_strike)
+            good_strike_position = (
+                (best_strike < strike)
+                if (self.put_or_call == "PUT")
+                else (best_strike > strike)
+            )
+            good_strike = (0.00 < mid < best_mid) or (
+                (mid == best_mid) and good_strike_position and good_strike_width
+            )
+
+            # If the mid-price is lower, use it
+            # If we're selling a PUT and the mid price is the same, but the strike is higher, use it.
+            # If we're selling a CALL and the mid price is the same, but the strike is lower, use it.
+            if good_strike:
+                logger.info(f"Risk: {(abs(strike-best_strike)*detail.multiplier)}")
+                best_strike = strike
+                best_mid = mid
+
+        # Return the strike
+        return strikes[best_strike]
+
     def get_best_strike_and_quantity(
         self,
         strikes: dict[
@@ -815,8 +1092,8 @@ class SingleByDeltaStrategy(Strategy, Component):
             # Make sure strike delta is less then our target delta
             if abs(self.min_delta) <= abs(calculated_delta) <= abs(self.target_delta):
                 # Calculate the total premium for the strike based on our buying power
-                qty = self.calculate_order_quantity(
-                    strike, buying_power, liquidation_value, days_to_expiration
+                qty = self.calculate_quantity_single_strike(
+                    strike, liquidation_value, days_to_expiration
                 )
                 total_premium = option_mid_price * qty
 
@@ -876,8 +1153,7 @@ class SingleByDeltaStrategy(Strategy, Component):
 
         # Get Buying Power
         buying_power = self.calculate_strategy_buying_power(
-            account.currentbalances.buyingpower,
-            account.currentbalances.liquidationvalue,
+            account.currentbalances.liquidationvalue
         )
 
         # Determine max spread for the available buying power.
@@ -1015,9 +1291,7 @@ class SingleByDeltaStrategy(Strategy, Component):
 
             return pt
 
-    def calculate_strategy_buying_power(
-        self, buying_power: float, liquidation_value: float
-    ) -> float:
+    def calculate_strategy_buying_power(self, liquidation_value: float) -> float:
         """Calculates the actual buying power based on the MaxLossCalcPercentage and current account balances.
 
         Args:
@@ -1033,8 +1307,22 @@ class SingleByDeltaStrategy(Strategy, Component):
         # Return the smaller value of our actual buying power and calculated maximum buying power
         # return min(allocation_bp, buying_power)
 
-    def calculate_order_quantity(
-        self, strike: float, buying_power: float, liquidation_value: float, dte: int = 2
+    def calculate_quantity(
+        self, liquidation_value, days_to_expiration, strike, offset_strike
+    ) -> int:
+        # Calc quantity using the spread width
+        if self.max_loss_calc_method == "SPREAD" and offset_strike is not None:
+            return self.calculate_quantity_spread(
+                strike, offset_strike, liquidation_value, days_to_expiration
+            )
+        # Calculate the quantity using the short-strike
+        else:
+            return self.calculate_quantity_single_strike(
+                strike, liquidation_value, days_to_expiration
+            )
+
+    def calculate_quantity_single_strike(
+        self, strike: float, liquidation_value: float, dte: int = 2
     ) -> int:
         """Calculates the number of positions to open for a given account and strike."""
         logger.debug("calculate_order_quantity")
@@ -1047,9 +1335,33 @@ class SingleByDeltaStrategy(Strategy, Component):
         max_loss = strike * 100 * max_loss_percent
 
         # Calculate max buying power to use
-        balance_to_risk = self.calculate_strategy_buying_power(
-            buying_power, liquidation_value
-        )
+        balance_to_risk = self.calculate_strategy_buying_power(liquidation_value)
+
+        # Return quantity
+        return int(balance_to_risk // max_loss)
+
+    def calculate_quantity_spread(
+        self,
+        strike: float,
+        offset_strike: Union[None, float],
+        liquidation_value: float,
+        dte: int = 2,
+    ) -> int:
+        """Calculates the number of positions to open for a given account and strike."""
+        logger.debug("calculate_order_quantity")
+
+        if offset_strike is not None:
+            max_loss = abs(strike - offset_strike) * 100
+        else:
+            max_loss_percent = self.get_max_loss_percentage(dte)
+
+            if max_loss_percent is None:
+                return 0
+
+            max_loss = strike * 100 * max_loss_percent
+
+        # Calculate max buying power to use
+        balance_to_risk = self.calculate_strategy_buying_power(liquidation_value)
 
         # Return quantity
         return int(balance_to_risk // max_loss)
@@ -1094,3 +1406,58 @@ class SingleByDeltaStrategy(Strategy, Component):
 
         # Return either the difference between our target qty and actual qty, or 0, whichever is larger
         return max(target_qty - open_offset_qty, 0)
+
+    def calculate_total_premium(
+        self,
+        primary_strike: baseRR.GetOptionChainResponseMessage.ExpirationDate.Strike,
+        offset_strike: Union[
+            None, baseRR.GetOptionChainResponseMessage.ExpirationDate.Strike
+        ],
+        qty: int,
+    ) -> float:
+        """Calculates the total premium for a given set of strikes and quantity.
+
+        Args:
+            primary_strike (baseRR.GetOptionChainResponseMessage.ExpirationDate.Strike): The main strike for the strategy
+            offset_strike (Union[None,baseRR.GetOptionChainResponseMessage.ExpirationDate.Strike]): The optional offsetting strike
+            qty (int): Quantity for the order
+
+        Returns:
+            float: Total Premium for the legs
+        """
+        # Add up primary strike premium
+        bid_ask_total = 0.0
+        bid_ask_total += primary_strike.bid
+        bid_ask_total += primary_strike.ask
+
+        # If no offset strike, return the average premium
+        if offset_strike is None:
+            return qty * bid_ask_total / 2
+
+        # If there is an offset strike, subtract the premium
+        bid_ask_total -= offset_strike.bid
+        bid_ask_total -= offset_strike.ask
+
+        # Return the average
+        return qty * bid_ask_total / 2
+
+    def calculate_delta(
+        self,
+        underlying_last_price: float,
+        strike: float,
+        risk_free_rate: float,
+        days_to_expiration: int,
+        detail,
+    ) -> float:
+        if self.use_vollib_for_greeks:
+            return helpers.calculate_delta(
+                underlying_last_price,
+                strike,
+                risk_free_rate,
+                days_to_expiration,
+                self.put_or_call,
+                None,
+                (detail.bid + detail.ask) / 2,
+            )
+
+        return detail.delta
