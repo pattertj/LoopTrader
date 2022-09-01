@@ -17,7 +17,7 @@ types-requests = "*"
 
 [dev-packages]
 bandit = "*"
-black = "==21.12b0"
+black = "==22.8.0"
 isort = "*"
 flake8 = "*"
 mypy = "*"
